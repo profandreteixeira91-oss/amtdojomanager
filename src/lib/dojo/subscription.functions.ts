@@ -2,8 +2,10 @@
 // Plano fixo: R$ 69,90/mês, 14 dias de trial para novos cadastros.
 // Usa o MERCADOPAGO_ACCESS_TOKEN da própria AMT (não o do dono).
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { dojoOriginFromRequest } from "@/lib/dojo-hosts";
 
 const MP_BASE = "https://api.mercadopago.com";
 
@@ -96,7 +98,8 @@ export const startMySubscription = createServerFn({ method: "POST" })
     const email = user.user?.email;
     if (!email) throw new Error("E-mail do dono indisponível");
 
-    const origin = "https://dojomanager.amtfightwear.com.br";
+    // Volta para o domínio em que o dono está (produção atual ou teste.amtsistemas).
+    const origin = dojoOriginFromRequest(getRequest());
     const backUrl = `${origin}/dojo/app/subscription`;
     const notification = "https://amtfightwear.com.br/api/public/hooks/mercadopago";
 
@@ -182,7 +185,7 @@ export const subscribeWithCardToken = createServerFn({ method: "POST" })
     if (!email) throw new Error("E-mail do dono indisponível");
 
     const notification = "https://amtfightwear.com.br/api/public/hooks/mercadopago";
-    const origin = "https://dojomanager.amtfightwear.com.br";
+    const origin = dojoOriginFromRequest(getRequest());
     const backUrl = `${origin}/dojo/app/subscription`;
 
     console.log("[subscribeWithCardToken] Criando preapproval no MP...");
