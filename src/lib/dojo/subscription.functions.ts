@@ -5,7 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { dojoOriginFromRequest } from "@/lib/dojo-hosts";
+import { DOJO_HOST, dojoOriginFromRequest } from "@/lib/dojo-hosts";
 
 const MP_BASE = "https://api.mercadopago.com";
 
@@ -18,6 +18,17 @@ const MP_DESIGN_CONFIG = {
   main_color: "#DC2626", // Vermelho Dojo (primary)
   logo: "https://amtfightwear.com.br/amt-logo-red.png", // URL absoluta do logo
 };
+
+/**
+ * Webhook do MP para o domínio em que a cobrança foi criada: cada worker usa as
+ * próprias credenciais (teste ou produção), então o aviso precisa voltar a ele.
+ * O domínio atual mantém o webhook já em uso na AMT Fight Wear.
+ */
+function mpNotificationUrl(origin: string): string {
+  return origin === `https://${DOJO_HOST}`
+    ? "https://amtfightwear.com.br/api/public/hooks/mercadopago"
+    : `${origin}/api/public/hooks/mercadopago`;
+}
 
 export const PLAN_AMOUNT = 99.9;
 export const TRIAL_DAYS = 14;
@@ -101,7 +112,7 @@ export const startMySubscription = createServerFn({ method: "POST" })
     // Volta para o domínio em que o dono está (produção atual ou teste.amtsistemas).
     const origin = dojoOriginFromRequest(getRequest());
     const backUrl = `${origin}/dojo/app/subscription`;
-    const notification = "https://amtfightwear.com.br/api/public/hooks/mercadopago";
+    const notification = mpNotificationUrl(origin);
 
     const preapproval = await mpAmt<any>("/preapproval", {
       method: "POST",
@@ -184,8 +195,8 @@ export const subscribeWithCardToken = createServerFn({ method: "POST" })
     const email = data.payerEmail || userRes.user?.email;
     if (!email) throw new Error("E-mail do dono indisponível");
 
-    const notification = "https://amtfightwear.com.br/api/public/hooks/mercadopago";
     const origin = dojoOriginFromRequest(getRequest());
+    const notification = mpNotificationUrl(origin);
     const backUrl = `${origin}/dojo/app/subscription`;
 
     console.log("[subscribeWithCardToken] Criando preapproval no MP...");
@@ -369,7 +380,7 @@ export const subscribeWithPix = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!sub) throw new Error("Assinatura não inicializada");
 
-    const notification = "https://amtfightwear.com.br/api/public/hooks/mercadopago";
+    const notification = mpNotificationUrl(dojoOriginFromRequest(getRequest()));
 
     // Criamos um pagamento PIX via API de Pagamentos do MP
     const payment = await mpAmt<any>("/v1/payments", {
