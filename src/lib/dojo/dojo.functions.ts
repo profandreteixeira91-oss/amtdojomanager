@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { calendarISO, todayISO, utcCalendarISO } from "@/lib/dates";
 import { normalizeCurrentBelts } from "@/lib/dojo/current-belts";
+import { resolveDojoOwnerId } from "@/lib/dojo/owner-scope";
 
 // Owner-scoped helper: every user manages their own dojo. RLS enforces
 // `owner_id = auth.uid()` for reads/writes, so we only need to inject
@@ -15,8 +16,9 @@ function ownerId(context: { userId: string }) {
 export const listDojoUnits = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const ownerId = await resolveDojoOwnerId(context);
     const { data, error } = await context.supabase
-      .from("dojo_units").select("*").order("name");
+      .from("dojo_units").select("*").eq("owner_id", ownerId).order("name");
     if (error) throw new Error(error.message);
     return data ?? [];
   });
@@ -100,8 +102,9 @@ export const getDojoUnit = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
+    const ownerId = await resolveDojoOwnerId(context);
     const { data: row, error } = await context.supabase
-      .from("dojo_units").select("*").eq("id", data.id).maybeSingle();
+      .from("dojo_units").select("*").eq("id", data.id).eq("owner_id", ownerId).maybeSingle();
     if (error) throw new Error(error.message);
     return row;
   });
@@ -110,8 +113,12 @@ export const getDojoUnit = createServerFn({ method: "GET" })
 export const listDojoBelts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    // Faixas da academia + catálogo global da AMT (owner_id nulo).
+    const ownerId = await resolveDojoOwnerId(context);
     const { data, error } = await context.supabase
-      .from("dojo_belts").select("*").order("modality").order("sort_order");
+      .from("dojo_belts").select("*")
+      .or(`owner_id.is.null,owner_id.eq.${ownerId}`)
+      .order("modality").order("sort_order");
     if (error) throw new Error(error.message);
     return data ?? [];
   });
@@ -715,9 +722,11 @@ export const deleteDojoGraduation = createServerFn({ method: "POST" })
 export const listDojoPlans = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const ownerId = await resolveDojoOwnerId(context);
     const { data, error } = await context.supabase
       .from("dojo_plans")
       .select("*, unit:dojo_units(name)")
+      .eq("owner_id", ownerId)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true });
     if (error) throw new Error(error.message);
@@ -1060,11 +1069,13 @@ export const enrollStudentWithPlan = createServerFn({ method: "POST" })
     payment_method: z.string().min(1).default("manual"),
   }).parse(i))
   .handler(async ({ data, context }) => {
-    // 1) Carrega plano (com frequência e métodos habilitados)
+    // 1) Carrega plano (com frequência e métodos habilitados) — só da própria academia
+    const planOwnerId = await resolveDojoOwnerId(context);
     const { data: plan, error: planErr } = await context.supabase
       .from("dojo_plans")
       .select("id, name, amount, enrollment_fee, frequency, custom_months, payment_methods")
       .eq("id", data.plan_id)
+      .eq("owner_id", planOwnerId)
       .maybeSingle();
     if (planErr) throw new Error(planErr.message);
     if (!plan) throw new Error("Plano não encontrado");
@@ -1307,10 +1318,12 @@ export const changeStudentPlan = createServerFn({ method: "POST" })
     notes: z.string().max(500).optional().nullable(),
   }).parse(i))
   .handler(async ({ data, context }) => {
+    const planOwnerId = await resolveDojoOwnerId(context);
     const { data: plan, error: planErr } = await context.supabase
       .from("dojo_plans")
       .select("id, name, amount, frequency, custom_months")
       .eq("id", data.plan_id)
+      .eq("owner_id", planOwnerId)
       .maybeSingle();
     if (planErr) throw new Error(planErr.message);
     if (!plan) throw new Error("Plano não encontrado");
@@ -1562,8 +1575,10 @@ export const dojoFinanceOverview = createServerFn({ method: "GET" })
 export const listCertificateTemplates = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const ownerId = await resolveDojoOwnerId(context);
     const { data, error } = await context.supabase
-      .from("dojo_certificate_templates").select("*").order("created_at", { ascending: false });
+      .from("dojo_certificate_templates").select("*").eq("owner_id", ownerId)
+      .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
   });

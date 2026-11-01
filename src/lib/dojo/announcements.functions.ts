@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { resolveDojoOwnerId } from "@/lib/dojo/owner-scope";
 
 const uuid = z.string().regex(/^[0-9a-fA-F-]{32,36}$/);
 
@@ -332,11 +333,14 @@ export const readReport = createServerFn({ method: "GET" })
 export const targetOptions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const ownerId = await resolveDojoOwnerId(context);
     const [classes, units, belts, students] = await Promise.all([
-      context.supabase.from("dojo_classes").select("id, name").order("name"),
-      context.supabase.from("dojo_units").select("id, name").order("name"),
-      context.supabase.from("dojo_belts").select("id, name, color").order("order_index" as any, { ascending: true } as any),
-      context.supabase.from("dojo_students").select("id, full_name").order("full_name").limit(500),
+      context.supabase.from("dojo_classes").select("id, name").eq("owner_id", ownerId).order("name"),
+      context.supabase.from("dojo_units").select("id, name").eq("owner_id", ownerId).order("name"),
+      context.supabase.from("dojo_belts").select("id, name, color")
+        .or(`owner_id.is.null,owner_id.eq.${ownerId}`)
+        .order("order_index" as any, { ascending: true } as any),
+      context.supabase.from("dojo_students").select("id, full_name").eq("owner_id", ownerId).order("full_name").limit(500),
     ]);
     return {
       classes: classes.data ?? [],
