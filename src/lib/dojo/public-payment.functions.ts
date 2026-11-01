@@ -13,7 +13,7 @@ import { z } from "zod";
 
 /**
  * Resolve a credencial correta para operar sobre uma cobrança existente.
- * A cobrança é criada em `resolveDojoAsaasCredentials` (subconta do dojo se
+ * A cobrança é criada com `getDojoAsaasCredentials` (subconta do dojo se
  * aprovada, senão conta central AMT); aqui replicamos a mesma decisão a
  * partir do perfil para garantir que consultas/receipts atinjam o mesmo
  * escopo do Asaas em que o charge vive.
@@ -22,15 +22,8 @@ async function resolveOwnerAsaasKey(
   supabaseAdmin: any,
   ownerId: string,
 ): Promise<string | undefined> {
-  const { data: profile } = await supabaseAdmin
-    .from("dojo_academy_profile")
-    .select(
-      "asaas_subaccount_id, asaas_api_key_encrypted, asaas_wallet_id, asaas_onboarding_status",
-    )
-    .eq("owner_id", ownerId)
-    .maybeSingle();
-  const { resolveDojoAsaasCredentials } = await import("@/lib/asaas/enrollment.server");
-  const { apiKey } = resolveDojoAsaasCredentials((profile ?? {}) as any);
+  const { getDojoAsaasCredentials } = await import("@/lib/asaas/dojo-credentials.server");
+  const { apiKey } = await getDojoAsaasCredentials(ownerId);
   return apiKey;
 }
 

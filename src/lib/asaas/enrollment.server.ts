@@ -150,67 +150,6 @@ export async function ensureAsaasCustomerForStudent(
 }
 
 /**
- * AMT Pay v2 (Fase 2 — Subcontas com split nativo).
- *
- * Se o dojo tem subconta Asaas APROVADA (com API key própria), as cobranças
- * são criadas na subconta e o Asaas aplica um split de 2% para a carteira
- * central AMT (`ASAAS_WALLET_ID_AMT`). Nesse cenário PIX/Boleto saem em nome
- * do CNPJ do dojo.
- *
- * Se o dojo apenas vinculou uma wallet externa (sem subconta), as cobranças
- * saem da conta central AMT com split de 98% para a wallet do dojo (a AMT
- * fica com 2%).
- *
- * Caso contrário, mantemos o modo central (todo o valor cai na AMT e o
- * repasse é feito pelo ledger interno + PIX transfer).
- */
-export function resolveDojoAsaasCredentials(profile: {
-  asaas_subaccount_id?: string | null;
-  asaas_subaccount_api_key?: string | null;
-  asaas_api_key_encrypted?: string | null;
-  asaas_wallet_id?: string | null;
-  asaas_onboarding_status?: string | null;
-}): {
-  apiKey: string | undefined;
-  split: AsaasSplit[];
-  mode: "central" | "subaccount" | "external_wallet";
-} {
-  const central = process.env.ASAAS_PRODUCTION_API_KEY;
-  const subKey = (profile.asaas_subaccount_api_key ?? profile.asaas_api_key_encrypted ?? "").trim();
-  const walletId = (profile.asaas_wallet_id ?? "").trim();
-  const status = (profile.asaas_onboarding_status ?? "").toUpperCase();
-  const approved = status === "APPROVED" || status === "ACTIVE";
-  const amtWalletId = process.env.ASAAS_WALLET_ID_AMT?.trim();
-
-  // Modo 1 — subconta aprovada com API key própria: cobrança na subconta,
-  // split de 2% para a AMT.
-  if (approved && subKey && profile.asaas_subaccount_id && amtWalletId) {
-    return {
-      apiKey: subKey,
-      split: [{ walletId: amtWalletId, percentualValue: 2 }],
-      mode: "subaccount",
-    };
-  }
-
-  // Modo 2 — wallet externa vinculada (sem subconta): cobrança na conta
-  // central AMT, split de 98% para a wallet do dojo.
-  if (walletId && !profile.asaas_subaccount_id) {
-    return {
-      apiKey: central,
-      split: [{ walletId, percentualValue: 98 }],
-      mode: "external_wallet",
-    };
-  }
-
-  // Modo 3 — fallback central (dojo sem AMT Pay ativado ou pendente).
-  return {
-    apiKey: central,
-    split: [],
-    mode: "central",
-  };
-}
-
-/**
  * Cria uma cobrança avulsa no Asaas para uma fatura.
  * Usado para taxas de matrícula e faturas manuais criadas pelo owner.
  */
@@ -225,22 +164,18 @@ export async function syncInvoiceWithAsaas(
     owner_id: string;
   },
 ) {
-  // 1. Carrega profile do dojo (para chave Asaas)
-  const { data: profile } = await supabase
-    .from("dojo_academy_profile")
-    .select(
-      "asaas_subaccount_id, asaas_api_key_encrypted, asaas_wallet_id, asaas_onboarding_status, trade_name",
-    )
-    .eq("owner_id", invoice.owner_id)
-    .maybeSingle();
+  // 1. Credenciais da subconta do dojo (modelo subconta + comissão AMT)
+  const { getDojoAsaasCredentials, assertAmtCommission, dojoPublicOrigin } = await import(
+    "./dojo-credentials.server"
+  );
+  const creds = await getDojoAsaasCredentials(invoice.owner_id);
+  const { apiKey, split, mode } = creds;
 
-  const { apiKey, split, mode } = resolveDojoAsaasCredentials((profile ?? {}) as any);
-
-  // AMT Pay desativado (nenhuma subconta aprovada e nenhuma wallet vinculada):
-  // fluxo 100% manual — apenas grava a fatura local, sem criar cobrança no
-  // Asaas. O dono do dojo cobra fora do sistema (Pix próprio, cartão na
-  // maquininha, dinheiro etc.) e depois marca como paga manualmente.
-  if (mode === "central") {
+  // AMT Pay desativado (subconta inexistente ou ainda não aprovada): fluxo
+  // 100% manual — apenas grava a fatura local, sem criar cobrança no Asaas.
+  // O dono do dojo cobra fora do sistema (Pix próprio, cartão na maquininha,
+  // dinheiro etc.) e depois marca como paga manualmente.
+  if (mode === "manual") {
     return {} as {
       asaas_charge_id?: string;
       payment_id?: string;
@@ -251,7 +186,7 @@ export async function syncInvoiceWithAsaas(
       split_config?: unknown;
     };
   }
-
+  assertAmtCommission(creds);
 
   // 2. Carrega aluno
   const { data: student } = await supabase
@@ -294,13 +229,9 @@ export async function syncInvoiceWithAsaas(
 
   // Link de pagamento BRANDED: exibe a página do Dojo Manager em vez de asaas.com.
   // A URL branded requer o id da fatura — caller deve pré-gerar o UUID (crypto.randomUUID()).
-  const siteUrl = (
-    process.env.PUBLIC_SITE_URL ||
-    process.env.SITE_URL ||
-    "https://dojomanager.amtfightwear.com.br"
-  ).replace(/\/$/, "");
-  // Usa /dojo/pay/... porque o subdomínio dojomanager redireciona qualquer rota
+  // Usa /dojo/pay/... porque o domínio do Dojo Manager redireciona qualquer rota
   // fora de /dojo/* para /dojo/*, e a rota pública branded existe em ambos os prefixos.
+  const siteUrl = dojoPublicOrigin();
   const brandedUrl = invoice.id ? `${siteUrl}/dojo/pay/${invoice.id}` : charge.invoiceUrl;
 
   return {

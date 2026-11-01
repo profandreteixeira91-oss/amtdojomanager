@@ -36,19 +36,10 @@ export const getPublicInvoice = createServerFn({ method: "GET" })
       if (Array.isArray(raw)) planMethods = raw;
     }
 
-    // Descobre se o AMT Pay está ativo no dojo (subconta aprovada ou wallet
-    // externa vinculada). Central-only = AMT Pay ainda não ativado.
-    const { data: profile } = await supabaseAdmin
-      .from("dojo_academy_profile")
-      .select(
-        "asaas_subaccount_id, asaas_subaccount_api_key, asaas_api_key_encrypted, asaas_wallet_id, asaas_onboarding_status",
-      )
-      .eq("owner_id", (inv as any).owner_id)
-      .maybeSingle();
-
-    const { resolveDojoAsaasCredentials } = await import("@/lib/asaas/enrollment.server");
-    const { mode } = resolveDojoAsaasCredentials((profile ?? {}) as any);
-    const amtPayLinked = mode === "subaccount" || mode === "external_wallet";
+    // Descobre se o AMT Pay está ativo no dojo (subconta aprovada).
+    const { getDojoAsaasCredentials } = await import("@/lib/asaas/dojo-credentials.server");
+    const { mode } = await getDojoAsaasCredentials((inv as any).owner_id);
+    const amtPayLinked = mode === "subaccount";
     const hasCharge = Boolean((inv as any).asaas_charge_id);
     // Só oferece pagamento online quando existe um charge OU o dojo tem
     // AMT Pay ativado (para gerar um novo charge on-demand).

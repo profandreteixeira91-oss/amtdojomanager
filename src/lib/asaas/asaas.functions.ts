@@ -11,7 +11,13 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 /** Verifica a conexão com o Asaas e retorna informações do ambiente. */
 export const asaasCheckConnection = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
+    // Saldo e carteira da conta central AMT: só para o admin da plataforma.
+    const { data: isAdmin } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "amt_admin",
+    });
+    if (!isAdmin) throw new Error("Sem permissão");
     const { getAsaasEnv, asaasGetBalance, getAmtWalletId } = await import(
       "@/lib/asaas/client.server"
     );
@@ -86,10 +92,24 @@ export const getMyAsaasConfig = createServerFn({ method: "GET" })
       .maybeSingle();
 
     if (error) throw new Error(error.message);
+
+    // Enquanto a subconta não está aprovada, consulta a situação no Asaas a
+    // cada abertura da tela (o Asaas aprova de forma assíncrona).
+    let onboardingStatus = data?.asaas_onboarding_status ?? "not_started";
+    if (data?.asaas_subaccount_id) {
+      const { isAsaasApproved, syncDojoSubaccountStatus } = await import(
+        "@/lib/asaas/dojo-credentials.server"
+      );
+      if (!isAsaasApproved(onboardingStatus)) {
+        const synced = await syncDojoSubaccountStatus(context.userId).catch(() => null);
+        if (synced?.status) onboardingStatus = synced.status;
+      }
+    }
+
     return {
       subaccountId: data?.asaas_subaccount_id ?? null,
       walletId: data?.asaas_wallet_id ?? null,
-      onboardingStatus: data?.asaas_onboarding_status ?? "not_started",
+      onboardingStatus,
       onboardingUrl: null,
       pixKey: data?.pix_key ?? null,
       pixKeyType: data?.pix_key_type ?? null,
@@ -237,6 +257,10 @@ export const createMyAsaasSubaccount = createServerFn({ method: "POST" })
       } as never)
       .eq("owner_id", context.userId);
 
+    // Sem o cofre de credenciais não cria a subconta (a key só vem nesta resposta).
+    const { assertCredentialStoreReady } = await import("@/lib/asaas/dojo-credentials.server");
+    await assertCredentialStoreReady();
+
     // Criar subconta no Asaas — payload completo evita a etapa manual de
     // "confirmação de e-mail / ativação" que o Asaas cobra em cadastros parciais.
     const subaccount = await asaasCreateSubaccount({
@@ -259,18 +283,30 @@ export const createMyAsaasSubaccount = createServerFn({ method: "POST" })
       externalReference: `dojo:${context.userId}`,
     });
 
-    // Persiste subaccount_id, walletId, apiKey (privada — usada para PIX out desta subconta)
+    // A API key da subconta só é devolvida agora: guarda na tabela privada
+    // (só o servidor lê), nunca no perfil, que alunos e equipe conseguem ler.
+    const { saveDojoAsaasApiKey, ensureDojoAsaasWebhook, syncDojoSubaccountStatus } = await import(
+      "@/lib/asaas/dojo-credentials.server"
+    );
+    if (!subaccount.apiKey) {
+      throw new Error("O Asaas não devolveu a API key da subconta — fale com o suporte AMT.");
+    }
+    await saveDojoAsaasApiKey(context.userId, subaccount.apiKey);
+
     const { error: updateErr } = await context.supabase
       .from("dojo_academy_profile")
       .update({
         asaas_subaccount_id: subaccount.id,
         asaas_wallet_id: subaccount.walletId,
-        asaas_onboarding_status: subaccount.onboardingStatus || "pending",
-        asaas_api_key_encrypted: subaccount.apiKey || null,
+        asaas_onboarding_status: "PENDING",
       })
       .eq("owner_id", context.userId);
 
     if (updateErr) throw new Error(updateErr.message);
+
+    // Webhook da subconta: sem ele os pagamentos não chegam ao sistema.
+    const webhook = await ensureDojoAsaasWebhook(subaccount.apiKey);
+    if (!webhook.ok) console.error("[amtpay] webhook da subconta não configurado:", webhook.error);
 
     // Log auditoria
     await context.supabase.from("dojo_account_audit").insert({
@@ -279,16 +315,18 @@ export const createMyAsaasSubaccount = createServerFn({ method: "POST" })
       meta: {
         subaccount_id: subaccount.id,
         wallet_id: subaccount.walletId,
-        onboarding_status: subaccount.onboardingStatus,
+        webhook: webhook.ok ? webhook.action : `erro: ${webhook.error}`,
       },
     });
+
+    const synced = await syncDojoSubaccountStatus(context.userId).catch(() => null);
 
     return {
       ok: true as const,
       alreadyExists: false,
       subaccountId: subaccount.id,
       walletId: subaccount.walletId,
-      onboardingStatus: subaccount.onboardingStatus || "pending",
+      onboardingStatus: synced?.status ?? "PENDING",
     };
   });
 
@@ -332,6 +370,8 @@ export const refreshMyAsaasSubaccount = createServerFn({ method: "POST" })
           asaas_api_key_encrypted: null,
         })
         .eq("owner_id", context.userId);
+      const { deleteDojoAsaasApiKey } = await import("@/lib/asaas/dojo-credentials.server");
+      await deleteDojoAsaasApiKey(context.userId);
 
       await context.supabase.from("dojo_account_audit").insert({
         owner_id: context.userId,
@@ -344,7 +384,7 @@ export const refreshMyAsaasSubaccount = createServerFn({ method: "POST" })
       const remote = await asaasGetSubaccount(profile.asaas_subaccount_id);
       const remoteStatus = String(remote.onboardingStatus || "").toUpperCase();
 
-      if (CLOSED_STATUSES.has(remoteStatus)) {
+      if (remoteStatus && CLOSED_STATUSES.has(remoteStatus)) {
         await clearLocalConfig("subaccount_closed", { remote_status: remoteStatus });
         return {
           subaccountId: null,
@@ -357,16 +397,16 @@ export const refreshMyAsaasSubaccount = createServerFn({ method: "POST" })
 
       await context.supabase
         .from("dojo_academy_profile")
-        .update({
-          asaas_onboarding_status: remote.onboardingStatus || "pending",
-          asaas_wallet_id: remote.walletId,
-        })
+        .update({ asaas_wallet_id: remote.walletId })
         .eq("owner_id", context.userId);
+      const { syncDojoSubaccountStatus } = await import("@/lib/asaas/dojo-credentials.server");
+      const synced = await syncDojoSubaccountStatus(context.userId);
 
       return {
         subaccountId: remote.id,
         walletId: remote.walletId,
-        onboardingStatus: remote.onboardingStatus || "pending",
+        onboardingStatus: synced.status ?? "PENDING",
+        webhook: synced.webhook,
         reset: false as const,
       };
     } catch (err) {
@@ -409,6 +449,8 @@ export const resetMyAsaasConfig = createServerFn({ method: "POST" })
       .eq("owner_id", context.userId);
 
     if (error) throw new Error(error.message);
+    const { deleteDojoAsaasApiKey } = await import("@/lib/asaas/dojo-credentials.server");
+    await deleteDojoAsaasApiKey(context.userId);
 
     await context.supabase.from("dojo_account_audit").insert({
       owner_id: context.userId,
@@ -423,56 +465,6 @@ export const resetMyAsaasConfig = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-
-/**
- * Vincula uma conta Asaas existente (o dono do dojo já possui conta própria).
- * Em vez de criar subconta, gravamos apenas o `walletId` — o split das
- * mensalidades será direcionado para a wallet informada.
- *
- * Nota: só funciona se a conta destino estiver na mesma plataforma Asaas
- * (production/sandbox) que a AMT. O walletId aparece no painel do Asaas em
- * "Minha conta" → "Integrações" → "Chaves de API".
- */
-export const linkExistingAsaasAccount = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .validator((data) =>
-    z
-      .object({
-        walletId: z
-          .string()
-          .trim()
-          .min(10, "walletId inválido")
-          .max(120, "walletId inválido"),
-      })
-      .parse(data),
-  )
-  .handler(async ({ data, context }) => {
-    const walletId = data.walletId.trim();
-
-    // Validação leve: walletId do Asaas é um UUID v4.
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(walletId)) {
-      throw new Error("walletId inválido — deve ser um UUID (ex: 12345678-abcd-...).");
-    }
-
-    const { error } = await context.supabase
-      .from("dojo_academy_profile")
-      .update({
-        asaas_wallet_id: walletId,
-        asaas_subaccount_id: null, // conta externa, não é subconta gerenciada
-        asaas_onboarding_status: "linked_external",
-      })
-      .eq("owner_id", context.userId);
-
-    if (error) throw error;
-
-    await context.supabase.from("dojo_account_audit").insert({
-      owner_id: context.userId,
-      action: "asaas_account_linked_external",
-      meta: { wallet_id: walletId },
-    });
-
-    return { ok: true as const, walletId };
-  });
 
 // ============================================================
 // DOCUMENTOS DA SUBCONTA (KYC obrigatório, principalmente CNPJ)
@@ -502,25 +494,26 @@ export const listMyAsaasDocuments = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data: profile } = await context.supabase
       .from("dojo_academy_profile")
-      .select("asaas_subaccount_id, asaas_api_key_encrypted")
+      .select("asaas_subaccount_id")
       .eq("owner_id", context.userId)
       .maybeSingle();
 
-    const p = profile as
-      | { asaas_subaccount_id?: string | null; asaas_api_key_encrypted?: string | null }
-      | null;
+    const p = profile as { asaas_subaccount_id?: string | null } | null;
+    // API key da subconta: só na tabela privada (o perfil é legível por alunos/equipe).
+    const { getDojoAsaasApiKey } = await import("@/lib/asaas/dojo-credentials.server");
+    const asaasApiKey = p?.asaas_subaccount_id ? await getDojoAsaasApiKey(context.userId) : null;
 
     if (!p?.asaas_subaccount_id) {
       return { configured: false as const, apiKeyMissing: false, pending: [] as any[], localDocs: [] as any[] };
     }
-    if (!p.asaas_api_key_encrypted) {
+    if (!asaasApiKey) {
       return { configured: true as const, apiKeyMissing: true, pending: [] as any[], localDocs: [] as any[] };
     }
 
     const { asaasListMyDocuments } = await import("@/lib/asaas/client.server");
     let res: { data: any[] };
     try {
-      res = await asaasListMyDocuments(p.asaas_api_key_encrypted);
+      res = await asaasListMyDocuments(asaasApiKey);
     } catch (err) {
       throw new Error(
         `Não foi possível consultar documentos no AMT Pay: ${err instanceof Error ? err.message : String(err)}`,
@@ -565,16 +558,17 @@ export const sendMyAsaasDocuments = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { data: profile } = await context.supabase
       .from("dojo_academy_profile")
-      .select("asaas_subaccount_id, asaas_api_key_encrypted")
+      .select("asaas_subaccount_id")
       .eq("owner_id", context.userId)
       .maybeSingle();
 
-    const p = profile as
-      | { asaas_subaccount_id?: string | null; asaas_api_key_encrypted?: string | null }
-      | null;
+    const p = profile as { asaas_subaccount_id?: string | null } | null;
+    // API key da subconta: só na tabela privada (o perfil é legível por alunos/equipe).
+    const { getDojoAsaasApiKey } = await import("@/lib/asaas/dojo-credentials.server");
+    const asaasApiKey = p?.asaas_subaccount_id ? await getDojoAsaasApiKey(context.userId) : null;
 
     if (!p?.asaas_subaccount_id) throw new Error("Subconta Asaas não configurada.");
-    if (!p.asaas_api_key_encrypted)
+    if (!asaasApiKey)
       throw new Error(
         "API key da subconta indisponível. Redefina o AMT Pay e refaça a ativação para poder enviar os documentos.",
       );
@@ -598,7 +592,7 @@ export const sendMyAsaasDocuments = createServerFn({ method: "POST" })
       });
     }
 
-    const pendingRes = await asaasListMyDocuments(p.asaas_api_key_encrypted);
+    const pendingRes = await asaasListMyDocuments(asaasApiKey);
     const pending = (pendingRes.data ?? []).filter(
       (d: any) => String(d.status || "").toUpperCase() !== "APPROVED",
     );
@@ -653,7 +647,7 @@ export const sendMyAsaasDocuments = createServerFn({ method: "POST" })
       }
 
       try {
-        await asaasSendMyDocument(String(item.id), asaasType, files, p.asaas_api_key_encrypted);
+        await asaasSendMyDocument(String(item.id), asaasType, files, asaasApiKey);
         results.push({ pendingId: String(item.id), asaasType, sent: true });
       } catch (err) {
         results.push({
@@ -699,15 +693,16 @@ export const uploadAsaasDocumentForPending = createServerFn({ method: "POST" })
 
     const { data: profile } = await context.supabase
       .from("dojo_academy_profile")
-      .select("asaas_subaccount_id, asaas_api_key_encrypted")
+      .select("asaas_subaccount_id")
       .eq("owner_id", context.userId)
       .maybeSingle();
-    const p = profile as
-      | { asaas_subaccount_id?: string | null; asaas_api_key_encrypted?: string | null }
-      | null;
+    const p = profile as { asaas_subaccount_id?: string | null } | null;
+    // API key da subconta: só na tabela privada (o perfil é legível por alunos/equipe).
+    const { getDojoAsaasApiKey } = await import("@/lib/asaas/dojo-credentials.server");
+    const asaasApiKey = p?.asaas_subaccount_id ? await getDojoAsaasApiKey(context.userId) : null;
 
     if (!p?.asaas_subaccount_id) throw new Error("Subconta Asaas não configurada.");
-    if (!p.asaas_api_key_encrypted) {
+    if (!asaasApiKey) {
       throw new Error(
         "A chave privada da subconta não está disponível. Redefina o AMT Pay e refaça a ativação para poder enviar documentos.",
       );
@@ -729,7 +724,7 @@ export const uploadAsaasDocumentForPending = createServerFn({ method: "POST" })
         data.pendingId,
         data.asaasType.toUpperCase(),
         [{ blob, fileName }],
-        p.asaas_api_key_encrypted,
+        asaasApiKey,
       );
     } catch (err) {
       throw new Error(

@@ -324,6 +324,60 @@ export async function asaasSendMyDocument(
   return asaasFetchMultipart(`/myAccount/documents/${pendingId}`, form, apiKey);
 }
 
+/** Situação cadastral da subconta (consultada com a API key da própria subconta). */
+export type AsaasAccountStatus = {
+  id?: string;
+  commercialInfo?: string;
+  bankAccountInfo?: string;
+  documentation?: string;
+  /** APPROVED | PENDING | AWAITING_APPROVAL | REJECTED */
+  general?: string;
+};
+
+export async function asaasGetMyAccountStatus(apiKey: string): Promise<AsaasAccountStatus> {
+  return asaasFetch<AsaasAccountStatus>(`/myAccount/status/`, { apiKey });
+}
+
+// ============ WEBHOOKS (por conta) ============
+export type AsaasWebhook = {
+  id: string;
+  name?: string;
+  url: string;
+  email?: string;
+  enabled?: boolean;
+  interrupted?: boolean;
+  authToken?: string | null;
+  events?: string[];
+};
+
+export type AsaasWebhookInput = {
+  name: string;
+  url: string;
+  email: string;
+  enabled: boolean;
+  interrupted: boolean;
+  apiVersion: 3;
+  authToken: string;
+  sendType: "SEQUENTIALLY" | "NON_SEQUENTIALLY";
+  events: string[];
+};
+
+export async function asaasListWebhooks(apiKey: string): Promise<{ data: AsaasWebhook[] }> {
+  return asaasFetch<{ data: AsaasWebhook[] }>(`/webhooks`, { apiKey });
+}
+
+export async function asaasCreateWebhook(input: AsaasWebhookInput, apiKey: string): Promise<AsaasWebhook> {
+  return asaasFetch<AsaasWebhook>(`/webhooks`, { method: "POST", body: JSON.stringify(input), apiKey });
+}
+
+export async function asaasUpdateWebhook(
+  id: string,
+  input: Partial<AsaasWebhookInput>,
+  apiKey: string,
+): Promise<AsaasWebhook> {
+  return asaasFetch<AsaasWebhook>(`/webhooks/${id}`, { method: "PUT", body: JSON.stringify(input), apiKey });
+}
+
 // ============ CUSTOMERS ============
 export async function asaasCreateCustomer(
   input: AsaasCustomerInput,

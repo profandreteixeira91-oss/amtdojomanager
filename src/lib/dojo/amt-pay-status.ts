@@ -15,7 +15,7 @@ export function classifyAsaasStatus(status: string | null | undefined): AsaasRea
   const s = String(status ?? "").toUpperCase();
   if (!s || s === "NOT_STARTED") return "not_started";
   if (s === "LINKED_EXTERNAL") return "linked";
-  if (s === "APPROVED") return "approved";
+  if (s === "APPROVED" || s === "ACTIVE") return "approved";
   if (s === "REJECTED" || s === "DENIED") return "rejected";
   if (s === "AWAITING_DOCUMENTS" || s === "AWAITING_DOCS" || s === "PENDING_DOCUMENTS") return "awaiting_docs";
   // PENDING, AWAITING_APPROVAL, etc.
@@ -24,11 +24,10 @@ export function classifyAsaasStatus(status: string | null | undefined): AsaasRea
 
 /**
  * O dojo pode emitir cobrança em nome próprio?
- * Só quando a subconta está APROVADA ou uma wallet externa está vinculada.
+ * Só com a subconta APROVADA (modelo subconta; wallet externa não cobra mais).
  */
 export function isAsaasReady(status: string | null | undefined): boolean {
-  const level = classifyAsaasStatus(status);
-  return level === "approved" || level === "linked";
+  return classifyAsaasStatus(status) === "approved";
 }
 
 export function getAsaasStatusMeta(level: AsaasReadinessLevel): {

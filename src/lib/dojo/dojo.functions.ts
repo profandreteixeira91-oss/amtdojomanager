@@ -891,17 +891,17 @@ export const saveDojoInvoice = createServerFn({ method: "POST" })
       if (!current) throw new Error("Cobrança não encontrada");
 
       const owner_id = ownerId(context);
-      const { data: profile } = await context.supabase
-        .from("dojo_academy_profile")
-        .select("asaas_subaccount_id, asaas_api_key_encrypted, asaas_wallet_id, asaas_onboarding_status")
-        .eq("owner_id", owner_id)
-        .maybeSingle();
-      const { resolveDojoAsaasCredentials, syncInvoiceWithAsaas } = await import("@/lib/asaas/enrollment.server");
-      const { apiKey, split, mode } = resolveDojoAsaasCredentials((profile ?? {}) as any);
+      const { getDojoAsaasCredentials, assertAmtCommission, dojoPublicOrigin } = await import(
+        "@/lib/asaas/dojo-credentials.server"
+      );
+      const { syncInvoiceWithAsaas } = await import("@/lib/asaas/enrollment.server");
+      const creds = await getDojoAsaasCredentials(owner_id);
+      const { apiKey, split, mode } = creds;
       const patch: any = { ...rest };
 
       // AMT Pay desativado → não toca no Asaas. Apenas atualiza a fatura local.
-      if (mode !== "central") {
+      if (mode === "subaccount") {
+        assertAmtCommission(creds);
         if ((current as any).asaas_charge_id) {
           const { asaasUpdateCharge } = await import("@/lib/asaas/client.server");
           const charge = await asaasUpdateCharge(
@@ -916,7 +916,7 @@ export const saveDojoInvoice = createServerFn({ method: "POST" })
             apiKey,
           );
           Object.assign(patch, {
-            payment_link: charge.invoiceUrl,
+            payment_link: `${dojoPublicOrigin()}/dojo/pay/${id}`,
             asaas_invoice_url: charge.invoiceUrl,
             split_config: split,
             provider: "asaas",
@@ -983,13 +983,8 @@ export const markDojoInvoicePaid = createServerFn({ method: "POST" })
 
     // Cobrança vinculada ao AMT Pay (Asaas): dá baixa via API
     if ((invoice as any).asaas_charge_id) {
-      const { data: profile } = await context.supabase
-        .from("dojo_academy_profile")
-        .select("asaas_subaccount_id, asaas_api_key_encrypted, asaas_wallet_id, asaas_onboarding_status")
-        .eq("owner_id", ownerId(context))
-        .maybeSingle();
-      const { resolveDojoAsaasCredentials } = await import("@/lib/asaas/enrollment.server");
-      const { apiKey } = resolveDojoAsaasCredentials((profile ?? {}) as any);
+      const { getDojoAsaasCredentials } = await import("@/lib/asaas/dojo-credentials.server");
+      const { apiKey } = await getDojoAsaasCredentials(ownerId(context));
       const { asaasReceiveChargeInCash } = await import("@/lib/asaas/client.server");
       try {
         await asaasReceiveChargeInCash(
@@ -1023,13 +1018,8 @@ export const deleteDojoInvoice = createServerFn({ method: "POST" })
     if (!invoice) throw new Error("Cobrança não encontrada");
 
     if ((invoice as any).asaas_charge_id) {
-      const { data: profile } = await context.supabase
-        .from("dojo_academy_profile")
-        .select("asaas_subaccount_id, asaas_api_key_encrypted, asaas_wallet_id, asaas_onboarding_status")
-        .eq("owner_id", ownerId(context))
-        .maybeSingle();
-      const { resolveDojoAsaasCredentials } = await import("@/lib/asaas/enrollment.server");
-      const { apiKey } = resolveDojoAsaasCredentials((profile ?? {}) as any);
+      const { getDojoAsaasCredentials } = await import("@/lib/asaas/dojo-credentials.server");
+      const { apiKey } = await getDojoAsaasCredentials(ownerId(context));
       const { asaasCancelCharge } = await import("@/lib/asaas/client.server");
       try {
         await asaasCancelCharge((invoice as any).asaas_charge_id, apiKey);
@@ -1102,20 +1092,18 @@ export const enrollStudentWithPlan = createServerFn({ method: "POST" })
       mapPaymentMethodToBillingType,
       mapFrequencyToAsaasCycle,
       ensureAsaasCustomerForStudent,
-      resolveDojoAsaasCredentials,
     } = await import("@/lib/asaas/enrollment.server");
+    const { getDojoAsaasCredentials, assertAmtCommission } = await import(
+      "@/lib/asaas/dojo-credentials.server"
+    );
 
-    // AMT Pay OFF (mode = "central") → todas as cobranças do dojo são manuais,
-    // independentemente do que estiver marcado no plano. Coerção para "manual"
-    // antes da validação para evitar bloqueio quando o dono ainda não ajustou
-    // o plano após desativar o AMT Pay.
-    const { data: profileForMode } = await context.supabase
-      .from("dojo_academy_profile")
-      .select("asaas_subaccount_id, asaas_api_key_encrypted, asaas_wallet_id, asaas_onboarding_status, trade_name")
-      .eq("owner_id", ownerId(context))
-      .maybeSingle();
-    const amtPayMode = resolveDojoAsaasCredentials((profileForMode ?? {}) as any).mode;
-    if (amtPayMode === "central") {
+    // AMT Pay OFF (subconta não aprovada) → todas as cobranças do dojo são
+    // manuais, independentemente do que estiver marcado no plano. Coerção para
+    // "manual" antes da validação para evitar bloqueio quando o dono ainda não
+    // ajustou o plano após desativar o AMT Pay.
+    const amtPay = await getDojoAsaasCredentials(ownerId(context));
+    const amtPayMode = amtPay.mode;
+    if (amtPayMode === "manual") {
       methodCode = "manual";
     } else if (enabledMethods.length > 0 && !enabledMethods.includes(methodCode)) {
       throw new Error(`Método "${methodCode}" não está habilitado no plano.`);
@@ -1143,16 +1131,14 @@ export const enrollStudentWithPlan = createServerFn({ method: "POST" })
     if (enrErr) throw new Error(enrErr.message);
 
     // 4a) Fluxo GATEWAY (Asaas Subscription) — só quando AMT Pay ativo.
-    if (amtPayMode !== "central" && isGatewayPaymentMethod(methodCode)) {
-
-      // Carrega profile do dojo (para chave/subconta Asaas)
+    if (amtPayMode === "subaccount" && isGatewayPaymentMethod(methodCode)) {
+      assertAmtCommission(amtPay);
+      const { apiKey, split } = amtPay;
       const { data: profile } = await context.supabase
         .from("dojo_academy_profile")
-        .select("asaas_subaccount_id, asaas_api_key_encrypted, asaas_wallet_id, asaas_onboarding_status, trade_name")
+        .select("trade_name")
         .eq("owner_id", ownerId(context))
         .maybeSingle();
-
-      const { apiKey, split } = resolveDojoAsaasCredentials((profile ?? {}) as any);
 
       try {
         // Garante Customer no Asaas
@@ -1278,13 +1264,8 @@ export const cancelEnrollment = createServerFn({ method: "POST" })
     if (!enr) throw new Error("Matrícula não encontrada");
 
     if ((enr as any).asaas_subscription_id) {
-      const { data: profile } = await context.supabase
-        .from("dojo_academy_profile")
-        .select("asaas_subaccount_id, asaas_api_key_encrypted, asaas_wallet_id, asaas_onboarding_status")
-        .eq("owner_id", ownerId(context))
-        .maybeSingle();
-      const { resolveDojoAsaasCredentials } = await import("@/lib/asaas/enrollment.server");
-      const { apiKey } = resolveDojoAsaasCredentials((profile ?? {}) as any);
+      const { getDojoAsaasCredentials } = await import("@/lib/asaas/dojo-credentials.server");
+      const { apiKey } = await getDojoAsaasCredentials(ownerId(context));
       const { asaasCancelSubscription } = await import("@/lib/asaas/client.server");
       await asaasCancelSubscription((enr as any).asaas_subscription_id, apiKey);
     }
@@ -1338,11 +1319,8 @@ export const changeStudentPlan = createServerFn({ method: "POST" })
 
     const today = todayISO();
     if (actives && actives.length > 0) {
-      const { data: profile } = await context.supabase
-        .from("dojo_academy_profile")
-        .select("asaas_subaccount_id, asaas_api_key_encrypted, asaas_wallet_id, asaas_onboarding_status")
-        .eq("owner_id", ownerId(context))
-        .maybeSingle();
+      const { getDojoAsaasCredentials } = await import("@/lib/asaas/dojo-credentials.server");
+      const amtPay = await getDojoAsaasCredentials(ownerId(context));
 
       for (const enr of actives as any[]) {
         if (enr.plan_id === data.plan_id) {
@@ -1350,8 +1328,7 @@ export const changeStudentPlan = createServerFn({ method: "POST" })
         }
         if (enr.asaas_subscription_id) {
           try {
-            const { resolveDojoAsaasCredentials } = await import("@/lib/asaas/enrollment.server");
-            const { apiKey } = resolveDojoAsaasCredentials((profile ?? {}) as any);
+            const { apiKey } = amtPay;
             const { asaasCancelSubscription } = await import("@/lib/asaas/client.server");
             await asaasCancelSubscription(enr.asaas_subscription_id, apiKey);
           } catch (err) {

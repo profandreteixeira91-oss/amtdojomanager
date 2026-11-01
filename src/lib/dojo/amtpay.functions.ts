@@ -197,16 +197,8 @@ async function resolveWalletMode(supabase: any, ownerId: string): Promise<{
   mode: "native" | "internal";
   apiKey?: string;
 }> {
-  const { data: profile } = await supabase
-    .from("dojo_academy_profile")
-    .select(
-      "asaas_subaccount_id, asaas_subaccount_api_key, asaas_api_key_encrypted, asaas_wallet_id, asaas_onboarding_status",
-    )
-    .eq("owner_id", ownerId)
-    .maybeSingle();
-  if (!profile) return { mode: "internal" };
-  const { resolveDojoAsaasCredentials } = await import("@/lib/asaas/enrollment.server");
-  const { apiKey, mode } = resolveDojoAsaasCredentials(profile as any);
+  const { getDojoAsaasCredentials } = await import("@/lib/asaas/dojo-credentials.server");
+  const { apiKey, mode } = await getDojoAsaasCredentials(ownerId);
   if (mode === "subaccount" && apiKey) return { mode: "native", apiKey };
   return { mode: "internal" };
 }
