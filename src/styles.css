@@ -1,0 +1,967 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * AMT Growth Engine — Combat Red
+ * Preto profundo + vermelho sangue com toques cinza aço.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 0.5rem;
+
+  /* Loja: branco puro + preto profundo + vermelho combate */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.12 0 0);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.12 0 0);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.12 0 0);
+
+  /* Combat Red — puro, saturado, como Supreme/Zara */
+  --primary: oklch(0.56 0.235 27);
+  --primary-foreground: oklch(1 0 0);
+
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.12 0 0);
+
+  --muted: oklch(0.965 0 0);
+  --muted-foreground: oklch(0.42 0 0);
+
+  --accent: oklch(0.96 0 0);
+  --accent-foreground: oklch(0.12 0 0);
+
+  --destructive: oklch(0.56 0.235 27);
+  --destructive-foreground: oklch(1 0 0);
+
+  /* Bordas mais firmes para o layout de loja */
+  --border: oklch(0.88 0 0);
+  --input: oklch(0.88 0 0);
+  --ring: oklch(0.56 0.235 27);
+
+  --chart-1: oklch(0.56 0.235 27);
+  --chart-2: oklch(0.42 0.16 27);
+  --chart-3: oklch(0.28 0 0);
+  --chart-4: oklch(0.70 0.10 60);
+  --chart-5: oklch(0.55 0.10 200);
+
+  --sidebar: oklch(0.08 0 0);
+  --sidebar-foreground: oklch(0.98 0 0);
+  --sidebar-primary: oklch(0.56 0.235 27);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.16 0 0);
+  --sidebar-accent-foreground: oklch(0.98 0 0);
+  --sidebar-border: oklch(0.22 0 0);
+  --sidebar-ring: oklch(0.56 0.235 27);
+}
+
+.dark {
+  --background: oklch(0.08 0.005 20);
+  --foreground: oklch(0.96 0 0);
+
+  --card: oklch(0.12 0.005 20);
+  --card-foreground: oklch(0.96 0 0);
+
+  --popover: oklch(0.12 0.005 20);
+  --popover-foreground: oklch(0.96 0 0);
+
+  --primary: oklch(0.62 0.24 27);
+  --primary-foreground: oklch(0.99 0 0);
+
+  --secondary: oklch(0.18 0.005 20);
+  --secondary-foreground: oklch(0.96 0 0);
+
+  --muted: oklch(0.18 0.005 20);
+  --muted-foreground: oklch(0.68 0.01 20);
+
+  --accent: oklch(0.22 0.03 27);
+  --accent-foreground: oklch(0.96 0 0);
+
+  --destructive: oklch(0.62 0.24 27);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.62 0.24 27);
+
+  --chart-1: oklch(0.62 0.24 27);
+  --chart-2: oklch(0.72 0.18 27);
+  --chart-3: oklch(0.85 0 0);
+  --chart-4: oklch(0.55 0.15 60);
+  --chart-5: oklch(0.60 0.12 200);
+
+  --sidebar: oklch(0.06 0.005 20);
+  --sidebar-foreground: oklch(0.96 0 0);
+  --sidebar-primary: oklch(0.62 0.24 27);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.14 0.005 20);
+  --sidebar-accent-foreground: oklch(0.96 0 0);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.62 0.24 27);
+}
+
+.setup-light {
+  color-scheme: light;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.2 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0 0);
+  --primary: oklch(0.56 0.235 27);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.2 0 0);
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --accent: oklch(0.95 0 0);
+  --accent-foreground: oklch(0.2 0 0);
+  --border: oklch(0.88 0 0);
+  --input: oklch(0.88 0 0);
+  --ring: oklch(0.56 0.235 27);
+  --destructive: oklch(0.56 0.235 27);
+  --destructive-foreground: oklch(1 0 0);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html,
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    overflow-x: hidden;
+    max-width: 100vw;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #root {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  /* Prevent any element from forcing horizontal overflow at the page level.
+     Local horizontal scrollers (tables, kanbans, tabs) still work because
+     they set overflow-x: auto on their own containers. */
+  img, video, canvas, svg, iframe {
+    max-width: 100%;
+  }
+
+}
+
+@keyframes loading-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
+/* ============================================================
+ * AMT Fight Wear Store — Midnight Ruby
+ * Scoped via .store-scope: Space Grotesk (display) + DM Sans (body).
+ * Combat red primary já é o token global :root, então apenas
+ * refinamos tipografia, tracking e utilitários premium por aqui.
+ * ============================================================ */
+.store-scope {
+  font-family: "DM Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01", "ss02";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+
+  --store-display: "Space Grotesk", "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --store-shadow-xs: 0 1px 2px 0 rgb(10 10 10 / 0.04);
+  --store-shadow-sm: 0 2px 8px -2px rgb(10 10 10 / 0.06), 0 1px 3px 0 rgb(10 10 10 / 0.04);
+  --store-shadow-md: 0 8px 24px -8px rgb(10 10 10 / 0.10), 0 2px 6px -1px rgb(10 10 10 / 0.05);
+  --store-shadow-lg: 0 16px 40px -16px rgb(10 10 10 / 0.18), 0 4px 12px -4px rgb(10 10 10 / 0.08);
+  --store-shadow-ruby: 0 12px 32px -12px rgb(220 38 38 / 0.45);
+  --store-ring-ruby: 0 0 0 3px rgb(220 38 38 / 0.14);
+  --store-grad-ruby: linear-gradient(135deg, oklch(0.62 0.24 27) 0%, oklch(0.5 0.22 25) 100%);
+  --store-grad-ink: linear-gradient(180deg, #0a0a0a 0%, #171717 100%);
+}
+
+.store-scope h1,
+.store-scope h2,
+.store-scope h3,
+.store-scope h4 {
+  font-family: var(--store-display);
+  letter-spacing: -0.02em;
+}
+
+.store-scope .font-display {
+  font-family: var(--store-display);
+  letter-spacing: -0.02em;
+}
+
+.store-scope .tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Botão premium para toda a loja */
+.store-scope .btn-ruby {
+  background-image: var(--store-grad-ruby);
+  color: #fff;
+  box-shadow: var(--store-shadow-ruby);
+  transition: transform 200ms ease, box-shadow 200ms ease, filter 200ms ease;
+}
+.store-scope .btn-ruby:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+  box-shadow: 0 18px 42px -14px rgb(220 38 38 / 0.55);
+}
+.store-scope .btn-ruby:active {
+  transform: translateY(0);
+}
+
+/* Cartão premium — bordas quase invisíveis, sombra elegante */
+.store-scope .card-elevated {
+  background: #fff;
+  border: 1px solid oklch(0.92 0 0);
+  box-shadow: var(--store-shadow-sm);
+  border-radius: 1rem;
+}
+
+/* Grão sutil para heros escuros (Midnight Ruby) */
+.store-scope .ink-surface {
+  background: var(--store-grad-ink);
+  color: #f5f5f5;
+}
+
+/* Divisores rubi micro para eyebrows */
+.store-scope .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--store-display);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.38em;
+  text-transform: uppercase;
+  color: oklch(0.56 0.235 27);
+}
+.store-scope .eyebrow::before {
+  content: "";
+  height: 1px;
+  width: 2rem;
+  background: currentColor;
+  opacity: 0.5;
+}
+
+/* Safe-area padding para barras sticky mobile */
+.store-scope .pb-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
+}
+
+
+/* ============================================================
+ * AMT Dojo Manager — Premium SaaS (White · Black · Red)
+ * Scoped via .dojo-theme so the storefront stays untouched.
+ * Inspired by Linear / Stripe / Vercel / Notion dashboards.
+ * ============================================================ */
+.dojo-theme {
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+
+  /* Neutral scale — pure grays, no color tint */
+  --dojo-bg: #ffffff;
+  --dojo-surface: #ffffff;
+  --dojo-surface-2: #fafafa;
+  --dojo-surface-3: #f4f4f5;
+  --dojo-border: #e2e2e2;
+  --dojo-border-strong: #c7c7c7;
+  --dojo-fg: #0a0a0a;
+  --dojo-fg-2: #262626;
+  --dojo-muted-fg: #737373;
+
+  /* Red accent — brand primary */
+  --dojo-accent: #dc2626;
+  --dojo-accent-hover: #b91c1c;
+  --dojo-accent-strong: #991b1b;
+  --dojo-accent-soft: #fef2f2;
+  --dojo-accent-ring: rgb(220 38 38 / 0.14);
+
+  /* Elevation */
+  --dojo-shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+  --dojo-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04), 0 1px 3px 0 rgb(0 0 0 / 0.03);
+  --dojo-shadow-md: 0 2px 4px -1px rgb(0 0 0 / 0.04), 0 4px 12px -2px rgb(0 0 0 / 0.06);
+  --dojo-shadow-lg: 0 4px 8px -2px rgb(0 0 0 / 0.06), 0 12px 24px -4px rgb(0 0 0 / 0.08);
+
+  background-color: var(--dojo-bg);
+  color: var(--dojo-fg);
+
+  /* Semantic mappings — override shadcn tokens inside dojo scope only */
+  --background: 0 0% 100%;
+  --foreground: 0 0% 4%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 4%;
+  --primary: 0 72% 51%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 9%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 45%;
+  --accent: 0 0% 96%;
+  --accent-foreground: 0 0% 9%;
+  --border: 0 0% 88%;
+  --input: 0 0% 88%;
+  --ring: 0 72% 51%;
+  --radius: 0.625rem;
+
+  /* Sidebar — clean white with subtle border */
+  --sidebar: #ffffff;
+  --sidebar-foreground: var(--dojo-fg-2);
+  --sidebar-primary: var(--dojo-accent);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--dojo-surface-3);
+  --sidebar-accent-foreground: var(--dojo-fg);
+  --sidebar-border: var(--dojo-border);
+  --sidebar-ring: var(--dojo-accent);
+}
+
+/* Mobile sidebar Sheet portals outside .dojo-theme — force light Dojo tokens on the portalled element */
+body:has(.dojo-theme) [data-sidebar="sidebar"][data-mobile="true"],
+body:has(.dojo-theme) [data-slot="sheet-content"][data-sidebar="sidebar"] {
+  --sidebar: #ffffff;
+  --sidebar-foreground: var(--dojo-fg-2);
+  --sidebar-primary: var(--dojo-accent);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--dojo-surface-3);
+  --sidebar-accent-foreground: var(--dojo-fg);
+  --sidebar-border: var(--dojo-border);
+  --sidebar-ring: var(--dojo-accent);
+  background-color: #ffffff;
+  color: var(--dojo-fg);
+}
+
+/* Admin shell — force light sidebar tokens (scoped to /admin) */
+.admin-shell,
+.admin-shell [data-sidebar="sidebar"],
+[data-sidebar="sidebar"][data-admin="true"],
+[data-slot="sheet-content"][data-admin-sidebar="true"] {
+  --sidebar: #ffffff;
+  --sidebar-foreground: #000000;
+  --sidebar-primary: oklch(0.56 0.235 27);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: oklch(0.96 0 0);
+  --sidebar-accent-foreground: #000000;
+  --sidebar-border: oklch(0.92 0 0);
+  --sidebar-ring: oklch(0.56 0.235 27);
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+.admin-shell [data-sidebar="sidebar"] * {
+  border-color: oklch(0.92 0 0) !important;
+}
+
+.admin-shell [data-sidebar="menu-button"] {
+  color: #000000 !important;
+}
+
+.admin-shell [data-sidebar="group-label"] {
+  color: oklch(0.45 0 0) !important;
+  font-weight: 600;
+}
+
+.admin-shell [data-sidebar="menu-button"][data-active="true"] {
+  background-color: oklch(0.96 0 0) !important;
+  color: oklch(0.56 0.235 27) !important;
+}
+
+:where(.dojo-theme) h1,
+:where(.dojo-theme) h2,
+:where(.dojo-theme) h3,
+:where(.dojo-theme) h4,
+:where(.dojo-theme) .font-display {
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+/* Cards — flat, crisp, whisper-shadow */
+.dojo-theme .dojo-card {
+  background: var(--dojo-surface);
+  border: 1px solid var(--dojo-border);
+  border-radius: 12px;
+  box-shadow: var(--dojo-shadow-sm);
+  transition: box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dojo-theme .dojo-card:hover {
+  box-shadow: var(--dojo-shadow-md);
+  border-color: var(--dojo-border-strong);
+}
+
+/* Garante bordas suaves visíveis em qualquer card/painel/divisor do Dojo,
+   mesmo sem a classe utilitária .dojo-card. */
+.dojo-theme [data-slot="card"],
+.dojo-theme .rounded-lg.border,
+.dojo-theme .rounded-xl.border,
+.dojo-theme .rounded-2xl.border,
+.dojo-theme .rounded-md.border {
+  border-color: var(--dojo-border);
+  box-shadow: var(--dojo-shadow-xs);
+}
+.dojo-theme [data-slot="separator-root"],
+.dojo-theme hr {
+  background-color: var(--dojo-border);
+  border-color: var(--dojo-border);
+}
+.dojo-theme .divide-y > * + *,
+.dojo-theme .divide-x > * + * {
+  border-color: var(--dojo-border);
+}
+
+/* Accent KPI — solid red, no gradient noise */
+.dojo-theme .dojo-kpi-accent {
+  background: var(--dojo-accent);
+  color: #ffffff;
+  border: 1px solid var(--dojo-accent);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px -4px rgb(220 38 38 / 0.35);
+}
+.dojo-theme .dojo-kpi-accent:hover {
+  background: var(--dojo-accent-hover);
+  border-color: var(--dojo-accent-hover);
+}
+
+.dojo-theme .dojo-soft {
+  background: var(--dojo-surface-2);
+  border: 1px solid var(--dojo-border);
+  border-radius: 10px;
+}
+
+/* Switches use blue when active inside dojo panel */
+.dojo-theme [data-slot="switch"][data-state="checked"],
+.dojo-theme button[role="switch"][data-state="checked"] {
+  background-color: #2563eb !important;
+  border-color: #2563eb !important;
+}
+
+.dojo-theme .dojo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: var(--dojo-accent-soft);
+  color: var(--dojo-accent);
+  border: 1px solid #fee2e2;
+}
+
+/* Clickable feedback: red shadow on buttons/cards; red underline on links.
+   Scoped to .dojo-theme so the storefront stays untouched. */
+.dojo-theme a:not([data-sidebar="menu-button"]):not([role="tab"]):not(.no-red-underline):hover,
+.dojo-theme a:not([data-sidebar="menu-button"]):not([role="tab"]):not(.no-red-underline):focus-visible {
+  text-decoration: underline;
+  text-decoration-color: var(--dojo-accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+.dojo-theme button:not(:disabled):not([data-sidebar="menu-button"]):not([role="switch"]):not([role="tab"]):hover,
+.dojo-theme [role="button"]:not([aria-disabled="true"]):hover,
+.dojo-theme [data-slot="card"].cursor-pointer:hover,
+.dojo-theme a[class*="rounded"]:not([data-sidebar="menu-button"]):hover {
+  box-shadow: 0 8px 20px -8px rgb(220 38 38 / 0.45), 0 0 0 1px rgb(220 38 38 / 0.15);
+}
+.dojo-theme button:not(:disabled):focus-visible,
+.dojo-theme [role="button"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(220 38 38 / 0.35);
+}
+
+/* Sidebar polish */
+.dojo-theme [data-sidebar="sidebar"] {
+  background: var(--dojo-surface);
+  border-right: 1px solid var(--dojo-border);
+}
+.dojo-theme [data-sidebar="menu-button"] {
+  border-radius: 8px;
+  font-weight: 500;
+  color: var(--dojo-fg-2);
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.dojo-theme [data-sidebar="menu-button"]:hover {
+  background: var(--dojo-surface-3);
+  color: var(--dojo-fg);
+}
+.dojo-theme [data-sidebar="menu-button"][data-active="true"] {
+  background: var(--dojo-accent-soft);
+  color: var(--dojo-accent);
+  font-weight: 600;
+  box-shadow: inset 2px 0 0 0 var(--dojo-accent);
+}
+.dojo-theme [data-sidebar="menu-button"][data-active="true"]:hover {
+  background: var(--dojo-accent-soft);
+  color: var(--dojo-accent);
+}
+.dojo-theme [data-sidebar="menu-button"][data-active="true"] svg {
+  color: var(--dojo-accent);
+}
+
+/* Tables — crisp rows, generous padding */
+.dojo-theme table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.dojo-theme table thead th {
+  background: var(--dojo-surface-2);
+  color: var(--dojo-muted-fg);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--dojo-border);
+}
+.dojo-theme table tbody td {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--dojo-border);
+  font-size: 0.875rem;
+  color: var(--dojo-fg-2);
+}
+.dojo-theme table tbody tr {
+  transition: background-color 120ms ease;
+}
+.dojo-theme table tbody tr:hover {
+  background: var(--dojo-surface-2);
+}
+.dojo-theme table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Form inputs — comfortable height, red focus ring */
+.dojo-theme input[type="text"],
+.dojo-theme input[type="email"],
+.dojo-theme input[type="password"],
+.dojo-theme input[type="number"],
+.dojo-theme input[type="search"],
+.dojo-theme input[type="tel"],
+.dojo-theme input[type="url"],
+.dojo-theme input[type="date"],
+.dojo-theme input[type="datetime-local"],
+.dojo-theme input[type="time"],
+.dojo-theme textarea,
+.dojo-theme select {
+  background: var(--dojo-surface);
+  border: 1px solid var(--dojo-border);
+  border-radius: 8px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.dojo-theme input:focus,
+.dojo-theme textarea:focus,
+.dojo-theme select:focus {
+  outline: none;
+  border-color: var(--dojo-accent);
+  box-shadow: 0 0 0 3px var(--dojo-accent-ring);
+}
+.dojo-theme input::placeholder,
+.dojo-theme textarea::placeholder {
+  color: var(--dojo-muted-fg);
+  opacity: 0.7;
+}
+
+/* Buttons — clean primary/secondary/ghost feel via shadcn tokens above.
+   Ensure any raw <button> keeps focus visible. */
+.dojo-theme button:focus-visible {
+  outline: 2px solid var(--dojo-accent);
+  outline-offset: 2px;
+}
+
+/* Scrollbar refinement (webkit) */
+.dojo-theme ::-webkit-scrollbar { width: 10px; height: 10px; }
+.dojo-theme ::-webkit-scrollbar-track { background: transparent; }
+.dojo-theme ::-webkit-scrollbar-thumb {
+  background: var(--dojo-border-strong);
+  border-radius: 999px;
+  border: 2px solid var(--dojo-surface);
+}
+.dojo-theme ::-webkit-scrollbar-thumb:hover { background: #a3a3a3; }
+
+/* Subtle fade-in for content transitions */
+.dojo-theme main > * {
+  animation: dojo-fade-in 240ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes dojo-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
+
+/* =========================================================
+ * AMT Design System — Foundation (spacing, typography, layout)
+ * Fase 0 da auditoria de UI/UX.
+ * ========================================================= */
+
+@theme {
+  --spacing-section: 1.5rem;    /* 24px — entre seções */
+  --spacing-cards: 1rem;        /* 16px — entre cards */
+  --spacing-field: 0.75rem;     /* 12px — entre campos */
+  --spacing-inline: 0.5rem;     /* 8px — entre elementos internos */
+}
+
+@utility page-shell {
+  width: 100%;
+  max-width: 80rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+  padding-block: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+@media (min-width: 768px) {
+  .page-shell { padding-inline: 1.5rem; padding-block: 2rem; gap: 1.75rem; }
+}
+
+@utility page-title {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+@media (min-width: 768px) {
+  .page-title { font-size: 1.875rem; line-height: 2.25rem; }
+}
+
+@utility section-title {
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+@utility card-title-sm {
+  font-size: 0.9375rem;
+  line-height: 1.25rem;
+  font-weight: 700;
+}
+
+@utility text-meta {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--muted-foreground);
+}
+
+/* Grade responsiva confortável: 1 → 2 → 3 (nunca >3 em desktop). */
+@utility grid-cards {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+@media (min-width: 640px)  { .grid-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1024px) { .grid-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* Grade de KPIs — até 4 cards, quebra automaticamente. */
+@utility grid-kpis {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+@media (min-width: 640px)  { .grid-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1280px) { .grid-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+/* Wrapper de tabela: scroll horizontal fica dentro da tabela, não da página. */
+@utility data-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+.data-table-scroll table { min-width: 640px; width: 100%; }
+
+/* Card com padding confortável — usar em conteúdo denso. */
+@utility card-comfortable {
+  padding: 1.5rem;
+}
+@media (min-width: 768px) { .card-comfortable { padding: 1.75rem; } }
+
+/* Sombra vermelha inferior ao passar o mouse em qualquer botão do sistema */
+button:not(:disabled):hover,
+[role="button"]:not([aria-disabled="true"]):hover,
+a.btn:hover,
+.btn:hover {
+  box-shadow: 0 6px 16px -4px rgba(220, 38, 38, 0.55), 0 2px 6px -1px rgba(220, 38, 38, 0.35);
+  transition: box-shadow 180ms ease-out;
+}
+
+
+/* =========================================================================
+   Central AMT — Design System da área administrativa (/admin)
+   Camada exclusivamente visual, escopada em .admin-shell.
+   ========================================================================= */
+
+.admin-shell {
+  --admin-radius: 16px;
+  --admin-border: color-mix(in oklab, var(--foreground) 10%, transparent);
+  --admin-shadow-xs: 0 1px 2px rgba(16, 18, 27, 0.04);
+  --admin-shadow-sm: 0 1px 2px rgba(16, 18, 27, 0.05), 0 4px 14px -8px rgba(16, 18, 27, 0.12);
+  --admin-shadow-md: 0 2px 6px rgba(16, 18, 27, 0.06), 0 18px 40px -22px rgba(16, 18, 27, 0.28);
+  --sidebar-width: 16.5rem;
+  font-feature-settings: "cv02", "cv03", "cv04", "ss01";
+}
+
+.admin-surface {
+  background-color: oklch(0.985 0.002 250);
+  background-image:
+    radial-gradient(1100px 520px at 0% -12%, color-mix(in oklab, var(--primary) 8%, transparent), transparent 62%),
+    radial-gradient(900px 480px at 100% -6%, rgba(16, 18, 27, 0.05), transparent 60%);
+}
+
+/* Topbar translúcida */
+.admin-shell .admin-topbar {
+  border-bottom: 1px solid var(--admin-border);
+  background: color-mix(in oklab, var(--background) 72%, transparent);
+  backdrop-filter: saturate(180%) blur(16px);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
+}
+
+/* Cards padrão */
+.admin-shell .admin-card {
+  background: var(--card);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  box-shadow: var(--admin-shadow-sm);
+  transition:
+    box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.admin-shell .admin-card--hover:hover {
+  box-shadow: var(--admin-shadow-md);
+  transform: translateY(-2px);
+  border-color: color-mix(in oklab, var(--primary) 22%, var(--admin-border));
+}
+
+.admin-shell .admin-empty-orb {
+  background: color-mix(in oklab, var(--primary) 9%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 16%, transparent);
+}
+
+/* --- Auditoria UX/UI: respiro em relação à sidebar --------------------- */
+/* Cria uma calha extra entre o conteúdo e a sidebar/topbar, sem alterar
+   o padding interno de cada página. */
+.admin-shell .admin-main {
+  padding-inline: clamp(0.25rem, 1.2vw, 1.25rem);
+  padding-bottom: 2.5rem;
+  min-width: 0;
+  overflow-x: clip;
+}
+
+/* --- Auditoria UX/UI: nenhum texto cortado ---------------------------- */
+/* Containers em flex/grid precisam poder encolher para o truncate/wrap
+   funcionar; palavras longas (e-mails, IDs, URLs) quebram em vez de vazar. */
+.admin-shell [data-slot="card"],
+.admin-shell [data-slot="card-header"],
+.admin-shell [data-slot="card-content"],
+.admin-shell [data-slot="card-title"],
+.admin-shell [data-slot="card-description"] {
+  min-width: 0;
+}
+.admin-shell h1,
+.admin-shell h2,
+.admin-shell h3,
+.admin-shell h4,
+.admin-shell p,
+.admin-shell span,
+.admin-shell dd,
+.admin-shell dt,
+.admin-shell li,
+.admin-shell label,
+.admin-shell [data-slot="card-title"],
+.admin-shell [data-slot="card-description"] {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+/* Preserva reticências onde o layout pede uma única linha */
+.admin-shell .truncate {
+  overflow-wrap: normal;
+}
+/* Tabelas largas nunca estouram a página */
+.admin-shell [data-slot="table-container"],
+.admin-shell .overflow-x-auto {
+  max-width: 100%;
+}
+
+/* --- Auditoria UX/UI: cards mais organizados -------------------------- */
+/* Alinha alturas e padroniza densidade interna dos cards em grids. */
+.admin-shell [data-slot="card"] {
+  height: 100%;
+}
+
+
+
+/* Uplift consistente em todos os módulos existentes (sem alterar markup) */
+.admin-shell [data-slot="card"] {
+  border-radius: var(--admin-radius);
+  border-color: var(--admin-border);
+  box-shadow: var(--admin-shadow-sm);
+  transition: box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.admin-shell [data-slot="card"]:hover {
+  box-shadow: var(--admin-shadow-md);
+}
+.admin-shell [data-slot="table"] thead th {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  font-weight: 600;
+}
+.admin-shell [data-slot="table"] tbody tr {
+  transition: background-color 160ms ease-out;
+}
+.admin-shell [data-slot="table"] tbody tr:hover {
+  background: color-mix(in oklab, var(--foreground) 3.5%, transparent);
+}
+.admin-shell [data-slot="input"],
+.admin-shell [data-slot="textarea"],
+.admin-shell [data-slot="select-trigger"] {
+  border-radius: 12px;
+  transition: border-color 160ms ease-out, box-shadow 160ms ease-out;
+}
+.admin-shell [data-slot="button"] {
+  border-radius: 12px;
+  transition: background-color 160ms ease-out, color 160ms ease-out,
+              box-shadow 160ms ease-out, transform 120ms ease-out;
+}
+.admin-shell [data-slot="button"]:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.admin-shell [data-slot="dialog-content"] {
+  border-radius: 18px;
+  box-shadow: var(--admin-shadow-md);
+}
+.admin-shell [data-slot="badge"] {
+  border-radius: 999px;
+}
+
+/* Remove a sombra vermelha global dentro do admin — visual mais sóbrio */
+.admin-shell button:not(:disabled):hover,
+.admin-shell [role="button"]:not([aria-disabled="true"]):hover,
+.admin-shell a.btn:hover,
+.admin-shell .btn:hover {
+  box-shadow: var(--admin-shadow-xs);
+}
+
+/* Sidebar premium */
+.admin-shell .admin-sidebar [data-sidebar="sidebar"] {
+  box-shadow: var(--admin-shadow-xs);
+}
+.admin-shell [data-sidebar="sidebar"],
+.admin-shell [data-slot="sidebar-container"] {
+  transition: width 240ms cubic-bezier(0.22, 1, 0.36, 1),
+              left 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Microinterações de entrada */
+@keyframes adminFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.admin-shell .admin-fade-in {
+  animation: adminFadeIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-shell *,
+  .admin-shell .admin-fade-in {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ===== App do Aluno: trava definitiva de overflow horizontal ===== */
+html:has([data-student-shell]),
+body:has([data-student-shell]) {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* Nenhum bloco pode estourar a largura do container.
+   Tabelas e SVG (gráficos) ficam de fora: eles vivem em scrollers próprios. */
+[data-student-shell] :where(div, section, article, header, footer, ol, ul, li, p, h1, h2, h3, h4, form, figure) {
+  min-width: 0;
+}
+
+/* Scrollers horizontais (tabelas, heatmap, abas) nunca passam da largura do pai */
+[data-student-shell] :where(.overflow-x-auto, .overflow-auto, .overflow-x-scroll) {
+  max-width: 100%;
+}
+
+/* Gráficos (recharts) nunca podem forçar largura maior que o card */
+[data-student-shell] .recharts-responsive-container,
+[data-student-shell] .recharts-wrapper {
+  max-width: 100% !important;
+}
+
+/* Imagens e mídia sempre fluídas */
+[data-student-shell] :where(img, video, canvas, iframe) {
+  max-width: 100%;
+}
+
+/* Performance (app do aluno): palavras nunca são quebradas no meio */
+[data-student-performance],
+[data-student-performance] * {
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+  -webkit-hyphens: none !important;
+}
