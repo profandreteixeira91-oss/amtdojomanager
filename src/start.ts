@@ -4,8 +4,7 @@ import { renderErrorPage } from "./lib/error-page";
 import { attachScopedSupabaseAuth } from "@/lib/student-auth/bearer-attacher";
 import { attachActiveStudent } from "@/integrations/supabase/active-student-attacher";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
-
-const DOJO_HOST = "dojomanager.amtfightwear.com.br";
+import { DOJO_HOST, isDojoHostname } from "@/lib/dojo-hosts";
 
 const domainRoutingMiddleware = createMiddleware().server(async ({ next, request }) => {
   const url = new URL(request.url);
@@ -21,7 +20,8 @@ const domainRoutingMiddleware = createMiddleware().server(async ({ next, request
     normalize(url.host),
   ].filter(Boolean);
   const hostname = hosts[0] ?? "";
-  const isDojoHost = hosts.includes(DOJO_HOST);
+  const dojoHost = hosts.find(isDojoHostname);
+  const isDojoHost = Boolean(dojoHost);
   const acceptsHtml = request.headers.get("accept")?.includes("text/html") ?? false;
   const isPageRequest = (request.method === "GET" || request.method === "HEAD") && acceptsHtml;
 
@@ -46,7 +46,8 @@ const domainRoutingMiddleware = createMiddleware().server(async ({ next, request
 
   if (isDojoHost && !url.pathname.startsWith("/dojo")) {
     const targetPath = url.pathname === "/" ? "/dojo" : `/dojo${url.pathname}`;
-    return Response.redirect(`https://${DOJO_HOST}${targetPath}${url.search}`, 307);
+    // Permanece no domínio acessado (produção ou testes).
+    return Response.redirect(`https://${dojoHost}${targetPath}${url.search}`, 307);
   }
 
   return next();

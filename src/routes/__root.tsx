@@ -14,6 +14,7 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { DOJO_HOST, DOJO_HOSTS, isDojoHostname } from "@/lib/dojo-hosts";
 
 function NotFoundComponent() {
   return (
@@ -134,9 +135,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
-const DOJO_HOST = "dojomanager.amtfightwear.com.br";
-
-const DOMAIN_ROUTING_SCRIPT = `(function(){try{var h=location.hostname,p=location.pathname,s=location.search||"",x=location.hash||"";if(h!=="localhost"&&h!=="127.0.0.1"&&!h.endsWith(".workers.dev")){var isDojoArea=p.indexOf("/dojo")===0||p.indexOf("/app")===0||p.indexOf("/api/public/app")===0;if(h!=="${DOJO_HOST}"&&p.indexOf("/dojo")===0){location.replace("https://${DOJO_HOST}"+p+s+x);return;}if(h==="${DOJO_HOST}"&&!isDojoArea){location.replace("https://${DOJO_HOST}/dojo"+(p==="/"?"":p)+s+x);return;}}}catch(e){}try{window.__amtInstallPrompt=null;window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__amtInstallPrompt=e;window.dispatchEvent(new Event("amt:install-ready"));});window.addEventListener("appinstalled",function(){window.__amtInstallPrompt=null;window.__amtInstalled=true;window.dispatchEvent(new Event("amt:install-ready"));});}catch(e){}})();`;
+const DOMAIN_ROUTING_SCRIPT = `(function(){try{var h=location.hostname,p=location.pathname,s=location.search||"",x=location.hash||"",dh=${JSON.stringify(DOJO_HOSTS)};if(h!=="localhost"&&h!=="127.0.0.1"&&!h.endsWith(".workers.dev")){var isDojoArea=p.indexOf("/dojo")===0||p.indexOf("/app")===0||p.indexOf("/api/public/app")===0;var onDojo=dh.indexOf(h)!==-1;if(!onDojo&&p.indexOf("/dojo")===0){location.replace("https://${DOJO_HOST}"+p+s+x);return;}if(onDojo&&!isDojoArea){location.replace("https://"+h+"/dojo"+(p==="/"?"":p)+s+x);return;}}}catch(e){}try{window.__amtInstallPrompt=null;window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__amtInstallPrompt=e;window.dispatchEvent(new Event("amt:install-ready"));});window.addEventListener("appinstalled",function(){window.__amtInstallPrompt=null;window.__amtInstalled=true;window.dispatchEvent(new Event("amt:install-ready"));});}catch(e){}})();`;
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
@@ -169,14 +168,15 @@ function useDojoDomainRouting() {
       pathname.startsWith("/dojo") ||
       pathname.startsWith("/app") ||
       pathname.startsWith("/api/public/app");
+    const onDojoHost = isDojoHostname(hostname);
     // Off-domain access to /dojo/* → send to dedicated subdomain
-    if (hostname !== DOJO_HOST && pathname.startsWith("/dojo")) {
+    if (!onDojoHost && pathname.startsWith("/dojo")) {
       window.location.replace(`https://${DOJO_HOST}${pathname}${search}${hash}`);
       return;
     }
-    // On the dedicated subdomain, anything outside the dojo area goes to /dojo
-    if (hostname === DOJO_HOST && !isDojoArea) {
-      window.location.replace(`https://${DOJO_HOST}/dojo${pathname === "/" ? "" : pathname}${search}${hash}`);
+    // On a Dojo domain (production or test), anything outside the dojo area goes to /dojo
+    if (onDojoHost && !isDojoArea) {
+      window.location.replace(`https://${hostname}/dojo${pathname === "/" ? "" : pathname}${search}${hash}`);
     }
   }, []);
 }
