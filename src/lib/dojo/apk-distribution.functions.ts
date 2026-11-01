@@ -140,8 +140,8 @@ export type PublicApkInfo = {
 export const getPublicApkInfoBySlug = createServerFn({ method: "GET" })
   .validator((i: unknown) => SlugSchema.parse(i))
   .handler(async ({ data }): Promise<PublicApkInfo> => {
-    const url = process.env.SUPABASE_URL!;
-    const key = process.env.SUPABASE_PUBLISHABLE_KEY!;
+    const url = (process.env.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL)!;
+    const key = (process.env.SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)!;
     const client = createClient(url, key, {
       auth: { persistSession: false },
       global: {

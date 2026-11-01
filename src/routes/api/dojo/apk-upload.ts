@@ -15,7 +15,7 @@ export const Route = createFileRoute("/api/dojo/apk-upload")({
           if (!token) return new Response("Unauthorized", { status: 401 });
 
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const anon = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+          const anon = createClient((process.env.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL)!, (process.env.SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)!, {
             global: { headers: { Authorization: `Bearer ${token}` } },
             auth: { persistSession: false },
           });

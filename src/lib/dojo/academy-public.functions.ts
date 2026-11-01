@@ -20,8 +20,8 @@ export type PublicAcademy = {
 export const getAcademyBySlug = createServerFn({ method: "GET" })
   .validator((i: unknown) => slugSchema.parse(i))
   .handler(async ({ data }): Promise<PublicAcademy | null> => {
-    const url = process.env.SUPABASE_URL!;
-    const key = process.env.SUPABASE_PUBLISHABLE_KEY!;
+    const url = (process.env.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL)!;
+    const key = (process.env.SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)!;
     const client = createClient(url, key, {
       auth: { persistSession: false },
       global: {
