@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { calendarISO, dayISO, todayISO, utcCalendarISO } from "@/lib/dates";
+import { resolveDojoIdentity } from "@/lib/dojo/owner-scope";
 
 const uuid = z.string().uuid();
 
@@ -435,36 +436,25 @@ export type StaffAcademy = {
 export const getMyTeamPermissions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    // Se o usuário é dono de um dojo (dojo_academy_profile.owner_id = auth.uid),
-    // liberamos tudo. Caso contrário, retornamos permissões do team_member vinculado.
-    const [{ data: ownerProfile }, { data: rows }] = await Promise.all([
-      context.supabase
-        .from("dojo_academy_profile")
-        .select("owner_id, trade_name, legal_name, logo_url, brand_primary, brand_secondary, city, state")
-        .eq("owner_id", context.userId)
-        .maybeSingle(),
-      context.supabase.rpc("dojo_my_team_permissions"),
-    ]);
-    if (ownerProfile) {
+    // Dono (perfil de academia, identidade owner ou conta própria) tem acesso total;
+    // só um vínculo ATIVO de equipe restringe às permissões dadas pelo dono pai.
+    const identity = await resolveDojoIdentity(context);
+    const { data: academy } = await context.supabase
+      .from("dojo_academy_profile")
+      .select("owner_id, trade_name, legal_name, logo_url, brand_primary, brand_secondary, city, state")
+      .eq("owner_id", identity.ownerId)
+      .maybeSingle();
+
+    if (identity.isOwner) {
       return {
         isOwner: true as const,
         permissions: null,
         member: null,
-        academy: ownerProfile as StaffAcademy,
+        academy: (academy ?? null) as StaffAcademy | null,
       };
     }
-    const row = Array.isArray(rows) ? rows[0] : null;
-    // Sem team_member vinculado = usuário autônomo (ex.: novo cadastro em trial).
-    // Trata-se do dono da própria conta e recebe acesso total ao sistema.
-    if (!row) return { isOwner: true as const, permissions: null, member: null, academy: null };
 
-    // Vínculo com o dojo pai: toda conta de equipe pertence a um owner_id.
-    const { data: academy } = await context.supabase
-      .from("dojo_academy_profile")
-      .select("owner_id, trade_name, legal_name, logo_url, brand_primary, brand_secondary, city, state")
-      .eq("owner_id", row.owner_id)
-      .maybeSingle();
-
+    const row = identity.member;
     return {
       isOwner: false as const,
       permissions: (row.permissions ?? {}) as Record<string, "none" | "read" | "write">,

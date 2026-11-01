@@ -23,7 +23,10 @@ export function DojoPermissionsProvider({ children }: { children: ReactNode }) {
     staleTime: 60_000,
   });
 
-  const isOwner = q.data?.isOwner ?? false;
+  // Erro ao consultar (sessão renovando, rede) não pode virar "Sem permissão"
+  // para o dono: só a resposta confirmada de login de equipe restringe a tela.
+  // O isolamento dos dados é garantido pela RLS, não por esta tela.
+  const isOwner = q.data?.isOwner ?? q.isError;
   const permissions = (q.data?.permissions ?? null) as PermissionMap | null;
   const memberId = q.data?.member?.id;
 
@@ -50,7 +53,7 @@ export function DojoPermissionsProvider({ children }: { children: ReactNode }) {
   }, [memberId, qc]);
 
   const can = (moduleKey: string, need: AccessLevel = "read") => {
-    if (q.isLoading) return true; // não bloqueia UI enquanto carrega
+    if (!q.isSuccess) return true; // não bloqueia UI enquanto carrega ou com erro
     if (isOwner) return true;
     return canAccess(permissions, moduleKey, need);
   };
