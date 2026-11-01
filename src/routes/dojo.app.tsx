@@ -48,8 +48,7 @@ import {
   ShoppingCart,
   Gavel,
   LifeBuoy,
-
-
+  ShieldAlert,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -74,6 +73,7 @@ import { UnitScopeProvider } from "@/components/dojo/UnitScope";
 import { UnitSwitcher } from "@/components/dojo/UnitSwitcher";
 import { DojoSplash } from "@/components/dojo/DojoSplash";
 import { EmailVerificationBanner } from "@/components/dojo/EmailVerificationBanner";
+import { DojoCommandPalette } from "@/components/dojo/DojoCommandPalette";
 
 
 
@@ -425,78 +425,81 @@ function DojoLayoutInner({
     setOpen(false);
   };
 
+  const visibleNav = nav
+    .map((group) => ({
+      label: group.label,
+      items: group.items.filter((item) => {
+        const mod = findModuleForPath(item.to);
+        if (!mod) return true;
+        return can(mod.key, "read");
+      }),
+    }))
+    .filter((group) => group.items.length > 0);
+
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
   return (
     <>
       <TrialBanner />
       <TrialExpiredOverlay pathname={pathname} onLogout={onLogout} />
       <EmailVerificationBanner />
+      <DojoCommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} groups={visibleNav} />
       <Sidebar
         collapsible="icon"
         className="border-r border-[color:var(--dojo-border)]"
         onMouseEnter={onSidebarEnter}
         onMouseLeave={onSidebarLeave}
       >
-        <SidebarHeader className="border-b border-[color:var(--dojo-border)]/60 bg-white">
-          <Link to="/dojo" className="flex items-center justify-center px-2 py-2">
-            <DojoLogo className="h-12 w-auto shrink-0 group-data-[collapsible=icon]:h-8" />
+        <SidebarHeader className="h-14 justify-center border-b border-[color:var(--dojo-border)] bg-white md:h-16">
+          <Link to="/dojo" className="no-red-underline flex items-center justify-center px-2">
+            <DojoLogo className="h-10 w-auto shrink-0 group-data-[collapsible=icon]:h-7" />
             <span className="sr-only">AMT Dojo Manager</span>
           </Link>
         </SidebarHeader>
 
-        <SidebarContent>
-          {nav.map((group) => {
-            const visible = group.items.filter((item) => {
-              const mod = findModuleForPath(item.to);
-              if (!mod) return true;
-              return can(mod.key, "read");
-            });
-            if (visible.length === 0) return null;
-            return (
-              <SidebarGroup key={group.label}>
-                <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/70">
-                  {group.label}
-                </SidebarGroupLabel>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {visible.map((item) => {
-                      const active = isActive(item.to, item.exact);
-                      const Icon = item.icon;
-                      return (
-                        <SidebarMenuItem key={item.to}>
-                          <SidebarMenuButton
-                            asChild
-                            isActive={active}
-                            tooltip={item.label}
-                            className="data-[active=true]:bg-primary data-[active=true]:text-primary-foreground data-[active=true]:hover:bg-primary/90 data-[active=true]:font-semibold"
-                          >
-                            <Link to={item.to}>
-                              <Icon className="h-4 w-4" />
-                              <span>{item.label}</span>
-                            </Link>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      );
-                    })}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
-            );
-          })}
+        <SidebarContent className="gap-0 py-2">
+          {visibleNav.map((group) => (
+            <SidebarGroup key={group.label} className="py-1.5">
+              <SidebarGroupLabel className="h-7 px-2">{group.label}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className="gap-0.5">
+                  {group.items.map((item) => {
+                    const active = isActive(item.to, item.exact);
+                    const Icon = item.icon;
+                    return (
+                      <SidebarMenuItem key={item.to}>
+                        <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
+                          <Link to={item.to}>
+                            <Icon className="h-4 w-4" />
+                            <span>{item.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          ))}
         </SidebarContent>
 
-        <SidebarFooter className="border-t border-[color:var(--dojo-border)]/60">
-          <div className="flex items-center gap-2 px-2 py-1.5">
-            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
+        <SidebarFooter className="border-t border-[color:var(--dojo-border)] p-2">
+          <div className="flex items-center gap-2.5 rounded-lg px-1.5 py-1.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-neutral-900 text-xs font-semibold text-white ring-2 ring-white">
               {initial}
             </div>
             <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-              <div className="text-xs font-medium truncate">{email ?? "Instrutor"}</div>
-              <div className="text-[10px] text-muted-foreground">Conta ativa</div>
+              <div className="truncate text-xs font-medium text-neutral-900">{email ?? "Instrutor"}</div>
+              <div className="flex items-center gap-1 text-[10px] text-neutral-500">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                Conta ativa
+              </div>
             </div>
             <button
               onClick={onLogout}
               title="Sair"
-              className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors group-data-[collapsible=icon]:hidden"
+              aria-label="Sair"
+              className="grid h-8 w-8 place-items-center rounded-md text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 group-data-[collapsible=icon]:hidden"
             >
               <LogOut className="h-4 w-4" />
             </button>
@@ -504,15 +507,17 @@ function DojoLayoutInner({
         </SidebarFooter>
       </Sidebar>
 
-      <SidebarInset className="bg-[color:var(--dojo-surface)] min-w-0 overflow-x-hidden">
-        <header className="sticky top-0 z-30 flex h-14 md:h-16 items-center gap-2 md:gap-3 border-b border-red-900/60 bg-red-700 text-white px-2 sm:px-3 md:px-6 shadow-[0_4px_18px_-6px_rgba(0,0,0,0.35)]">
-          <SidebarTrigger className="-ml-1 shrink-0 text-white hover:bg-white/10" />
+      <SidebarInset className="dojo-canvas min-w-0 overflow-x-hidden">
+        <header className="dojo-topbar sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-[color:var(--dojo-border)] px-2 sm:px-3 md:h-16 md:gap-3 md:px-6">
+          <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-red-700 via-red-600 to-red-500" />
+          <SidebarTrigger className="-ml-0.5 h-8 w-8 shrink-0 rounded-lg text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900" />
+          <span aria-hidden className="hidden h-6 w-px bg-[color:var(--dojo-border)] md:block" />
           <div className="min-w-0 flex-1">
-            <h1 className="font-display text-sm sm:text-base md:text-lg font-bold tracking-tight leading-tight truncate text-white">
+            <h1 className="truncate text-sm font-semibold leading-tight tracking-tight text-neutral-950 sm:text-base md:text-[17px]">
               {header.title}
             </h1>
             {header.subtitle && (
-              <p className="hidden sm:block text-[11px] md:text-xs text-white/75 leading-tight truncate">
+              <p className="hidden truncate text-xs leading-tight text-neutral-500 sm:block md:mt-0.5">
                 {header.subtitle}
               </p>
             )}
@@ -522,47 +527,59 @@ function DojoLayoutInner({
           <div className="hidden md:block">
             <UnitSwitcher />
           </div>
-          <div className="hidden md:flex items-center gap-2">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-500" />
-              <input
-                type="search"
-                placeholder="Buscar aluno, plano, unidade…"
-                className="h-9 w-64 rounded-lg border border-[color:var(--dojo-border)] bg-white text-black placeholder:text-neutral-500 pl-8 pr-3 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/15"
-              />
-            </div>
-            <button
-              title="Notificações"
-              className="grid h-9 w-9 place-items-center rounded-lg border border-[color:var(--dojo-border)] bg-white text-black hover:border-[color:var(--dojo-border-strong)] transition-colors"
-            >
-              <Bell className="h-4 w-4" />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            className="hidden h-9 w-64 items-center gap-2 rounded-lg border border-[color:var(--dojo-border)] bg-white px-3 text-sm text-neutral-500 shadow-xs transition-colors hover:border-[color:var(--dojo-border-strong)] hover:text-neutral-700 xl:flex"
+          >
+            <Search className="h-3.5 w-3.5 shrink-0" />
+            <span className="flex-1 truncate text-left">Buscar no sistema…</span>
+            <kbd className="rounded border border-[color:var(--dojo-border)] bg-neutral-50 px-1.5 py-0.5 font-sans text-[10px] font-medium text-neutral-500">
+              Ctrl K
+            </kbd>
+          </button>
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            title="Buscar no sistema"
+            aria-label="Buscar no sistema"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900 xl:hidden"
+          >
+            <Search className="h-4 w-4" />
+          </button>
+          <Link
+            to="/dojo/app/notifications"
+            title="App & Notificações"
+            aria-label="App & Notificações"
+            className="hidden h-9 w-9 shrink-0 place-items-center rounded-lg text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900 md:grid"
+          >
+            <Bell className="h-4 w-4" />
+          </Link>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 title={dojoName ?? "Academia"}
-                className="flex shrink-0 items-center gap-1.5 sm:gap-2 rounded-lg border border-[color:var(--dojo-border)] bg-white text-black px-1.5 sm:px-2 py-1 sm:py-1.5 hover:border-[color:var(--dojo-border-strong)] hover:shadow-sm transition-all"
+                className="flex shrink-0 items-center gap-2 rounded-lg border border-[color:var(--dojo-border)] bg-white py-1 pl-1 pr-1 shadow-xs transition-colors hover:border-[color:var(--dojo-border-strong)] sm:pr-2"
               >
                 {branding?.logo_url ? (
                   <img
                     src={branding.logo_url}
                     alt={dojoName ?? "Logo do dojo"}
-                    className="h-7 w-7 shrink-0 rounded-full object-cover bg-white"
+                    className="h-7 w-7 shrink-0 rounded-md bg-white object-cover"
                     draggable={false}
                   />
                 ) : (
-                  <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                  <div className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
                     {(dojoName?.[0] ?? initial).toUpperCase()}
                   </div>
                 )}
-                <span className="hidden sm:inline max-w-[180px] truncate text-sm font-semibold text-black">
+                <span className="hidden max-w-[160px] truncate text-sm font-medium text-neutral-900 lg:inline">
                   {dojoName ?? "Minha academia"}
                 </span>
-                <ChevronDown className="hidden sm:block h-3.5 w-3.5 text-black" />
+                <ChevronDown className="hidden h-3.5 w-3.5 text-neutral-500 sm:block" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-60">
               <DropdownMenuLabel className="truncate">
                 <div className="font-semibold truncate">{dojoName ?? "Minha academia"}</div>
                 {email && <div className="text-[11px] font-normal text-muted-foreground truncate">{email}</div>}
@@ -592,16 +609,18 @@ function DojoLayoutInner({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-
         </header>
 
-        <main className="min-w-0 max-w-full overflow-x-hidden p-3 sm:p-4 md:p-6">
+        <main className="min-w-0 max-w-full overflow-x-hidden p-3 sm:p-4 md:p-6 lg:p-8">
           <UnsavedChangesProvider>
             {blocked ? (
-              <div className="mx-auto mt-16 max-w-md rounded-xl border border-[color:var(--dojo-border)] bg-white p-8 text-center shadow-sm">
-                <div className="text-2xl font-bold mb-2">Sem permissão</div>
-                <p className="text-sm text-muted-foreground">
-                  Você não tem acesso ao módulo <b>{currentModule?.label}</b>. Fale com o administrador do dojo para liberar.
+              <div className="mx-auto mt-16 flex max-w-md flex-col items-center rounded-2xl border border-[color:var(--dojo-border)] bg-white p-8 text-center shadow-sm">
+                <div className="mb-4 grid h-12 w-12 place-items-center rounded-xl bg-red-50 text-red-600">
+                  <ShieldAlert className="h-6 w-6" />
+                </div>
+                <div className="mb-1.5 text-lg font-semibold tracking-tight">Sem permissão</div>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  Você não tem acesso ao módulo <b className="text-foreground">{currentModule?.label}</b>. Fale com o administrador do dojo para liberar.
                 </p>
               </div>
             ) : (

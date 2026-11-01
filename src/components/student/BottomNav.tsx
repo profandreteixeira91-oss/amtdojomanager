@@ -34,13 +34,13 @@ export function BottomNav({ items, features }: { items: NavItem[]; features: Fea
   });
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 border-t backdrop-blur-md"
+      className="fixed bottom-0 left-0 right-0 z-40 border-t border-black/[0.06] shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.12)] backdrop-blur-xl"
       style={{
-        background: "color-mix(in oklab, var(--sa-bottom-nav, #ffffff) 95%, transparent)",
+        background: "color-mix(in oklab, var(--sa-bottom-nav, #ffffff) 92%, transparent)",
         paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
-      <ul className="mx-auto flex max-w-md items-stretch justify-around">
+      <ul className="mx-auto flex max-w-md items-stretch justify-around px-1">
         {filtered.map((it) => {
           const Icon = iconFor(it.icon);
           const active = pathname === it.route || (it.route !== "/app/home" && pathname.startsWith(it.route));
@@ -49,8 +49,11 @@ export function BottomNav({ items, features }: { items: NavItem[]; features: Fea
               <li key={it.id} className="-mt-6">
                 <Link
                   to={it.route}
-                  className="flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg ring-4 ring-white transition active:scale-95"
-                  style={{ background: "var(--sa-button, var(--sa-primary, #dc2626))" }}
+                  className="flex h-14 w-14 items-center justify-center rounded-2xl text-white ring-4 ring-white transition active:scale-95"
+                  style={{
+                    background: "var(--sa-button, var(--sa-primary, #dc2626))",
+                    boxShadow: "0 10px 24px -8px color-mix(in oklab, var(--sa-button, var(--sa-primary, #dc2626)) 70%, transparent)",
+                  }}
                   aria-label={it.label}
                 >
                   <Icon className="h-6 w-6" />
@@ -62,11 +65,16 @@ export function BottomNav({ items, features }: { items: NavItem[]; features: Fea
             <li key={it.id} className="flex-1">
               <Link
                 to={it.route}
-                className={`flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors ${
-                  active ? "text-[color:var(--sa-primary,#dc2626)]" : "text-neutral-500"
+                className={`flex flex-col items-center gap-1 pb-2 pt-2 text-[11px] transition-colors ${
+                  active ? "font-semibold text-[color:var(--sa-primary,#dc2626)]" : "font-medium text-neutral-500"
                 }`}
               >
-                <Icon className={`h-5 w-5 ${active ? "" : "text-neutral-500"}`} />
+                <span
+                  className="grid h-7 w-12 place-items-center rounded-full transition-colors"
+                  style={active ? { background: "color-mix(in oklab, var(--sa-primary, #dc2626) 12%, transparent)" } : undefined}
+                >
+                  <Icon className={`h-5 w-5 ${active ? "" : "text-neutral-500"}`} />
+                </span>
                 {it.label}
               </Link>
             </li>

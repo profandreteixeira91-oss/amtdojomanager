@@ -19,10 +19,13 @@ function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <div className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-primary">
+        <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
           AMT Growth Engine
         </div>
-        <h1 className="text-7xl font-black text-foreground">404</h1>
+        <h1 className="text-8xl font-black tracking-tighter text-foreground">
+          4<span className="text-primary">0</span>4
+        </h1>
         <h2 className="mt-4 text-xl font-semibold text-foreground">Página não encontrada</h2>
         <p className="mt-2 text-sm text-muted-foreground">
           A rota que você tentou acessar não existe ou foi movida.
@@ -30,7 +33,7 @@ function NotFoundComponent() {
         <div className="mt-6">
           <Link
             to="/dojo/app"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm shadow-primary/20 transition-colors hover:bg-primary/90"
           >
             Ir para o Dashboard
           </Link>
@@ -50,7 +53,8 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <div className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-destructive">
+        <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-destructive/20 bg-destructive/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-destructive">
+          <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
           Ops — algo saiu do trilho
         </div>
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
@@ -65,13 +69,13 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm shadow-primary/20 transition-colors hover:bg-primary/90"
           >
             Tentar novamente
           </button>
           <a
             href="/dojo/app"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            className="inline-flex h-10 items-center justify-center rounded-lg border border-input bg-background px-5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
             Voltar ao dashboard
           </a>

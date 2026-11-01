@@ -18,44 +18,47 @@ export function StatCard({ label, value, delta, hint, icon: Icon, loading, index
   const positive = (delta ?? 0) >= 0;
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, delay: index * 0.04 }}
       className="min-w-0"
     >
-      <Card className="group relative min-w-0 overflow-hidden border-border/60 bg-card/60 shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[0_10px_30px_-12px_color-mix(in_oklab,var(--primary)_35%,transparent)]">
-        <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+      <Card className="group relative h-full min-w-0 overflow-hidden transition-[border-color,box-shadow] duration-200 hover:border-foreground/15 hover:shadow-md hover:shadow-black/[0.04]">
         <CardContent className="min-w-0 p-4 sm:p-5">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1 break-words text-[11px] font-semibold uppercase leading-tight tracking-[0.14em] text-muted-foreground">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1 break-words text-xs font-medium leading-tight text-muted-foreground">
               {label}
             </div>
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-primary/15 to-primary/5 text-primary ring-1 ring-primary/20">
+            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
               <Icon className="h-4 w-4" />
             </div>
           </div>
           {loading ? (
             <Skeleton className="mt-3 h-7 w-24" />
           ) : (
-            <div className="mt-3 truncate text-2xl font-bold tracking-tight">{value}</div>
+            <div className="mt-2 truncate text-2xl font-bold tracking-tight tabular-nums">{value}</div>
           )}
-          {typeof delta === "number" && !loading && (
-            <div
-              className={`mt-1 inline-flex items-center gap-1 text-xs font-semibold ${
-                positive ? "text-emerald-500" : "text-destructive"
-              }`}
-            >
-              {positive ? (
-                <ArrowUpRight className="h-3 w-3" />
-              ) : (
-                <ArrowDownRight className="h-3 w-3" />
+          {(typeof delta === "number" || hint) && !loading && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+              {typeof delta === "number" && (
+                <span
+                  className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${
+                    positive
+                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
+                      : "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400"
+                  }`}
+                >
+                  {positive ? (
+                    <ArrowUpRight className="h-3 w-3" />
+                  ) : (
+                    <ArrowDownRight className="h-3 w-3" />
+                  )}
+                  {positive ? "+" : ""}
+                  {delta.toFixed(1)}%
+                </span>
               )}
-              {positive ? "+" : ""}
-              {delta.toFixed(1)}%
+              {hint && <span className="break-words text-xs text-muted-foreground">{hint}</span>}
             </div>
-          )}
-          {hint && !loading && (
-            <div className="mt-1 break-words text-xs text-muted-foreground">{hint}</div>
           )}
         </CardContent>
       </Card>

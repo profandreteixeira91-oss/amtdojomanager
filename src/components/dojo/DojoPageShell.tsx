@@ -37,15 +37,15 @@ export function DojoPageShell({
   return (
     <div className={`mx-auto flex w-full ${maxW} flex-col gap-6 md:gap-7`}>
       {showBar && (
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
             {title && (
-              <h2 className="font-display break-words text-xl font-bold tracking-tight md:text-2xl">
+              <h2 className="font-display break-words text-xl font-bold tracking-tight text-foreground md:text-2xl">
                 {title}
               </h2>
             )}
             {description && (
-              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
+              <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">{description}</p>
             )}
           </div>
           {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}

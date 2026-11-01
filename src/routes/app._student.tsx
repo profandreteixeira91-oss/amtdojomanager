@@ -155,7 +155,7 @@ function StudentShell() {
       <InstallReminderBanner />
       <div data-student-shell className="min-h-screen w-full max-w-full overflow-x-hidden">
       <header
-        className="sticky top-0 z-30 border-b bg-white/90 backdrop-blur"
+        className="sticky top-0 z-30 border-b border-black/[0.06] bg-white/85 backdrop-blur-xl"
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-3 sm:gap-4 sm:px-6 lg:px-8">
@@ -164,14 +164,14 @@ function StudentShell() {
               <img
                 src={logo}
                 alt={branding?.trade_name || appName}
-                className="h-10 w-10 shrink-0 rounded-xl object-contain bg-white ring-1 ring-black/5 shadow-sm p-0.5 sm:h-12 sm:w-12 md:h-14 md:w-14"
+                className="h-10 w-10 shrink-0 rounded-xl object-contain bg-white ring-1 ring-black/[0.06] shadow-sm p-0.5 sm:h-11 sm:w-11 md:h-12 md:w-12"
               />
             ) : (
-              <div className="h-10 w-10 shrink-0 rounded-xl sm:h-12 sm:w-12 md:h-14 md:w-14" style={{ background: "var(--sa-primary, #dc2626)" }} />
+              <div className="h-10 w-10 shrink-0 rounded-xl sm:h-11 sm:w-11 md:h-12 md:w-12" style={{ background: "var(--sa-primary, #dc2626)" }} />
             )}
             <div className="min-w-0 flex-1">
               <div
-                className="truncate text-sm font-bold leading-tight sm:text-base md:text-lg"
+                className="truncate text-sm font-bold leading-tight tracking-tight sm:text-base md:text-[17px]"
                 style={{ color: "var(--sa-title)" }}
               >
                 {branding?.trade_name || appName}
@@ -264,10 +264,10 @@ function DesktopNav({ items, features }: { items: any[]; features: any }) {
             <li key={it.id}>
               <Link
                 to={it.route}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition ${
                   active
-                    ? "bg-[color:var(--sa-primary,#dc2626)]/10 text-[color:var(--sa-primary,#dc2626)]"
-                    : "text-neutral-600 hover:bg-neutral-100"
+                    ? "bg-[color:var(--sa-primary,#dc2626)]/10 font-semibold text-[color:var(--sa-primary,#dc2626)]"
+                    : "font-medium text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
                 }`}
               >
                 <Icon className="h-4 w-4" />
