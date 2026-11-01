@@ -289,7 +289,7 @@ export const upsertCompetitionAthlete = createServerFn({ method: "POST" })
         // Envia push web ao aluno
         try {
           const { safeNotifyStudent } = await import("@/lib/push/push.server");
-          safeNotifyStudent(data.student_id, {
+          await safeNotifyStudent(data.student_id, {
             title,
             body,
             url: "/app/competitions",

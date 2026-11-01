@@ -486,10 +486,10 @@ export const saveDojoStudent = createServerFn({ method: "POST" })
     const owner = ownerId(context);
     const { data: row, error } = await context.supabase.from("dojo_students").insert({ ...payload, owner_id: owner }).select("id, full_name").single();
     if (error) throw new Error(error.message);
-    // Fire-and-forget: notifica o dono do dojo sobre nova matrícula
+    // Notifica o dono do dojo sobre nova matrícula
     try {
       const { sendPushToDojoOwner } = await import("@/lib/push/dojo-owner-push.server");
-      void sendPushToDojoOwner(owner, "enrollments", {
+      await sendPushToDojoOwner(owner, "enrollments", {
         title: "Nova matrícula",
         body: `${row.full_name ?? "Novo aluno"} foi cadastrado(a) no dojo`,
         url: `/dojo/app/students/${row.id}`,
@@ -524,7 +524,7 @@ export const deleteDojoStudent = createServerFn({ method: "POST" })
     try {
       const owner = ownerId(context);
       const { sendPushToDojoOwner } = await import("@/lib/push/dojo-owner-push.server");
-      void sendPushToDojoOwner(owner, "enrollments", {
+      await sendPushToDojoOwner(owner, "enrollments", {
         title: "Matrícula cancelada",
         body: `${prev.full_name ?? "Aluno"} foi excluído(a) definitivamente do sistema`,
         url: `/dojo/app/students`,
@@ -565,7 +565,7 @@ export const freezeDojoStudent = createServerFn({ method: "POST" })
       const untilLabel = data.frozen_until
         ? ` até ${new Date(`${data.frozen_until}T00:00:00`).toLocaleDateString("pt-BR")}`
         : " por tempo indeterminado";
-      void sendPushToDojoOwner(owner, "enrollments", {
+      await sendPushToDojoOwner(owner, "enrollments", {
         title: "Matrícula congelada",
         body: `${prev?.full_name ?? "Aluno"} teve a matrícula congelada${untilLabel}`,
         url: `/dojo/app/students/${data.id}`,
@@ -1417,7 +1417,7 @@ export const changeStudentPlan = createServerFn({ method: "POST" })
     // Notifica o aluno da alteração de plano
     try {
       const { safeNotifyStudent } = await import("@/lib/push/push.server");
-      safeNotifyStudent(data.student_id, {
+      await safeNotifyStudent(data.student_id, {
         title: "Plano alterado",
         body: `Seu plano foi atualizado para ${(plan as any).name}. Novo valor entra em vigor na próxima cobrança.`,
         url: "/app/plan",
@@ -1655,7 +1655,7 @@ export const issueCertificate = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     try {
       const { safeNotifyStudent } = await import("@/lib/push/push.server");
-      safeNotifyStudent(data.student_id, {
+      await safeNotifyStudent(data.student_id, {
         title: "Certificado disponível 🎓",
         body: "Seu novo certificado foi emitido. Toque para visualizar e baixar.",
         url: "/app/certificados",

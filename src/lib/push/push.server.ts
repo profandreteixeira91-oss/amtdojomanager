@@ -1,17 +1,15 @@
-// Helpers server-only para envio de Web Push (VAPID) aos alunos.
-// Usa Web Crypto via @block65/webcrypto-web-push (compatível com Cloudflare Workers).
+// Push para alunos (app do aluno), sobre o núcleo único de envio.
+//
+// Regras: cada academia liga/desliga categorias em
+// dojo_student_notification_prefs (sem linha ou categoria ausente = ligada);
+// o aparelho recebe pelo aluno inscrito em dojo_push_subscriptions.
 
-import { sendWebPushOnce } from "./webpush-native.server";
-
-type PushPayload = {
-  title: string;
-  body?: string;
-  url?: string;
-  tag?: string;
-  icon?: string;
-  badge?: string;
-  data?: Record<string, unknown>;
-};
+import {
+  deliverPush,
+  EMPTY_DELIVERY,
+  type PushDeliveryResult,
+  type PushPayload,
+} from "./push-core.server";
 
 export type StudentNotificationCategory =
   | "class_reminder"
@@ -28,97 +26,84 @@ export type StudentNotificationCategory =
   | "plan_change"
   | "schedule_change";
 
-async function isCategoryEnabledForStudent(
-  studentId: string,
+/** Alunos cuja academia não desligou a categoria. */
+async function filterByAcademyPrefs(
+  studentIds: string[],
   category: StudentNotificationCategory | undefined,
-): Promise<boolean> {
-  if (!category) return true;
+): Promise<string[]> {
+  if (!category || studentIds.length === 0) return studentIds;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: students, error } = await supabaseAdmin
+    .from("dojo_students")
+    .select("id, owner_id")
+    .in("id", studentIds);
+  if (error) {
+    console.warn("[push:student] falha ao ler alunos, seguindo com envio:", error.message);
+    return studentIds;
+  }
+  const ownerIds = Array.from(new Set((students ?? []).map((s: any) => s.owner_id as string)));
+  if (ownerIds.length === 0) return studentIds;
+  const { data: prefs, error: prefsErr } = await supabaseAdmin
+    .from("dojo_student_notification_prefs")
+    .select("owner_id, categories")
+    .in("owner_id", ownerIds);
+  if (prefsErr) {
+    console.warn("[push:student] falha ao ler preferências, seguindo com envio:", prefsErr.message);
+    return studentIds;
+  }
+  const disabledOwners = new Set(
+    (prefs ?? [])
+      .filter((p: any) => (p.categories as Record<string, boolean> | null)?.[category] === false)
+      .map((p: any) => p.owner_id as string),
+  );
+  if (disabledOwners.size === 0) return studentIds;
+  const ownerOf = new Map((students ?? []).map((s: any) => [s.id as string, s.owner_id as string]));
+  return studentIds.filter((id) => !disabledOwners.has(ownerOf.get(id) ?? ""));
+}
+
+/** Envia o mesmo push a vários alunos (avisos, mudança de grade…). */
+export async function sendPushToStudents(
+  studentIds: Array<string | null | undefined>,
+  payload: PushPayload,
+  category?: StudentNotificationCategory,
+): Promise<PushDeliveryResult> {
   try {
+    const unique = Array.from(new Set(studentIds.filter((id): id is string => !!id)));
+    const allowed = await filterByAcademyPrefs(unique, category);
+    if (allowed.length === 0) return { ...EMPTY_DELIVERY };
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: st } = await supabaseAdmin
-      .from("dojo_students")
-      .select("owner_id")
-      .eq("id", studentId)
-      .maybeSingle();
-    const ownerId = (st as any)?.owner_id as string | undefined;
-    if (!ownerId) return true;
-    const { data: prefs } = await supabaseAdmin
-      .from("dojo_student_notification_prefs")
-      .select("categories")
-      .eq("owner_id", ownerId)
-      .maybeSingle();
-    const cats = (prefs as any)?.categories as Record<string, boolean> | undefined;
-    if (!cats) return true; // sem preferências salvas → padrão (tudo ligado)
-    // undefined em categoria específica também trata como ligado
-    return cats[category] !== false;
-  } catch (err) {
-    console.warn("[push:student] falha ao ler preferências, seguindo com envio:", (err as any)?.message);
-    return true;
+    const { data: subs, error } = await supabaseAdmin
+      .from("dojo_push_subscriptions")
+      .select("id, endpoint, p256dh, auth")
+      .in("student_id", allowed);
+    if (error) {
+      console.error("[push:student] falha ao buscar inscrições:", error.message);
+      return { ...EMPTY_DELIVERY };
+    }
+    return await deliverPush("dojo_push_subscriptions", (subs ?? []) as any[], payload);
+  } catch (err: any) {
+    console.warn("[push:student] envio falhou:", err?.message ?? err);
+    return { ...EMPTY_DELIVERY };
   }
 }
 
 export async function sendPushToStudent(
-  studentId: string,
-  payload: PushPayload,
-  category?: StudentNotificationCategory,
-): Promise<void> {
-  const allowed = await isCategoryEnabledForStudent(studentId, category);
-  if (!allowed) {
-    console.log("[push:student] categoria desativada pelo dono do dojo", { studentId, category });
-    return;
-  }
-
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data: subs, error } = await supabaseAdmin
-    .from("dojo_push_subscriptions")
-    .select("id, endpoint, p256dh, auth")
-    .eq("student_id", studentId);
-
-  if (error) {
-    console.error("[push:student] falha ao buscar inscrições", studentId, error.message);
-    return;
-  }
-  if (!subs || subs.length === 0) {
-    console.log("[push:student] nenhuma inscrição para", studentId);
-    return;
-  }
-
-  await Promise.all(
-    subs.map(async (s: any) => {
-      const result = await sendWebPushOnce(
-        { endpoint: s.endpoint, p256dh: s.p256dh, auth: s.auth },
-        payload,
-      );
-      if (result.ok) {
-        await supabaseAdmin
-          .from("dojo_push_subscriptions")
-          .update({ last_success_at: new Date().toISOString(), last_error: null } as never)
-          .eq("id", s.id);
-      } else if (result.expired) {
-        await supabaseAdmin.from("dojo_push_subscriptions").delete().eq("id", s.id);
-        console.warn("[push:student] inscrição expirada removida", s.id);
-      } else {
-        await supabaseAdmin
-          .from("dojo_push_subscriptions")
-          .update({ last_error: result.error } as never)
-          .eq("id", s.id);
-        console.warn("[push:student] falha no envio", s.id, result.status, result.error);
-      }
-    }),
-  );
-}
-
-/**
- * Fire-and-forget: envia push ao aluno e engole qualquer erro
- * para não bloquear o fluxo principal da função chamadora.
- */
-export function safeNotifyStudent(
   studentId: string | null | undefined,
   payload: PushPayload,
   category?: StudentNotificationCategory,
-): void {
-  if (!studentId) return;
-  void sendPushToStudent(studentId, payload, category).catch((err) => {
-    console.warn("[safeNotifyStudent] falhou:", err?.message ?? err);
-  });
+): Promise<PushDeliveryResult> {
+  return sendPushToStudents([studentId], payload, category);
+}
+
+/**
+ * Notifica o aluno sem nunca quebrar o fluxo de quem chama. Sempre com
+ * `await`: no Worker, envio solto é cortado quando a resposta sai.
+ */
+export async function safeNotifyStudent(
+  studentId: string | null | undefined,
+  payload: PushPayload,
+  category?: StudentNotificationCategory,
+): Promise<void> {
+  await sendPushToStudents([studentId], payload, category);
 }

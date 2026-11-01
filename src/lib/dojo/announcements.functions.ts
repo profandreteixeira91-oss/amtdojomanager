@@ -170,23 +170,17 @@ async function notifyStudentsForAnnouncement(supabase: any, ownerId: string, row
     await supabase.from("dojo_student_notifications").insert(notifRows);
 
     try {
-      const { sendPushToStudent } = await import("@/lib/push/push.server");
-      const results = await Promise.allSettled(
-        visibleStudents.map((sid) =>
-          sendPushToStudent(sid, {
-            title: `📣 ${row.title}`,
-            body: row.summary || row.subtitle || "Novo aviso publicado no quadro de avisos",
-            url: `/app/announcements/${row.id}`,
-            tag: `announcement-${row.id}`,
-            data: { announcementId: row.id, type: "announcement" },
-          }, "announcement"),
-        ),
-      );
-      const failed = results.filter((r) => r.status === "rejected");
+      const { sendPushToStudents } = await import("@/lib/push/push.server");
+      const result = await sendPushToStudents(visibleStudents, {
+        title: `📣 ${row.title}`,
+        body: row.summary || row.subtitle || "Novo aviso publicado no quadro de avisos",
+        url: `/app/announcements/${row.id}`,
+        tag: `announcement-${row.id}`,
+        data: { announcementId: row.id, type: "announcement" },
+      }, "announcement");
       console.log(
-        `[announcements] push disparado para ${visibleStudents.length} alunos (${failed.length} falhas)`,
+        `[announcements] push para ${visibleStudents.length} alunos: ${result.sent} aparelhos, ${result.failed} falhas`,
       );
-      failed.forEach((f: any) => console.warn("[announcements] push rejeitado:", f.reason?.message ?? f.reason));
     } catch (e) {
       console.error("[announcements] push send failed", e);
     }

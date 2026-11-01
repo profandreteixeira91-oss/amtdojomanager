@@ -4,7 +4,8 @@ import { z } from "zod";
 import { requireStudentAuth } from "@/integrations/supabase/student-auth-middleware";
 
 export const getVapidPublicKey = createServerFn({ method: "GET" }).handler(async () => {
-  return { key: process.env.VAPID_PUBLIC_KEY ?? "" };
+  const { getVapidPublicKey: readKey } = await import("@/lib/push/push-core.server");
+  return { key: readKey() };
 });
 
 const SubscribeSchema = z.object({

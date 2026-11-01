@@ -88,6 +88,22 @@ export async function subscribePush(vapidPublicKey: string): Promise<PushSubscri
   }
 }
 
+/**
+ * Ao abrir o app: se este aparelho já tem push ativo, garante a inscrição com a
+ * chave VAPID atual (troca de chave = reinscreve sem pedir permissão de novo).
+ * Não ativa push para quem nunca ativou ou desativou. Nunca lança.
+ */
+export async function syncPushSubscription(vapidPublicKey: string): Promise<PushSubscription | null> {
+  try {
+    if (!vapidPublicKey || !isPushSupported() || Notification.permission !== "granted") return null;
+    const existing = await getCurrentSubscription();
+    if (!existing) return null;
+    return await subscribePush(vapidPublicKey);
+  } catch {
+    return null;
+  }
+}
+
 export function subscriptionToPayload(sub: PushSubscription) {
   const json = sub.toJSON();
   return {

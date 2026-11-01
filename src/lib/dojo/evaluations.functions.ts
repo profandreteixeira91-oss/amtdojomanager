@@ -369,7 +369,7 @@ export const createEvalSession = createServerFn({ method: "POST" })
       const when = data.scheduled_at
         ? ` em ${new Date(data.scheduled_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`
         : "";
-      safeNotifyStudent(data.student_id, {
+      await safeNotifyStudent(data.student_id, {
         title: data.scheduled_at ? "Avaliação agendada 📋" : "Nova avaliação criada",
         body: `${(tpl as any)?.title ?? "Avaliação"}${when}`,
         url: "/app/avaliacoes",
@@ -459,7 +459,7 @@ export const finishEvalSession = createServerFn({ method: "POST" })
         conditional: { title: "Aprovação condicional", body: "Você foi aprovado(a) com ressalvas. Confira os detalhes." },
       };
       const msg = map[data.result] ?? { title: "Avaliação concluída", body: "Toque para ver os detalhes." };
-      safeNotifyStudent((sess as any)?.student_id, {
+      await safeNotifyStudent((sess as any)?.student_id, {
         ...msg,
         url: "/app/avaliacoes",
         tag: `eval-finish-${data.id}`,

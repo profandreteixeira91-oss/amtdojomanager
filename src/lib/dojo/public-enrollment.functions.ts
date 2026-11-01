@@ -392,7 +392,7 @@ export const publicEnrollStudent = createServerFn({ method: "POST" })
     // 6) Notifica o dono do dojo
     try {
       const { sendPushToDojoOwner } = await import("@/lib/push/dojo-owner-push.server");
-      void sendPushToDojoOwner(ownerId, "enrollments", {
+      await sendPushToDojoOwner(ownerId, "enrollments", {
         title: "Nova matrícula (auto-atendimento)",
         body: `${studentRow.full_name ?? "Novo aluno"} concluiu a matrícula em ${(plan as any).name}`,
         url: `/dojo/app/students/${studentRow.id}`,

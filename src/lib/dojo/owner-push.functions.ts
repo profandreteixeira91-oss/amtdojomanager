@@ -25,7 +25,8 @@ const CategoriesSchema = z
   .partial();
 
 export const getOwnerPushPublicKey = createServerFn({ method: "GET" }).handler(async () => {
-  const key = process.env.VAPID_PUBLIC_KEY;
+  const { getVapidPublicKey } = await import("@/lib/push/push-core.server");
+  const key = getVapidPublicKey();
   if (!key) throw new Error("VAPID_PUBLIC_KEY não configurada");
   return { publicKey: key };
 });
@@ -52,7 +53,22 @@ export const subscribeOwnerPush = createServerFn({ method: "POST" })
       device_label: data.device_label ?? null,
       updated_at: new Date().toISOString(),
     };
-    if (data.categories) payload.categories = data.categories;
+    if (data.categories) {
+      payload.categories = data.categories;
+    } else {
+      // Aparelho reinscrito (troca de chave ou rotação do navegador): mantém as
+      // categorias que o dono já tinha escolhido em vez de voltar ao padrão.
+      // Se este aparelho já está salvo, o upsert preserva as categorias dele.
+      const { data: existing } = await context.supabase
+        .from("dojo_owner_push_subscriptions" as never)
+        .select("endpoint, categories")
+        .eq("user_id", context.userId)
+        .order("updated_at", { ascending: false });
+      const rows = (existing ?? []) as Array<{ endpoint: string; categories: unknown }>;
+      if (!rows.some((r) => r.endpoint === data.endpoint) && rows[0]?.categories) {
+        payload.categories = rows[0].categories;
+      }
+    }
 
     const { error } = await context.supabase
       .from("dojo_owner_push_subscriptions" as never)

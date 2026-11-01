@@ -1,65 +1,39 @@
-// Envio de Web Push para o dono do dojo (painel Dojo Manager).
-// Usa Web Crypto (Cloudflare Workers compatible).
+// Push para o dono do dojo (painel Dojo Manager), sobre o núcleo único de envio.
+// Regra: cada aparelho do dono escolhe as categorias que recebe
+// (dojo_owner_push_subscriptions.categories; ausente = ligada).
 import type { OwnerPushCategory } from "@/lib/dojo/owner-push.functions";
-import { sendWebPushOnce } from "./webpush-native.server";
+import {
+  deliverPush,
+  EMPTY_DELIVERY,
+  type PushDeliveryResult,
+  type PushPayload,
+} from "./push-core.server";
 
-export type DojoOwnerPushPayload = {
-  title: string;
-  body?: string;
-  url?: string;
-  tag?: string;
-  data?: Record<string, unknown>;
-};
+export type DojoOwnerPushPayload = PushPayload;
 
+/** Nunca lança; sempre chamar com `await`. */
 export async function sendPushToDojoOwner(
   userId: string,
   category: OwnerPushCategory,
   payload: DojoOwnerPushPayload,
-): Promise<{ sent: number; failed: number }> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-  const { data: subs } = await supabaseAdmin
-    .from("dojo_owner_push_subscriptions" as never)
-    .select("id, endpoint, p256dh, auth, categories")
-    .eq("user_id", userId);
-
-  const enabled = ((subs ?? []) as any[]).filter((s) => {
-    const cats = (s.categories ?? {}) as Record<string, boolean | undefined>;
-    return cats[category] !== false;
-  });
-  if (enabled.length === 0) return { sent: 0, failed: 0 };
-
-  let sent = 0;
-  let failed = 0;
-
-  await Promise.all(
-    enabled.map(async (s: any) => {
-      const result = await sendWebPushOnce(
-        { endpoint: s.endpoint, p256dh: s.p256dh, auth: s.auth },
-        payload,
-      );
-      if (result.ok) {
-        sent++;
-        await supabaseAdmin
-          .from("dojo_owner_push_subscriptions" as never)
-          .update({ last_success_at: new Date().toISOString(), last_error: null } as never)
-          .eq("id", s.id);
-      } else if (result.expired) {
-        failed++;
-        await supabaseAdmin
-          .from("dojo_owner_push_subscriptions" as never)
-          .delete()
-          .eq("id", s.id);
-      } else {
-        failed++;
-        console.warn("[push:owner] falha no envio", s.id, result.status, result.error);
-        await supabaseAdmin
-          .from("dojo_owner_push_subscriptions" as never)
-          .update({ last_error: result.error } as never)
-          .eq("id", s.id);
-      }
-    }),
-  );
-
-  return { sent, failed };
+): Promise<PushDeliveryResult> {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: subs, error } = await supabaseAdmin
+      .from("dojo_owner_push_subscriptions")
+      .select("id, endpoint, p256dh, auth, categories")
+      .eq("user_id", userId);
+    if (error) {
+      console.error("[push:owner] falha ao buscar inscrições:", error.message);
+      return { ...EMPTY_DELIVERY };
+    }
+    const enabled = (subs ?? []).filter((s: any) => {
+      const cats = (s.categories ?? {}) as Record<string, boolean | undefined>;
+      return cats[category] !== false;
+    });
+    return await deliverPush("dojo_owner_push_subscriptions", enabled as any[], payload);
+  } catch (err: any) {
+    console.warn("[push:owner] envio falhou:", err?.message ?? err);
+    return { ...EMPTY_DELIVERY };
+  }
 }

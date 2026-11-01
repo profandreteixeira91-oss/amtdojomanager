@@ -57,21 +57,17 @@ export async function notifyScheduleChange(
       })),
     );
 
-    const { sendPushToStudent } = await import("@/lib/push/push.server");
-    await Promise.allSettled(
-      studentIds.map((sid) =>
-        sendPushToStudent(
-          sid,
-          {
-            title: `🗓️ ${title}`,
-            body,
-            url: "/app/schedule",
-            tag: `schedule-${args.classId}`,
-            data: { classId: args.classId, kind: args.kind },
-          },
-          "schedule_change",
-        ),
-      ),
+    const { sendPushToStudents } = await import("@/lib/push/push.server");
+    await sendPushToStudents(
+      studentIds,
+      {
+        title: `🗓️ ${title}`,
+        body,
+        url: "/app/schedule",
+        tag: `schedule-${args.classId}`,
+        data: { classId: args.classId, kind: args.kind },
+      },
+      "schedule_change",
     );
   } catch (err: any) {
     console.warn("[schedule-notify] falhou:", err?.message ?? err);

@@ -170,7 +170,7 @@ export const addFightVideoNote = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     try {
       const { safeNotifyStudent } = await import("@/lib/push/push.server");
-      safeNotifyStudent((v as any).student_id, {
+      await safeNotifyStudent((v as any).student_id, {
         title: "Nova análise de luta 🥊",
         body: `Seu professor adicionou um comentário em "${(v as any).title ?? "seu vídeo"}".`,
         url: "/app/videos",

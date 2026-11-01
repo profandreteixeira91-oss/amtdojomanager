@@ -17,8 +17,8 @@ import { PushActivationPrompt } from "@/components/student/PushActivationPrompt"
 import { InstallReminderBanner } from "@/components/student/InstallReminderBanner";
 import { StudentSplash } from "@/components/student/StudentSplash";
 import { StudentSwitcher } from "@/components/student/StudentSwitcher";
-import { attachPushRotationListener, getCurrentSubscription, subscriptionToPayload } from "@/lib/pwa/push-client";
-import { subscribeMyPush } from "@/lib/student/push.functions";
+import { attachPushRotationListener, subscriptionToPayload, syncPushSubscription } from "@/lib/pwa/push-client";
+import { getVapidPublicKey, subscribeMyPush } from "@/lib/student/push.functions";
 
 export const Route = createFileRoute("/app/_student")({
   ssr: false,
@@ -114,16 +114,18 @@ function StudentShell() {
     };
   }, [studentId, queryClient]);
 
-  // Push subscription hygiene (celular): re-upa a inscrição atual no servidor
-  // ao abrir o app e escuta rotações do SW, garantindo que Android/iOS não
-  // "percam" o registro após rotação de endpoint FCM/APNs.
+  // Push ao abrir o app: re-upa a inscrição deste aparelho (reinscrevendo com a
+  // chave atual se ela mudou) e escuta rotações do SW, para Android/iOS não
+  // "perderem" o registro. Só age se o aparelho já tinha ativado o push.
   const subscribeFn = useServerFn(subscribeMyPush);
+  const vapidKeyFn = useServerFn(getVapidPublicKey);
   useEffect(() => {
     if (!studentId) return;
     let cancelled = false;
     (async () => {
       try {
-        const s = await getCurrentSubscription();
+        const { key } = await vapidKeyFn();
+        const s = await syncPushSubscription(key);
         if (!s || cancelled) return;
         await subscribeFn({ data: subscriptionToPayload(s) });
       } catch {
@@ -136,8 +138,7 @@ function StudentShell() {
     return () => {
       cancelled = true;
     };
-  }, [studentId, subscribeFn]);
-
+  }, [studentId, subscribeFn, vapidKeyFn]);
 
   async function signOut() {
     await supabase.auth.signOut();

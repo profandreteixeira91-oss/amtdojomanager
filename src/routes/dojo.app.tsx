@@ -74,6 +74,8 @@ import { UnitSwitcher } from "@/components/dojo/UnitSwitcher";
 import { DojoSplash } from "@/components/dojo/DojoSplash";
 import { EmailVerificationBanner } from "@/components/dojo/EmailVerificationBanner";
 import { DojoCommandPalette } from "@/components/dojo/DojoCommandPalette";
+import { attachPushRotationListener, subscriptionToPayload, syncPushSubscription } from "@/lib/pwa/push-client";
+import { getOwnerPushPublicKey, subscribeOwnerPush } from "@/lib/dojo/owner-push.functions";
 
 
 
@@ -376,6 +378,31 @@ function DojoLayoutInner({
   useEffect(() => {
     if (allBelts?.length) syncBeltTerms(allBelts);
   }, [allBelts]);
+
+  // Push do dono ao abrir o painel: se este aparelho já tinha ativado, mantém a
+  // inscrição válida (reinscreve com a chave atual se ela mudou) e acompanha
+  // rotações do SW. Categorias escolhidas antes são preservadas no servidor.
+  const ownerPushKeyFn = useServerFn(getOwnerPushPublicKey);
+  const ownerPushSubscribeFn = useServerFn(subscribeOwnerPush);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { publicKey } = await ownerPushKeyFn();
+        const s = await syncPushSubscription(publicKey);
+        if (!s || cancelled) return;
+        await ownerPushSubscribeFn({ data: subscriptionToPayload(s) });
+      } catch {
+        /* noop */
+      }
+    })();
+    attachPushRotationListener((payload) => {
+      ownerPushSubscribeFn({ data: payload }).catch(() => {});
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [ownerPushKeyFn, ownerPushSubscribeFn]);
 
   // Fecha automaticamente o menu mobile ao navegar entre rotas
   const { isMobile, setOpenMobile, setOpen, state } = useSidebar();
