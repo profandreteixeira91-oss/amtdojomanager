@@ -29,11 +29,8 @@ async function assertStudentOwnership(
     // seus próprios dados de performance.
     const { data: isMine } = await supabase.rpc("is_my_student", { _id: studentId });
     if (isMine) return data;
-    const { data: isAmtAdmin } = await supabase.rpc("has_role", {
-      _user_id: userId,
-      _role: "amt_admin",
-    });
-    if (!isAmtAdmin) throw new Error("Sem permissão");
+    // Nem o admin da plataforma vê dados de outra academia.
+    throw new Error("Sem permissão");
   }
   return data;
 }

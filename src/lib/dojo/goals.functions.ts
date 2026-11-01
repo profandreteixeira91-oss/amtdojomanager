@@ -20,8 +20,8 @@ async function assertOwnership(supabase: any, userId: string, studentId: string)
   if (data.owner_id !== userId) {
     const { data: isMine } = await supabase.rpc("is_my_student", { _id: studentId });
     if (isMine) return data;
-    const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "amt_admin" });
-    if (!isAdmin) throw new Error("Sem permissão");
+    // Nem o admin da plataforma vê dados de outra academia.
+    throw new Error("Sem permissão");
   }
 
   return data;

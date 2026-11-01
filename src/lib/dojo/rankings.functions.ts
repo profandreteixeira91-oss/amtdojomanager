@@ -31,7 +31,7 @@ export const getClassRanking = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    // Confirma que o usuário é dono da turma (ou admin)
+    // Confirma que o usuário é dono da turma (nem o admin da plataforma vê outra academia)
     const { data: cls, error: clsErr } = await supabase
       .from("dojo_classes")
       .select("id, owner_id")
@@ -39,10 +39,7 @@ export const getClassRanking = createServerFn({ method: "GET" })
       .maybeSingle();
     if (clsErr) throw new Error(clsErr.message);
     if (!cls) throw new Error("Turma não encontrada");
-    if (cls.owner_id !== userId) {
-      const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "amt_admin" });
-      if (!isAdmin) throw new Error("Sem permissão para esta turma");
-    }
+    if (cls.owner_id !== userId) throw new Error("Sem permissão para esta turma");
 
     // Janela temporal (calendário civil no fuso do Brasil)
     const { since: sinceIso, until: untilIso } = resolvePeriodRange(data.period, data.reference);
