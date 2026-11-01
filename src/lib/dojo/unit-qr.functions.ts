@@ -20,7 +20,7 @@ function generateUnitToken(): string {
 export const listUnitQrTokens = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    // Todas as unidades do dono (e só dele: a leitura de unidades é aberta a qualquer logado)
+    // Todas as unidades do dono (e só dele, sem depender só da RLS)
     const { data: units, error: uErr } = await context.supabase
       .from("dojo_units")
       .select("id, name, active")

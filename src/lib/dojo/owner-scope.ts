@@ -11,8 +11,9 @@ type Ctx = {
  * num login de equipe (Usuários do Sistema), o dono ao qual ele está vinculado.
  * Mesma regra de getMyTeamPermissions.
  *
- * Use para filtrar tabelas cuja RLS não isola academias sozinha (unidades,
- * planos, faixas, modelos de certificado têm leitura aberta a qualquer logado).
+ * Use para filtrar leituras do painel por academia além da RLS (unidades,
+ * planos, faixas, modelos de certificado), para que nenhum login veja dados
+ * de outra academia mesmo que uma policy fique mais permissiva.
  */
 export async function resolveDojoOwnerId(context: Ctx): Promise<string> {
   const [{ data: ownerProfile }, { data: rows }] = await Promise.all([
