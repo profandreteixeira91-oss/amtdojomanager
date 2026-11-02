@@ -2,7 +2,21 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { motion } from "framer-motion";
-import { ArrowLeft, Loader2, Mail, Lock, User as UserIcon } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  BellRing,
+  Briefcase,
+  CalendarCheck,
+  Loader2,
+  Lock,
+  Mail,
+  ShieldCheck,
+  Smartphone,
+  User as UserIcon,
+  Users,
+  Wallet,
+} from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { authService } from "@/services/authService";
@@ -387,207 +401,269 @@ function DojoAuthPage() {
     await finishSignUp(data.user, data.session);
   };
 
-  return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-white text-[#111111]">
-      {/* Background decoration matching dojo landing */}
-      <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute left-1/2 top-[-10%] h-[600px] w-[1000px] -translate-x-1/2 rounded-full bg-[#C1121F]/[0.06] blur-3xl" />
-        <div className="absolute -bottom-40 -right-40 h-[500px] w-[500px] rounded-full bg-[#C1121F]/[0.05] blur-3xl" />
-        <svg className="absolute inset-0 h-full w-full opacity-[0.03]" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="grid-auth" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#111" strokeWidth="1" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid-auth)" />
-        </svg>
-      </div>
+  const highlights = [
+    { icon: Users, title: "Alunos e matrículas", text: "Ficha completa, contratos, graduações e frequência." },
+    { icon: Wallet, title: "Financeiro no automático", text: "Mensalidades, PIX, boleto e cartão com o AMT Pay." },
+    { icon: CalendarCheck, title: "Agenda e check-in", text: "Turmas, horários, presença por QR Code e ranking." },
+    { icon: BellRing, title: "Aluno sempre avisado", text: "App do aluno com notificações e WhatsApp da academia." },
+  ];
 
-      <header className="border-b border-black/5 bg-white/70 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <Link to="/dojo" className="flex items-center" aria-label="AMT Dojo Manager">
-            <DojoLogo className="h-9 w-auto" />
+  return (
+    <div className="dojo-theme relative min-h-screen w-full bg-[#f6f6f7] text-[#111111] lg:grid lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+      {/* ===== Painel da marca (desktop) ===== */}
+      <aside
+        className="relative hidden overflow-hidden text-white lg:flex lg:flex-col"
+        style={{ background: "linear-gradient(160deg, #dc2626 0%, #c81f1f 45%, #8f1414 100%)" }}
+      >
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-[0.12]"
+          style={{ backgroundImage: "radial-gradient(rgba(255,255,255,0.9) 1px, transparent 1px)", backgroundSize: "18px 18px" }}
+        />
+        <div aria-hidden className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -bottom-40 -left-24 h-96 w-96 rounded-full bg-black/20 blur-3xl" />
+
+        <div className="relative flex flex-1 flex-col justify-between gap-10 px-12 py-10 xl:px-16">
+          <Link
+            to="/dojo"
+            aria-label="AMT Dojo Manager"
+            className="inline-flex w-fit items-center rounded-2xl bg-white px-4 py-2.5 shadow-[0_10px_30px_-12px_rgba(60,0,0,0.7)]"
+          >
+            <DojoLogo className="h-14 w-auto" />
+          </Link>
+
+          <div className="max-w-lg">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ring-1 ring-white/25">
+              <ShieldCheck className="h-3.5 w-3.5" /> Gestão para artes marciais
+            </div>
+            <h2 className="text-4xl font-bold leading-[1.1] tracking-tight xl:text-[44px]">
+              Sua academia inteira, em um só lugar.
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-white/85">
+              Do cadastro do aluno à faixa preta: matrículas, mensalidades, aulas e comunicação com quem treina com você.
+            </p>
+
+            <ul className="mt-8 grid gap-3 xl:grid-cols-2">
+              {highlights.map((h) => (
+                <li key={h.title} className="flex gap-3 rounded-2xl bg-white/10 p-4 ring-1 ring-white/15 backdrop-blur-sm">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-[#dc2626] shadow-sm">
+                    <h.icon className="h-[18px] w-[18px]" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-bold">{h.title}</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-white/80">{h.text}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <p className="text-xs text-white/70">© {new Date().getFullYear()} AMT Sistemas · amtdojomanager.com.br</p>
+        </div>
+      </aside>
+
+      {/* ===== Formulário ===== */}
+      <div className="relative flex min-h-screen flex-col bg-[#f6f6f7]">
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-700 via-red-600 to-red-500 lg:hidden" />
+        <header className="flex items-center justify-between px-5 py-4 sm:px-8">
+          <Link to="/dojo" className="flex items-center lg:invisible" aria-label="AMT Dojo Manager">
+            <DojoLogo className="h-9 w-auto rounded-md" />
           </Link>
           <Link
             to="/dojo"
-            className="inline-flex items-center gap-1.5 text-sm text-[#111111]/60 hover:text-[#111111]"
+            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-[#111111]/60 transition-colors hover:bg-black/[0.04] hover:text-[#111111]"
           >
-            <ArrowLeft className="h-3.5 w-3.5" /> Voltar
+            <ArrowLeft className="h-3.5 w-3.5" /> Voltar ao site
           </Link>
-        </div>
-      </header>
+        </header>
 
-      <main className="mx-auto flex min-h-[calc(100vh-57px)] max-w-md items-center justify-center px-4 py-10">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="w-full"
-        >
-          <div className="mb-8 flex flex-col items-center text-center">
-            <DojoLogo className="mb-4 h-24 w-auto drop-shadow-[0_10px_30px_rgba(193,18,31,0.15)] md:h-28" />
-            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-              {isSignup ? (
-                <>Crie sua conta no <span className="text-[#C1121F]">Dojo Manager</span></>
-              ) : (
-                <>Bem-vindo ao <span className="text-[#C1121F]">Dojo Manager</span></>
-              )}
-            </h1>
-            <p className="mt-2 text-sm text-[#111111]/60">
-              {isSignup
-                ? "Comece o teste grátis de 14 dias."
-                : "Acesse o painel de gestão da sua academia."}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-black/5 bg-white p-6 shadow-[0_20px_60px_-20px_rgba(17,17,17,0.15)] md:p-7">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleGoogle}
-              disabled={googleLoading || loading}
-              className="h-11 w-full gap-3 rounded-xl border-black/15 bg-white text-[#111111] hover:bg-black/[0.03]"
-            >
-              {googleLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden>
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.25 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="#FBBC05" d="M5.84 14.1a6.7 6.7 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/>
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.65l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38z"/>
-                </svg>
-              )}
-              {isSignup ? "Cadastrar com Google" : "Entrar com Google"}
-            </Button>
-
-            <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-widest text-[#111111]/40">
-              <span className="h-px flex-1 bg-black/10" />
-              ou com e-mail
-              <span className="h-px flex-1 bg-black/10" />
+        <main className="flex flex-1 items-center justify-center px-5 pb-10 sm:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35 }}
+            className="w-full max-w-[420px]"
+          >
+            <div className="mb-6">
+              <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#dc2626]">
+                {isSignup ? "Teste grátis por 14 dias" : "Painel da academia"}
+              </div>
+              <h1 className="mt-1.5 text-[28px] font-bold leading-tight tracking-tight">
+                {isSignup ? "Crie sua conta" : "Bem-vindo de volta"}
+              </h1>
+              <p className="mt-1.5 text-sm text-[#111111]/60">
+                {isSignup
+                  ? "Cadastre sua academia em menos de um minuto. Sem cartão de crédito."
+                  : "Entre para gerenciar alunos, aulas e o financeiro do seu dojo."}
+              </p>
             </div>
 
-            <form
-              onSubmit={isSignup ? handleSignUp : handleSignIn}
-              className="space-y-3.5"
-            >
-              {isSignup && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="name" className="text-xs font-medium text-[#111111]/70">
-                    Nome completo
-                  </Label>
-                  <div className="relative">
-                    <UserIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#111111]/40" />
-                    <Input
-                      id="name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                      autoComplete="name"
-                      className="h-11 rounded-xl border-black/10 pl-9 focus-visible:ring-[#C1121F]/30"
-                      placeholder="Como podemos te chamar?"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-xs font-medium text-[#111111]/70">
-                  E-mail
-                </Label>
-                <div className="relative">
-                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#111111]/40" />
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    autoComplete="email"
-                    className="h-11 rounded-xl border-black/10 pl-9 focus-visible:ring-[#C1121F]/30"
-                    placeholder="voce@academia.com"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-xs font-medium text-[#111111]/70">
-                    Senha
-                  </Label>
-                  {!isSignup && (
-                    <button
-                      type="button"
-                      onClick={handleForgotPassword}
-                      className="text-xs font-medium text-[#C1121F] hover:underline"
-                    >
-                      Esqueci minha senha
-                    </button>
-                  )}
-                </div>
-                <div className="relative">
-                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#111111]/40" />
-                  <PasswordInput
-                    id="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={isSignup ? PASSWORD_MIN_LENGTH : 6}
-                    autoComplete={isSignup ? "new-password" : "current-password"}
-                    className="h-11 rounded-xl border-black/10 pl-9 focus-visible:ring-[#C1121F]/30"
-                    placeholder={isSignup ? `Mínimo ${PASSWORD_MIN_LENGTH} caracteres` : "••••••••"}
-                  />
-                </div>
-                {isSignup && <PasswordStrength password={password} className="pt-1" />}
+            <div className="rounded-2xl border border-black/[0.07] bg-white p-5 shadow-[0_24px_60px_-28px_rgba(17,17,17,0.25)] sm:p-7">
+              {/* Entrar / Criar conta */}
+              <div role="tablist" aria-label="Acesso" className="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-[#f3f3f4] p-1">
+                {(["signin", "signup"] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    role="tab"
+                    aria-selected={mode === m}
+                    onClick={() => setMode(m)}
+                    className={
+                      "h-9 rounded-lg text-sm font-bold transition-all " +
+                      (mode === m ? "bg-white text-[#dc2626] shadow-sm" : "text-[#111111]/55 hover:text-[#111111]")
+                    }
+                  >
+                    {m === "signin" ? "Entrar" : "Criar conta"}
+                  </button>
+                ))}
               </div>
 
               <Button
-                type="submit"
-                disabled={loading || googleLoading}
-                className="h-11 w-full rounded-xl bg-[#C1121F] text-white shadow-lg shadow-[#C1121F]/20 hover:bg-[#a30f1a]"
+                type="button"
+                variant="outline"
+                onClick={handleGoogle}
+                disabled={googleLoading || loading}
+                className="h-11 w-full gap-3 rounded-xl border-black/15 bg-white font-semibold text-[#111111] hover:bg-black/[0.03]"
               >
-                {loading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
-                {isSignup ? "Criar conta grátis" : "Entrar"}
+                {googleLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden>
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.25 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.1a6.7 6.7 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.65l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38z"/>
+                  </svg>
+                )}
+                {isSignup ? "Cadastrar com Google" : "Entrar com Google"}
               </Button>
-            </form>
 
-            <div className="mt-5 text-center text-sm text-[#111111]/60">
-              {isSignup ? (
-                <>
-                  Já tem conta?{" "}
-                  <button
-                    type="button"
-                    onClick={() => setMode("signin")}
-                    className="font-semibold text-[#C1121F] hover:underline"
-                  >
-                    Entrar
-                  </button>
-                </>
-              ) : (
-                <>
-                  Ainda não tem conta?{" "}
-                  <button
-                    type="button"
-                    onClick={() => setMode("signup")}
-                    className="font-semibold text-[#C1121F] hover:underline"
-                  >
-                    Cadastre-se
-                  </button>
-                </>
-              )}
+              <div className="my-5 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#111111]/40">
+                <span className="h-px flex-1 bg-black/10" />
+                ou com e-mail
+                <span className="h-px flex-1 bg-black/10" />
+              </div>
+
+              <form onSubmit={isSignup ? handleSignUp : handleSignIn} className="space-y-4">
+                {isSignup && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="name" className="text-xs font-semibold text-[#111111]/75">
+                      Nome completo
+                    </Label>
+                    <div className="relative">
+                      <UserIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#111111]/40" />
+                      <Input
+                        id="name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                        autoComplete="name"
+                        className="h-11 rounded-xl border-black/10 bg-[#fafafa] pl-9 focus-visible:bg-white focus-visible:ring-[#dc2626]/25"
+                        placeholder="Como podemos te chamar?"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="text-xs font-semibold text-[#111111]/75">
+                    E-mail
+                  </Label>
+                  <div className="relative">
+                    <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#111111]/40" />
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      autoComplete="email"
+                      className="h-11 rounded-xl border-black/10 bg-[#fafafa] pl-9 focus-visible:bg-white focus-visible:ring-[#dc2626]/25"
+                      placeholder="voce@academia.com"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password" className="text-xs font-semibold text-[#111111]/75">
+                      Senha
+                    </Label>
+                    {!isSignup && (
+                      <button
+                        type="button"
+                        onClick={handleForgotPassword}
+                        className="text-xs font-semibold text-[#dc2626] hover:underline"
+                      >
+                        Esqueci minha senha
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[#111111]/40" />
+                    <PasswordInput
+                      id="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      minLength={isSignup ? PASSWORD_MIN_LENGTH : 6}
+                      autoComplete={isSignup ? "new-password" : "current-password"}
+                      className="h-11 rounded-xl border-black/10 bg-[#fafafa] pl-9 focus-visible:bg-white focus-visible:ring-[#dc2626]/25"
+                      placeholder={isSignup ? `Mínimo ${PASSWORD_MIN_LENGTH} caracteres` : "••••••••"}
+                    />
+                  </div>
+                  {isSignup && <PasswordStrength password={password} className="pt-1" />}
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={loading || googleLoading}
+                  className="h-12 w-full rounded-xl bg-[#dc2626] text-[15px] font-bold text-white shadow-[0_12px_24px_-12px_rgba(220,38,38,0.9)] hover:bg-[#b91c1c]"
+                >
+                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {isSignup ? "Criar conta grátis" : "Entrar no painel"}
+                  {!loading && <ArrowRight className="ml-1.5 h-4 w-4" />}
+                </Button>
+              </form>
             </div>
-          </div>
 
-          <p className="mt-6 text-center text-xs text-[#111111]/40">
-            Ao continuar você concorda com nossos{" "}
-            <Link to="/terms" className="underline hover:text-[#111111]/70">Termos</Link>
-            {" "}e{" "}
-            <Link to="/privacy" className="underline hover:text-[#111111]/70">Privacidade</Link>.
-          </p>
-        </motion.div>
-      </main>
+            {/* Outros acessos */}
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <Link
+                to="/dojo/staff/auth"
+                className="group flex items-center gap-3 rounded-xl border border-black/[0.07] bg-white px-3.5 py-3 text-left shadow-xs transition hover:border-red-200 hover:shadow-sm"
+              >
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-red-50 text-[#dc2626]">
+                  <Briefcase className="h-4 w-4" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-bold leading-tight">Sou professor</span>
+                  <span className="block text-[11px] text-[#111111]/55">Portal da Equipe</span>
+                </span>
+              </Link>
+              <a
+                href="/app"
+                className="group flex items-center gap-3 rounded-xl border border-black/[0.07] bg-white px-3.5 py-3 text-left shadow-xs transition hover:border-red-200 hover:shadow-sm"
+              >
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-red-50 text-[#dc2626]">
+                  <Smartphone className="h-4 w-4" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-bold leading-tight">Sou aluno</span>
+                  <span className="block text-[11px] text-[#111111]/55">App do Aluno</span>
+                </span>
+              </a>
+            </div>
+
+            <p className="mt-6 text-center text-xs text-[#111111]/45">
+              Ao continuar você concorda com nossos{" "}
+              <Link to="/terms" className="underline hover:text-[#111111]/70">Termos</Link>
+              {" "}e{" "}
+              <Link to="/privacy" className="underline hover:text-[#111111]/70">Privacidade</Link>.
+            </p>
+          </motion.div>
+        </main>
+      </div>
 
       {/* Modal de Conflito de Aluno */}
       <Dialog open={showStudentConflict} onOpenChange={setShowStudentConflict}>
