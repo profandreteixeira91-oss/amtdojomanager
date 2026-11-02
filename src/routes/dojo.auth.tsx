@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { motion } from "framer-motion";
-import { ArrowLeft, Loader2, Mail, Lock, User as UserIcon, ShieldCheck, Trophy, CalendarDays, CheckCircle2, Dumbbell } from "lucide-react";
+import { ArrowLeft, Loader2, Mail, Lock, User as UserIcon, ShieldCheck, Trophy, CalendarDays, Dumbbell } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { authService } from "@/services/authService";
@@ -686,5 +686,4 @@ function DojoAuthPage() {
       </Dialog>
     </div>
   );
-}
 }
