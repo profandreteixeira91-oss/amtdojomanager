@@ -11,6 +11,7 @@
 //   com intervalo entre mensagens para não sobrecarregar o número do dono.
 
 import type { PushPayload } from "@/lib/push/push-core.server";
+import { buildWhatsAppVars, renderWhatsAppTemplate } from "./templates";
 
 export type WhatsAppInstanceRow = {
   owner_id: string;
@@ -22,6 +23,8 @@ export type WhatsAppInstanceRow = {
   profile_name: string | null;
   enabled: boolean;
   categories: Record<string, boolean> | null;
+  /** Modelos personalizados por tipo de aviso (coluna templates). */
+  templates?: Record<string, string> | null;
   connected_at: string | null;
   last_status_at: string | null;
 };
@@ -103,35 +106,27 @@ export function recipientFor(s: StudentContact): { phone: string; guardian: bool
   return null;
 }
 
-function firstName(name: string | null | undefined): string {
-  return String(name ?? "").trim().split(/\s+/)[0] ?? "";
-}
-
+/**
+ * Mensagem final do aluno: modelo da academia para o tipo de aviso (ou o
+ * padrão), sem links, sempre com o rodapé do SAIR.
+ */
 export function buildWhatsAppMessage(opts: {
   payload: PushPayload;
   studentName: string | null;
   guardian: boolean;
   academyName: string | null;
-  origin: string | null;
+  category?: string | null;
+  template?: string | null;
 }): string {
-  const { payload, guardian, academyName, origin } = opts;
-  const first = firstName(opts.studentName);
-  const greeting = guardian
-    ? first
-      ? `Olá! Mensagem sobre *${first}*:`
-      : "Olá!"
-    : first
-      ? `Olá, ${first}!`
-      : "Olá!";
-  const lines = [greeting, "", `*${payload.title.trim()}*`];
-  if (payload.body?.trim()) lines.push(payload.body.trim());
-  if (payload.url && origin) {
-    const link = /^https?:\/\//i.test(payload.url) ? payload.url : `${origin}${payload.url.startsWith("/") ? "" : "/"}${payload.url}`;
-    lines.push("", `Abrir no app: ${link}`);
-  }
-  if (academyName) lines.push("", `_${academyName}_`);
-  lines.push("_Para não receber mais mensagens, responda SAIR._");
-  return lines.join("\n");
+  const vars = buildWhatsAppVars({
+    studentName: opts.studentName,
+    guardian: opts.guardian,
+    academyName: opts.academyName,
+    title: opts.payload.title,
+    body: opts.payload.body,
+    category: opts.category,
+  });
+  return renderWhatsAppTemplate(opts.template, vars);
 }
 
 function categoryOn(categories: Record<string, boolean> | null | undefined, category: string | undefined): boolean {
@@ -162,14 +157,14 @@ export async function enqueueStudentWhatsApp(
     const ownerIds = Array.from(new Set((students as StudentContact[]).map((s) => s.owner_id)));
     const { data: instances } = await db
       .from(INSTANCES_TABLE)
-      .select("owner_id, status, enabled, categories")
+      .select("*")
       .in("owner_id", ownerIds)
       .eq("status", "connected")
       .eq("enabled", true);
-    const activeOwners = new Set(
-      ((instances ?? []) as WhatsAppInstanceRow[])
-        .filter((i) => categoryOn(i.categories, category))
-        .map((i) => i.owner_id),
+    const active = ((instances ?? []) as WhatsAppInstanceRow[]).filter((i) => categoryOn(i.categories, category));
+    const activeOwners = new Set(active.map((i) => i.owner_id));
+    const templateOf = new Map(
+      active.map((i) => [i.owner_id, category ? ((i.templates ?? {}) as Record<string, string>)[category] ?? null : null]),
     );
     if (activeOwners.size === 0) return 0;
 
@@ -180,14 +175,6 @@ export async function enqueueStudentWhatsApp(
     const academyName = new Map<string, string | null>(
       ((profiles ?? []) as any[]).map((p) => [p.owner_id, p.trade_name || p.legal_name || null]),
     );
-
-    let origin: string | null = null;
-    try {
-      const { dojoPublicOrigin } = await import("@/lib/asaas/dojo-credentials.server");
-      origin = dojoPublicOrigin();
-    } catch {
-      origin = null;
-    }
 
     const rows: Array<Record<string, unknown>> = [];
     const seen = new Set<string>();
@@ -200,7 +187,8 @@ export async function enqueueStudentWhatsApp(
         studentName: s.full_name,
         guardian: to.guardian,
         academyName: academyName.get(s.owner_id) ?? null,
-        origin,
+        category: category ?? null,
+        template: templateOf.get(s.owner_id) ?? null,
       });
       const key = `${s.owner_id}|${to.phone}|${message}`;
       if (seen.has(key)) continue;

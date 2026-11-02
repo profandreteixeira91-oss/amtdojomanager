@@ -33,6 +33,7 @@ function publicInstance(row: any) {
     profile_name: (row.profile_name as string) ?? null,
     enabled: row.enabled !== false,
     categories: (row.categories ?? {}) as Record<string, boolean>,
+    templates: (row.templates ?? {}) as Record<string, string>,
     connected_at: (row.connected_at as string) ?? null,
   };
 }
@@ -82,13 +83,15 @@ export const getWhatsAppStatus = createServerFn({ method: "GET" })
 
     const db = await s.adminDb();
     const since = new Date(Date.now() - 24 * 3600_000).toISOString();
-    const [sent, pending, failed] = await Promise.all([
+    const [sent, pending, failed, profile] = await Promise.all([
       db.from(s.OUTBOX_TABLE).select("id", { count: "exact", head: true }).eq("owner_id", ownerId).eq("status", "sent").gte("sent_at", since),
       db.from(s.OUTBOX_TABLE).select("id", { count: "exact", head: true }).eq("owner_id", ownerId).in("status", ["pending", "sending"]),
       db.from(s.OUTBOX_TABLE).select("id", { count: "exact", head: true }).eq("owner_id", ownerId).eq("status", "failed").gte("created_at", since),
+      db.from("dojo_academy_profile").select("trade_name, legal_name").eq("owner_id", ownerId).maybeSingle(),
     ]);
     return {
       configured,
+      academyName: ((profile.data as any)?.trade_name || (profile.data as any)?.legal_name || null) as string | null,
       instance: publicInstance(row),
       stats: { sent24h: sent.count ?? 0, pending: pending.count ?? 0, failed24h: failed.count ?? 0 },
     };
@@ -215,7 +218,7 @@ export const disconnectWhatsApp = createServerFn({ method: "POST" })
 
 export const saveWhatsAppSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { enabled?: boolean; categories?: Record<string, boolean> }) => input)
+  .validator((input: { enabled?: boolean; categories?: Record<string, boolean>; templates?: Record<string, string> }) => input)
   .handler(async ({ data, context }) => {
     const ownerId = await requireOwner(context);
     const s = await server();
@@ -229,8 +232,15 @@ export const saveWhatsAppSettings = createServerFn({ method: "POST" })
       }
       patch.categories = clean;
     }
+    if (data.templates && typeof data.templates === "object") {
+      const { cleanWhatsAppTemplates } = await import("./templates");
+      patch.templates = cleanWhatsAppTemplates(data.templates);
+    }
     const { data: row, error } = await db.from(s.INSTANCES_TABLE).update(patch).eq("owner_id", ownerId).select("*").maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (/templates/.test(error.message)) throw new Error("A personalização das mensagens ainda não foi ativada no banco (migration pendente).");
+      throw new Error(error.message);
+    }
     if (!row) throw new Error("Conecte o WhatsApp antes de ajustar o envio.");
     return { ok: true, instance: publicInstance(row) };
   });

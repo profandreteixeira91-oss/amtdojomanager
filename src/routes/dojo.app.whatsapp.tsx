@@ -10,8 +10,10 @@ import {
   Loader2,
   MessageCircle,
   PauseCircle,
+  PenLine,
   QrCode,
   RefreshCw,
+  RotateCcw,
   Send,
   ShieldCheck,
   Smartphone,
@@ -25,6 +27,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DEFAULT_WHATSAPP_TEMPLATE,
+  WHATSAPP_TEMPLATE_MAX,
+  WHATSAPP_TEMPLATE_VARS,
+  buildWhatsAppVars,
+  renderWhatsAppTemplate,
+  unknownTemplateVars,
+} from "@/lib/whatsapp/templates";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -151,6 +163,8 @@ function WhatsAppPage() {
           </div>
           <CategoriesCard
             categories={instance!.categories}
+            templates={instance!.templates}
+            academyName={data.academyName}
             onSaved={() => qc.invalidateQueries({ queryKey: STATUS_KEY })}
           />
         </div>
@@ -458,9 +472,20 @@ function TestCard() {
 
 /* ------------------------------ Categorias ------------------------------ */
 
-function CategoriesCard({ categories, onSaved }: { categories: Record<string, boolean>; onSaved: () => void }) {
+function CategoriesCard({
+  categories,
+  templates,
+  academyName,
+  onSaved,
+}: {
+  categories: Record<string, boolean>;
+  templates: Record<string, string>;
+  academyName: string | null;
+  onSaved: () => void;
+}) {
   const saveFn = useServerFn(saveWhatsAppSettings);
   const [local, setLocal] = useState<Record<string, boolean>>(categories);
+  const [editing, setEditing] = useState<(typeof NOTIFICATION_CATEGORY_META)[number] | null>(null);
   useEffect(() => setLocal(categories), [categories]);
 
   const save = useMutation({
@@ -483,8 +508,8 @@ function CategoriesCard({ categories, onSaved }: { categories: Record<string, bo
       <CardHeader>
         <CardTitle className="text-base">O que vai por WhatsApp</CardTitle>
         <CardDescription>
-          Segue as mesmas notificações do app. Uma categoria desligada em “Notificações do App do Aluno” também não vai
-          por WhatsApp.
+          Segue as mesmas notificações do app, sem links: o aluno é convidado a abrir o app do aluno. Em{" "}
+          <b>Personalizar</b> você escreve a mensagem de cada tipo de aviso.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -494,28 +519,246 @@ function CategoriesCard({ categories, onSaved }: { categories: Record<string, bo
             <div className="divide-y divide-neutral-100 rounded-xl border border-neutral-200">
               {items.map((c) => {
                 const on = local[c.key] !== false;
+                const custom = !!templates[c.key];
                 return (
-                  <label key={c.key} className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3">
-                    <span className="min-w-0">
-                      <span className="block text-sm font-semibold text-neutral-900">{c.label}</span>
-                      <span className="block text-xs text-neutral-500">{c.description}</span>
-                    </span>
-                    <Switch
-                      checked={on}
-                      onCheckedChange={(v) => {
-                        const next = { ...local, [c.key]: !!v };
-                        setLocal(next);
-                        save.mutate(next);
-                      }}
-                    />
-                  </label>
+                  <div key={c.key} className="flex items-center justify-between gap-3 px-4 py-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-neutral-900">
+                        {c.label}
+                        {custom && (
+                          <Badge variant="outline" className="border-red-200 bg-red-50 px-1.5 py-0 text-[10px] text-red-700">
+                            Personalizada
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-xs text-neutral-500">{c.description}</div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2 text-xs text-neutral-600 hover:text-red-700"
+                        onClick={() => setEditing(c)}
+                      >
+                        <PenLine className="mr-1 h-3.5 w-3.5" /> Personalizar
+                      </Button>
+                      <Switch
+                        checked={on}
+                        aria-label={`Enviar ${c.label} por WhatsApp`}
+                        onCheckedChange={(v) => {
+                          const next = { ...local, [c.key]: !!v };
+                          setLocal(next);
+                          save.mutate(next);
+                        }}
+                      />
+                    </div>
+                  </div>
                 );
               })}
             </div>
           </div>
         ))}
       </CardContent>
+
+      <TemplateDialog
+        category={editing}
+        templates={templates}
+        academyName={academyName}
+        onClose={() => setEditing(null)}
+        onSaved={onSaved}
+      />
     </Card>
+  );
+}
+
+/** Exemplos usados só na prévia da mensagem. */
+const SAMPLES: Record<string, { title: string; body: string }> = {
+  class_reminder: { title: "Sua aula começa em 1 hora", body: "Turma Kids 2x hoje às 18:00." },
+  attendance_confirmed: { title: "Presença confirmada", body: "Check-in registrado na Turma Kids 2x às 18:02." },
+  schedule_change: { title: "Mudança na grade", body: "A aula de quinta-feira passa a começar às 19:00." },
+  invoice_due_soon: { title: "Mensalidade vence em 3 dias", body: "Sua mensalidade de R$ 150,00 vence em 05/11." },
+  invoice_overdue: { title: "Mensalidade em atraso", body: "A mensalidade de R$ 150,00 venceu em 05/11." },
+  payment_received: { title: "Pagamento confirmado", body: "Recebemos R$ 150,00 referente a novembro. Obrigado!" },
+  plan_change: { title: "Plano atualizado", body: "Seu plano agora é Turma Mista 3x por semana." },
+  announcement: { title: "Aulão de sábado", body: "Neste sábado teremos aulão especial às 10h." },
+  contract: { title: "Novo contrato disponível", body: "Seu contrato de matrícula está pronto para assinatura." },
+  new_video: { title: "Vídeo novo na biblioteca", body: "Raspagem de meia-guarda — passo a passo." },
+  graduation: { title: "Parabéns pela nova faixa!", body: "Você foi graduado para a faixa azul." },
+  evaluation: { title: "Avaliação registrada", body: "Sua avaliação técnica de novembro já está disponível." },
+  competition: { title: "Inscrições abertas", body: "Copa Regional de Jiu-Jitsu — 23/11." },
+};
+
+/** Mostra *negrito*, _itálico_ e ~riscado~ como no WhatsApp. */
+function WhatsAppText({ text }: { text: string }) {
+  const parts = text.split(/(\*[^*\n]+\*|_[^_\n]+_|~[^~\n]+~)/g);
+  return (
+    <>
+      {parts.map((p, i) =>
+        /^\*[^*]+\*$/.test(p) ? (
+          <b key={i}>{p.slice(1, -1)}</b>
+        ) : /^_[^_]+_$/.test(p) ? (
+          <i key={i}>{p.slice(1, -1)}</i>
+        ) : /^~[^~]+~$/.test(p) ? (
+          <s key={i}>{p.slice(1, -1)}</s>
+        ) : (
+          <span key={i}>{p}</span>
+        ),
+      )}
+    </>
+  );
+}
+
+function TemplateDialog({
+  category,
+  templates,
+  academyName,
+  onClose,
+  onSaved,
+}: {
+  category: (typeof NOTIFICATION_CATEGORY_META)[number] | null;
+  templates: Record<string, string>;
+  academyName: string | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const saveFn = useServerFn(saveWhatsAppSettings);
+  const [text, setText] = useState("");
+  const [guardian, setGuardian] = useState(false);
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const key = category?.key ?? "";
+
+  useEffect(() => {
+    if (category) setText(templates[category.key] ?? DEFAULT_WHATSAPP_TEMPLATE);
+  }, [category, templates]);
+
+  const save = useMutation({
+    mutationFn: (value: string | null) => {
+      const next = { ...templates };
+      if (value === null || value.trim() === DEFAULT_WHATSAPP_TEMPLATE) delete next[key];
+      else next[key] = value;
+      return saveFn({ data: { templates: next } });
+    },
+    onSuccess: (_r, value) => {
+      toast.success(value === null ? "Mensagem padrão restaurada." : "Mensagem salva.");
+      onSaved();
+      onClose();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Não foi possível salvar a mensagem."),
+  });
+
+  const insert = (v: string) => {
+    const el = ref.current;
+    const token = `{${v}}`;
+    if (!el) {
+      setText((t) => t + token);
+      return;
+    }
+    const start = el.selectionStart ?? text.length;
+    const end = el.selectionEnd ?? text.length;
+    setText(text.slice(0, start) + token + text.slice(end));
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(start + token.length, start + token.length);
+    });
+  };
+
+  const sample = SAMPLES[key] ?? { title: "Aviso da academia", body: "Texto do aviso." };
+  const preview = renderWhatsAppTemplate(
+    text,
+    buildWhatsAppVars({
+      studentName: "Maria Souza",
+      guardian,
+      academyName: academyName ?? "Sua academia",
+      title: sample.title,
+      body: sample.body,
+      category: key,
+    }),
+  );
+  const tooLong = text.length > WHATSAPP_TEMPLATE_MAX;
+  const unknown = unknownTemplateVars(text);
+
+  return (
+    <Dialog open={!!category} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Mensagem de WhatsApp — {category?.label}</DialogTitle>
+          <DialogDescription>
+            Escreva como quiser. As palavras entre chaves são trocadas pelos dados de cada aluno. Use *texto* para
+            negrito e _texto_ para itálico.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+          <div className="space-y-3">
+            <Textarea
+              ref={ref}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={11}
+              className="font-mono text-[13px] leading-relaxed"
+            />
+            <div className={cn("text-right text-[11px]", tooLong ? "font-semibold text-red-600" : "text-neutral-500")}>
+              {text.length}/{WHATSAPP_TEMPLATE_MAX}
+            </div>
+            {unknown.length > 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                {unknown.map((u) => `{${u}}`).join(", ")} não {unknown.length === 1 ? "é um dado conhecido e vai ficar" : "são dados conhecidos e vão ficar"} de
+                fora da mensagem. Use os botões abaixo para inserir os dados certos.
+              </div>
+            )}
+            <div>
+              <div className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-red-600">Inserir dado</div>
+              <div className="flex flex-wrap gap-1.5">
+                {WHATSAPP_TEMPLATE_VARS.map((v) => (
+                  <button
+                    key={v.key}
+                    type="button"
+                    title={v.label}
+                    onClick={() => insert(v.key)}
+                    className="rounded-full border border-neutral-200 bg-white px-2.5 py-1 font-mono text-[11px] text-neutral-700 shadow-xs transition hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+                  >
+                    {`{${v.key}}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-red-600">Prévia</div>
+              <label className="flex items-center gap-2 text-xs text-neutral-600">
+                <Switch checked={guardian} onCheckedChange={(v) => setGuardian(!!v)} /> Enviada ao responsável
+              </label>
+            </div>
+            <div className="rounded-2xl bg-[#efeae2] p-4">
+              <div className="ml-auto max-w-[95%] whitespace-pre-wrap break-words rounded-xl rounded-tr-sm bg-[#d9fdd3] px-3 py-2 text-[13.5px] leading-snug text-neutral-900 shadow-sm">
+                <WhatsAppText text={preview} />
+              </div>
+            </div>
+            <p className="text-[11px] leading-relaxed text-neutral-500">
+              O aviso “responda SAIR” vai sempre no final, para proteger o número do dojo. Links não são enviados por
+              padrão.
+            </p>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2 sm:justify-between">
+          <Button variant="ghost" onClick={() => save.mutate(null)} disabled={save.isPending || !templates[key]}>
+            <RotateCcw className="mr-1.5 h-4 w-4" /> Restaurar padrão
+          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button onClick={() => save.mutate(text)} disabled={save.isPending || tooLong || !text.trim()}>
+              {save.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Salvar mensagem
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
