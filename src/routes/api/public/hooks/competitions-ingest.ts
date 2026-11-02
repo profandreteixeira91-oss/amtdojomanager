@@ -1,5 +1,5 @@
 // Endpoint chamado pelo pg_cron a cada 6h para acionar a coleta.
-// Autentica via checkInternalHookAuth (CRON_SECRET ou apikey do projeto).
+// Autentica via checkInternalHookAuth (header x-cron-secret = CRON_SECRET).
 
 import { createFileRoute } from "@tanstack/react-router";
 import { checkInternalHookAuth } from "@/lib/security/hook-auth";

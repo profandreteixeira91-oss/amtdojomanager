@@ -7,7 +7,7 @@ import { checkInternalHookAuth } from "@/lib/security/hook-auth";
  * - Libera recebimentos `pending` cujo `available_at <= now()`.
  * - Faz polling dos saques `processing` sem webhook recente e converge status.
  *
- * Autenticação: checkInternalHookAuth (CRON_SECRET ou apikey do projeto).
+ * Autenticação: checkInternalHookAuth (header x-cron-secret = CRON_SECRET).
  */
 export const Route = createFileRoute("/api/public/hooks/dojo-wallet-reconcile")({
   server: {

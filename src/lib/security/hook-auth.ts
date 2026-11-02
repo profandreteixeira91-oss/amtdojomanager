@@ -1,32 +1,26 @@
 /**
  * Autenticação dos endpoints internos de automação (cron / triggers do banco).
  *
- * Todas as rotinas internas são chamadas pelo pg_cron/pg_net enviando o header
- * `apikey` do projeto. Este guard apenas rejeita chamadas anônimas vindas da
- * internet — o comportamento das automações permanece exatamente o mesmo.
+ * As rotinas são chamadas pelo pg_cron/pg_net (public.dojo_hook_post) com o
+ * header `x-cron-secret` = CRON_SECRET, guardado no Vault do Supabase e nos
+ * segredos da hospedagem. Só ele vale: a chave publishable/anon do projeto é
+ * pública (vai no build do navegador) e não pode disparar rotinas.
  *
  * Webhooks de terceiros (Asaas, Mercado Pago, Instagram, Melhor Envio) NÃO usam
  * este guard: eles têm verificação própria de assinatura/token.
  */
 export function checkInternalHookAuth(request: Request): Response | null {
-  const expected = [
-    process.env.SUPABASE_PUBLISHABLE_KEY,
-    process.env.SUPABASE_ANON_KEY,
-    process.env.CRON_SECRET,
-  ].filter((v): v is string => !!v && v.length > 10);
-
-  if (expected.length === 0) {
-    // Sem chave configurada no ambiente: falha fechada.
+  const expected = (process.env.CRON_SECRET ?? "").trim().replace(/^(["'])(.*)\1$/, "$2").trim();
+  if (expected.length < 32) {
+    // Sem segredo (ou segredo fraco) no ambiente: falha fechada.
     return new Response("Unauthorized", { status: 401 });
   }
 
   const auth = request.headers.get("authorization") ?? "";
   const provided = [
-    request.headers.get("apikey") ?? "",
     request.headers.get("x-cron-secret") ?? "",
     auth.toLowerCase().startsWith("bearer ") ? auth.slice(7) : "",
-  ].filter(Boolean);
+  ].map((v) => v.trim());
 
-  const ok = provided.some((p) => expected.some((e) => e === p));
-  return ok ? null : new Response("Unauthorized", { status: 401 });
+  return provided.includes(expected) ? null : new Response("Unauthorized", { status: 401 });
 }
