@@ -40,7 +40,8 @@ import autismIcon from "@/assets/autism-tea.png.asset.json";
 import { printAllStudentSummaries } from "@/lib/dojo/students-bulk-print";
 import { maskCPF, maskCEP, maskPhone, clampDueDay, isValidCPF, isValidCEP, isValidPhone, parseAmountBR } from "@/lib/br-masks";
 import { toast } from "sonner";
-import { Trash2, Pencil, UserPlus, FileDown, Upload, Printer, User, MapPin, Phone, Award, Wallet, HeartPulse, Camera, ShieldCheck, FileText, Users, UserCheck, Snowflake, UserX, Search, Sparkles, Link as LinkIcon, Copy, ExternalLink, Check } from "lucide-react";
+import { Trash2, Pencil, UserPlus, FileDown, Upload, Printer, User, MapPin, Phone, Award, Wallet, HeartPulse, Camera, ShieldCheck, FileText, Users, UserCheck, Snowflake, UserX, Search, Sparkles, Link as LinkIcon, Copy, ExternalLink, Check, AlertCircle, Loader2, X, ChevronLeft, ChevronRight, IdCard, Droplet, Baby, Mail, LifeBuoy, Building2, StickyNote, Stethoscope, BadgeCheck, Fingerprint } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { todayISO, brl } from "@/lib/format";
 import { currentBeltEntries, rankedBelts, beltLabel, beltEntryKey } from "@/lib/dojo/current-belts";
 
@@ -51,17 +52,35 @@ export const Route = createFileRoute("/dojo/app/students/")({
 });
 
 /** Metadados visuais das etapas do cadastro de aluno. */
-const STEP_META: Record<string, { label: string; icon: ComponentType<{ className?: string }> }> = {
-  dados: { label: "Dados", icon: User },
-  endereco: { label: "Endereço", icon: MapPin },
-  contato: { label: "Contatos", icon: Phone },
-  dojo: { label: "Dojo", icon: Award },
-  plano: { label: "Plano", icon: Wallet },
-  anamnese: { label: "Anamnese", icon: HeartPulse },
-  foto: { label: "Foto", icon: Camera },
-  consent: { label: "Consentimentos", icon: ShieldCheck },
-  contrato: { label: "Contrato", icon: FileText },
+const STEP_META: Record<
+  string,
+  { label: string; title: string; hint: string; description: string; icon: ComponentType<{ className?: string }> }
+> = {
+  dados: { label: "Dados", title: "Dados pessoais", hint: "Identificação e responsável", description: "Quem é o aluno — e o responsável legal, se for menor de idade.", icon: User },
+  endereco: { label: "Endereço", title: "Endereço", hint: "O CEP preenche o resto", description: "Onde o aluno mora. Basta o CEP para completar o endereço.", icon: MapPin },
+  contato: { label: "Contatos", title: "Contatos", hint: "Aluno e emergência", description: "Como falar com o aluno e quem avisar numa emergência.", icon: Phone },
+  dojo: { label: "Dojo", title: "Dojo e graduação", hint: "Unidade, faixas e turmas", description: "Unidade, modalidades, faixa atual e turmas do aluno.", icon: Award },
+  plano: { label: "Plano", title: "Plano e cobrança", hint: "Matrícula e 1ª mensalidade", description: "Plano contratado, vencimento e forma de pagamento.", icon: Wallet },
+  anamnese: { label: "Anamnese", title: "Anamnese", hint: "Saúde e liberação médica", description: "Informações de saúde para uma prática segura.", icon: HeartPulse },
+  foto: { label: "Foto", title: "Foto", hint: "Ficha e reconhecimento facial", description: "Foto para a ficha, o app do aluno e o check-in facial.", icon: Camera },
+  consent: { label: "Consentimentos", title: "Consentimentos", hint: "LGPD e termos", description: "Autorizações exigidas para concluir o cadastro.", icon: ShieldCheck },
+  contrato: { label: "Contrato", title: "Contrato", hint: "Gerado ao concluir", description: "Contrato de prestação de serviços gerado automaticamente.", icon: FileText },
 };
+
+/** Select nativo com o mesmo visual do <Input>. */
+const SELECT_CLS =
+  "flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-base shadow-xs transition-[border-color,box-shadow] duration-150 hover:border-foreground/25 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/15 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm";
+
+/** Idade completa a partir de AAAA-MM-DD (null se vazia ou inválida). */
+function ageFrom(birth: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(birth ?? "");
+  if (!m) return null;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const now = new Date();
+  let age = now.getFullYear() - y;
+  if (now.getMonth() + 1 < mo || (now.getMonth() + 1 === mo && now.getDate() < d)) age--;
+  return age >= 0 && age < 130 ? age : null;
+}
 
 type StudentForm = {
   id?: string;
@@ -202,7 +221,23 @@ function StudentsPage() {
 
   const tabIndex = Math.max(0, tabOrder.indexOf(tab));
   const isLastTab = tabIndex >= tabOrder.length - 1;
-  useEffect(() => { if (open) setTab("dados"); }, [open]);
+  // Etapas visitadas (para marcar concluídas/pendentes), etapa barrada no
+  // "Continuar", trava contra duplo clique no salvar e rolagem ao trocar etapa.
+  const [visited, setVisited] = useState<Set<string>>(() => new Set(["dados"]));
+  const [flaggedStep, setFlaggedStep] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const stepScrollRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (open) {
+      setTab("dados");
+      setVisited(new Set(["dados"]));
+      setFlaggedStep(null);
+    }
+  }, [open]);
+  useEffect(() => {
+    setVisited((v) => (v.has(tab) ? v : new Set(v).add(tab)));
+    stepScrollRef.current?.scrollTo({ top: 0 });
+  }, [tab]);
   const [enrollment, setEnrollment] = useState({
     plan_id: "",
     due_day: 5,
@@ -361,37 +396,100 @@ function StudentsPage() {
   }
 
 
-  // Valida a etapa atual antes de permitir avançar (apenas no cadastro de novo aluno)
-  const validateStep = (step: string): boolean => {
+  /** O que falta na etapa (null = ok). Mesmas regras de antes, sem disparar toast. */
+  const stepIssue = (step: string): string | null => {
     if (step === "dados") {
-      if (!form.full_name.trim()) { toast.error("Informe o nome completo do aluno"); return false; }
-      if (form.cpf && !isValidCPF(form.cpf)) { toast.error("CPF inválido"); return false; }
-      if (!form.birth_date) { toast.error("Informe a data de nascimento"); return false; }
-      if (form.guardian_cpf && !isValidCPF(form.guardian_cpf)) { toast.error("CPF do responsável inválido"); return false; }
-      return true;
+      if (!form.full_name.trim()) return "Informe o nome completo do aluno";
+      if (form.cpf && !isValidCPF(form.cpf)) return "CPF inválido";
+      if (!form.birth_date) return "Informe a data de nascimento";
+      if (form.guardian_cpf && !isValidCPF(form.guardian_cpf)) return "CPF do responsável inválido";
+      return null;
     }
     if (step === "endereco") {
-      if (form.zip && !isValidCEP(form.zip)) { toast.error("CEP inválido"); return false; }
-      if (!form.city.trim() || !form.state.trim()) { toast.error("Informe ao menos cidade e estado"); return false; }
-      return true;
+      if (form.zip && !isValidCEP(form.zip)) return "CEP inválido";
+      if (!form.city.trim() || !form.state.trim()) return "Informe ao menos cidade e estado";
+      return null;
     }
     if (step === "contato") {
-      if (!form.phone.trim() && !form.email.trim()) { toast.error("Informe telefone ou e-mail do aluno"); return false; }
-      if (form.phone && !isValidPhone(form.phone)) { toast.error("Telefone inválido"); return false; }
-      return true;
+      if (!form.phone.trim() && !form.email.trim()) return "Informe telefone ou e-mail do aluno";
+      if (form.phone && !isValidPhone(form.phone)) return "Telefone inválido";
+      return null;
     }
     if (step === "dojo") {
       const valid = (form.modalities ?? []).filter((m) => m.modality && m.belt_id);
-      if (valid.length === 0) { toast.error("Adicione ao menos uma modalidade com faixa"); return false; }
-      return true;
+      if (valid.length === 0) return "Adicione ao menos uma modalidade com faixa";
+      return null;
     }
     if (step === "plano") {
-      if (!enrollment.plan_id) { toast.error("Selecione um plano para o aluno"); return false; }
-      return true;
+      if (!form.id && !enrollment.plan_id) return "Selecione um plano para o aluno";
+      return null;
+    }
+    if (step === "consent") {
+      if (!form.lgpd_consent || !form.terms_accepted || !form.facial_recognition_consent) {
+        return "Registre os consentimentos obrigatórios: LGPD, biometria facial e termos";
+      }
+      return null;
+    }
+    return null;
+  };
+
+  // Valida a etapa atual antes de permitir avançar (apenas no cadastro de novo aluno).
+  // Os consentimentos continuam sendo exigidos só ao concluir, como antes.
+  const validateStep = (step: string): boolean => {
+    if (step === "consent") return true;
+    const issue = stepIssue(step);
+    if (issue) {
+      toast.error(issue);
+      setFlaggedStep(step);
+      return false;
     }
     return true;
   };
 
+  const stepStatus = (step: string): "current" | "done" | "issue" | "todo" => {
+    if (step === tab) return "current";
+    if (!form.id && !visited.has(step)) return "todo";
+    return stepIssue(step) ? "issue" : "done";
+  };
+  const goNext = () => {
+    if (validateStep(tab)) {
+      setFlaggedStep(null);
+      setTab(tabOrder[Math.min(tabIndex + 1, tabOrder.length - 1)]);
+    }
+  };
+  const goBack = () => setTab(tabOrder[Math.max(tabIndex - 1, 0)]);
+  const primaryAction = () => {
+    if (form.id || isLastTab) void onSave();
+    else goNext();
+  };
+
+  // ----- Resumo ao vivo da ficha -----
+  const age = ageFrom(form.birth_date);
+  const isMinor = age != null && age < 18;
+  const consentsOk = form.lgpd_consent && form.terms_accepted && form.facial_recognition_consent;
+  const completion = Math.round(
+    (tabOrder.filter((st) => (form.id || visited.has(st)) && !stepIssue(st)).length / tabOrder.length) * 100,
+  );
+  const chosenPlan = (plans.data as any[] | undefined)?.find((p) => p.id === enrollment.plan_id);
+  const chosenPlanAmount = (() => {
+    const custom = parseAmountBR(enrollment.custom_amount);
+    if (custom != null) return custom;
+    return chosenPlan?.amount != null ? Number(chosenPlan.amount) : null;
+  })();
+  const summaryUnit = ((units.data ?? []) as any[]).find((u) => u.id === form.unit_id)?.name ?? null;
+  const summaryBelt = (() => {
+    const primary = (form.modalities ?? []).find((m) => m.modality && m.belt_id);
+    if (!primary) return null;
+    const belt = ((belts.data ?? []) as any[]).find((b) => b.id === primary.belt_id);
+    if (!belt) return null;
+    const deg = Number(primary.degree ?? 0);
+    return deg > 0 ? `${belt.name} · ${formatDegree(deg, belt.modality)}` : belt.name;
+  })();
+  const summaryPlan = chosenPlan
+    ? `${chosenPlan.name}${chosenPlanAmount != null ? ` · ${brl(chosenPlanAmount)}` : ""}`
+    : form.id
+      ? "Sem nova matrícula"
+      : null;
 
   const onSave = async () => {
     if (!form.full_name.trim()) {
@@ -408,6 +506,8 @@ function StudentsPage() {
       toast.error("Selecione um plano para o aluno na aba Plano & Cobrança");
       return;
     }
+    if (saving) return;
+    setSaving(true);
     try {
       // Multi-modalidade: a primeira linha vira a faixa "principal" do aluno;
       // as demais são registradas como graduações adicionais.
@@ -567,6 +667,8 @@ function StudentsPage() {
       qc.invalidateQueries({ queryKey: ["dojo-occurrences"] });
     } catch (e: any) {
       toast.error("Erro ao salvar", { description: e.message });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -771,91 +873,148 @@ function StudentsPage() {
                 </Button>
               </DialogTrigger>
 
-            <DialogContent data-tour="student-dialog" className="max-w-5xl w-[calc(100vw-2rem)] p-0 gap-0 overflow-hidden rounded-2xl border-neutral-200/80 shadow-2xl">
-              <DialogHeader className="relative overflow-hidden px-6 pt-6 pb-5 text-left border-b border-white/10 bg-[linear-gradient(135deg,#1b0708_0%,#490d10_55%,#7f1417_100%)]">
-                <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-red-500/25 blur-3xl" />
-                <div className="pointer-events-none absolute -left-10 bottom-[-4rem] h-40 w-40 rounded-full bg-white/10 blur-3xl" />
-                <div className="relative flex items-start gap-3.5">
-                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/10 text-white ring-1 ring-inset ring-white/25 backdrop-blur">
-                    <UserPlus className="h-5 w-5" />
+            <DialogContent
+              data-tour="student-dialog"
+              hideClose
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault();
+                  primaryAction();
+                }
+              }}
+              className="flex h-[min(92vh,900px)] w-[calc(100vw-1.5rem)] max-w-6xl flex-col gap-0 overflow-hidden rounded-2xl border-neutral-200/80 p-0 shadow-2xl"
+            >
+              <DialogHeader className="relative shrink-0 space-y-0 overflow-hidden border-b border-white/10 bg-[linear-gradient(135deg,#1b0708_0%,#490d10_55%,#7f1417_100%)] px-5 py-4 text-left sm:px-6">
+                <div className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full bg-red-500/25 blur-3xl" />
+                <div className="pointer-events-none absolute -left-10 bottom-[-5rem] h-40 w-40 rounded-full bg-white/10 blur-3xl" />
+                <div className="relative flex items-center gap-3.5">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/10 text-white ring-1 ring-inset ring-white/25 backdrop-blur">
+                    {form.id ? <Pencil className="h-[18px] w-[18px]" /> : <UserPlus className="h-5 w-5" />}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/55">
-                      AMT Dojo Manager · Matrícula
+                      AMT Dojo Manager · {form.id ? "Ficha do aluno" : "Matrícula"}
                     </p>
-                    <DialogTitle className="mt-1 text-lg font-semibold leading-tight text-white sm:text-xl">
-                      {form.id ? "Editar aluno" : "Cadastrar novo aluno"}
+                    <DialogTitle className="mt-0.5 truncate text-lg font-semibold leading-tight text-white">
+                      {form.id ? form.full_name.trim() || "Editar aluno" : "Cadastrar novo aluno"}
                     </DialogTitle>
-                    <p className="mt-1 text-xs leading-relaxed text-white/70">
-                      Etapa {tabIndex + 1} de {tabOrder.length} · Campos com{" "}
-                      <span className="text-red-300">*</span> são obrigatórios.
-                    </p>
                   </div>
-                  <div className="hidden shrink-0 items-center gap-3 rounded-2xl bg-white/10 px-3.5 py-2 ring-1 ring-inset ring-white/15 sm:flex">
-                    <div className="text-right">
-                      <div className="text-[10px] uppercase tracking-wider text-white/55">Progresso</div>
-                      <div className="text-lg font-bold tabular-nums text-white">
-                        {Math.round(((tabIndex + 1) / tabOrder.length) * 100)}%
-                      </div>
+                  <div className="hidden text-right sm:block">
+                    <div className="text-[10px] uppercase tracking-wider text-white/55">
+                      {form.id ? "Ficha completa" : "Progresso"}
                     </div>
+                    <div className="text-lg font-bold tabular-nums text-white">{completion}%</div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    aria-label="Fechar"
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-white/70 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
-                <div className="relative mt-4 h-1 w-full overflow-hidden rounded-full bg-white/15">
+                <div className="relative mt-3.5 h-1 w-full overflow-hidden rounded-full bg-white/15">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-red-400 to-white transition-all duration-500 ease-out"
-                    style={{ width: `${((tabIndex + 1) / tabOrder.length) * 100}%` }}
+                    style={{ width: `${completion}%` }}
                   />
                 </div>
               </DialogHeader>
 
-              <Tabs value={tab} onValueChange={setTab} className="w-full flex flex-col max-h-[calc(90vh-11rem)]">
-                <div className="border-b bg-gradient-to-b from-muted/40 to-background px-4 py-3 sm:px-6">
-                  <TabsList className="h-auto w-full flex-wrap justify-start gap-1.5 bg-transparent p-0">
+              <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col lg:flex-row">
+                <aside className="shrink-0 border-b bg-neutral-50/80 lg:flex lg:w-72 lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r">
+                  <div className="hidden p-4 pb-3 lg:block">
+                    <StudentSummaryCard
+                      isEdit={!!form.id}
+                      name={form.full_name.trim()}
+                      photoUrl={form.photo_url}
+                      age={age}
+                      cpf={form.cpf}
+                      unitName={summaryUnit}
+                      beltText={summaryBelt}
+                      planText={summaryPlan}
+                      consentsOk={consentsOk}
+                    />
+                  </div>
+                  <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto rounded-none bg-transparent px-3 py-2 [scrollbar-width:none] lg:flex-col lg:items-stretch lg:overflow-visible lg:pb-4 lg:pt-1">
                     {tabOrder.map((value, i) => {
                       const meta = STEP_META[value];
-                      const done = i < tabIndex;
-                      const active = i === tabIndex;
+                      const st = stepStatus(value);
                       return (
                         <TabsTrigger
                           key={value}
                           value={value}
                           data-tour={`student-step-${value}`}
-                          className={[
-                            "group gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-all",
-                            "data-[state=active]:border-primary/30 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm",
-                            active
-                              ? "border-primary/30"
-                              : done
-                                ? "border-emerald-500/25 bg-emerald-500/5 text-emerald-700"
-                                : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/60",
-                          ].join(" ")}
+                          className="group shrink-0 justify-start gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs font-medium text-muted-foreground transition-all hover:bg-white hover:text-foreground data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-black/[0.06] lg:w-full lg:py-2.5 lg:text-[13px]"
                         >
                           <span
-                            className={[
-                              "grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold transition-colors",
-                              active
-                                ? "bg-primary text-primary-foreground"
-                                : done
+                            className={cn(
+                              "grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-bold transition-colors",
+                              st === "current"
+                                ? "bg-primary text-primary-foreground shadow-sm shadow-primary/30"
+                                : st === "done"
                                   ? "bg-emerald-500 text-white"
-                                  : "bg-muted text-muted-foreground",
-                            ].join(" ")}
+                                  : st === "issue"
+                                    ? "bg-amber-100 text-amber-700 ring-1 ring-amber-300"
+                                    : "bg-white text-muted-foreground ring-1 ring-border",
+                            )}
                           >
-                            {done ? <Check className="h-3 w-3" /> : i + 1}
+                            {st === "done" ? <Check className="h-3.5 w-3.5" /> : st === "issue" ? <AlertCircle className="h-3.5 w-3.5" /> : i + 1}
                           </span>
-                          <meta.icon className="h-3.5 w-3.5" />
-                          <span className="whitespace-nowrap">{meta.label}</span>
+                          <span className="flex min-w-0 flex-col">
+                            <span className="whitespace-nowrap leading-tight">{meta.label}</span>
+                            <span className={cn("hidden truncate text-[11px] font-normal lg:block", st === "issue" ? "text-amber-700" : "text-muted-foreground")}>
+                              {st === "issue" ? "Pendente" : meta.hint}
+                            </span>
+                          </span>
                         </TabsTrigger>
                       );
                     })}
                   </TabsList>
-                </div>
+                  <p className="mt-auto hidden px-4 pb-4 text-[11px] leading-relaxed text-muted-foreground lg:block">
+                    <kbd className="rounded border bg-white px-1 font-sans text-[10px]">Ctrl</kbd> +{" "}
+                    <kbd className="rounded border bg-white px-1 font-sans text-[10px]">Enter</kbd>{" "}
+                    {form.id ? "salva a ficha" : isLastTab ? "conclui o cadastro" : "avança para a próxima etapa"}
+                  </p>
+                </aside>
 
-                <div className="overflow-y-auto px-6 py-5 flex-1 bg-[radial-gradient(900px_400px_at_100%_-10%,rgba(220,38,38,0.04),transparent_60%)]">
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                  <div
+                    ref={stepScrollRef}
+                    className="flex-1 overflow-y-auto bg-[radial-gradient(900px_400px_at_100%_-10%,rgba(220,38,38,0.035),transparent_60%)] px-4 py-5 sm:px-6"
+                  >
 
-
+                    {(() => {
+                      const meta = STEP_META[tab];
+                      const issue = flaggedStep === tab ? stepIssue(tab) : null;
+                      return (
+                        <div className="mb-5">
+                          <div className="flex items-start gap-3">
+                            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                              <meta.icon className="h-5 w-5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                Etapa {tabIndex + 1} de {tabOrder.length}
+                              </p>
+                              <h3 className="text-base font-semibold leading-tight">{meta.title}</h3>
+                              <p className="mt-0.5 text-xs text-muted-foreground">{meta.description}</p>
+                            </div>
+                          </div>
+                          {issue && (
+                            <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-300/70 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                              <AlertCircle className="h-4 w-4 shrink-0" />
+                              {issue}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                 {/* ============ DADOS PESSOAIS ============ */}
-                <TabsContent value="dados" className="mt-4 grid gap-3 md:grid-cols-2">
+                <TabsContent value="dados" className="mt-0 space-y-4">
+                  <Section icon={IdCard} title="Identificação" description="Nome, documentos e dados pessoais do aluno.">
                   <Field label="Nome completo *" className="md:col-span-2">
                     <Input data-tour="student-name" value={form.full_name} onChange={(e) => set("full_name", e.target.value)} />
                   </Field>
@@ -877,10 +1036,15 @@ function StudentsPage() {
                   </Field>
                   <Field label="Data de nascimento *">
                     <Input type="date" value={form.birth_date} onChange={(e) => set("birth_date", e.target.value)} />
+                    {age != null && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {age} {age === 1 ? "ano" : "anos"}{age < 18 ? " · menor de idade" : ""}
+                      </p>
+                    )}
                   </Field>
                   <Field label="Gênero">
                     <select
-                      className="border rounded p-2 bg-background w-full"
+                      className={SELECT_CLS}
                       value={form.gender}
                       onChange={(e) => set("gender", e.target.value)}
                     >
@@ -896,7 +1060,7 @@ function StudentsPage() {
                   </Field>
                   <Field label="Estado civil">
                     <select
-                      className="border rounded p-2 bg-background w-full"
+                      className={SELECT_CLS}
                       value={form.marital_status}
                       onChange={(e) => set("marital_status", e.target.value)}
                     >
@@ -911,9 +1075,11 @@ function StudentsPage() {
                   <Field label="Profissão">
                     <Input value={form.profession} onChange={(e) => set("profession", e.target.value)} />
                   </Field>
+                  </Section>
+                  <Section icon={Droplet} title="Saúde básica" description="Ajuda a equipe em caso de emergência.">
                   <Field label="Tipo sanguíneo">
                     <select
-                      className="border rounded p-2 bg-background w-full"
+                      className={SELECT_CLS}
                       value={form.blood_type}
                       onChange={(e) => set("blood_type", e.target.value)}
                     >
@@ -926,7 +1092,18 @@ function StudentsPage() {
                   <Field label="Plano de saúde" className="md:col-span-2">
                     <Input value={form.health_insurance} onChange={(e) => set("health_insurance", e.target.value)} />
                   </Field>
-                  <div className="md:col-span-2 mt-2 text-sm font-semibold">Responsável legal (menores de 18 anos)</div>
+                  </Section>
+                  <Section
+                    icon={Baby}
+                    title="Responsável legal"
+                    description="Obrigatório para menores de 18 anos."
+                    tone={isMinor ? "warn" : "default"}
+                    badge={isMinor ? (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                        Aluno menor de idade
+                      </span>
+                    ) : null}
+                  >
                   <Field label="Nome do responsável">
                     <Input value={form.guardian_name} onChange={(e) => set("guardian_name", e.target.value)} />
                   </Field>
@@ -942,10 +1119,17 @@ function StudentsPage() {
                   <Field label="Telefone do responsável">
                     <Input value={form.guardian_phone} onChange={(e) => set("guardian_phone", maskPhone(e.target.value))} placeholder="(11)99999-9999" inputMode="tel" maxLength={14} />
                   </Field>
+                  </Section>
                 </TabsContent>
 
                 {/* ============ ENDEREÇO ============ */}
-                <TabsContent value="endereco" className="mt-4 grid gap-3 md:grid-cols-6">
+                <TabsContent value="endereco" className="mt-0 space-y-4">
+                  <Section
+                    icon={MapPin}
+                    title="Endereço residencial"
+                    description="Digite o CEP: rua, bairro, cidade e UF são preenchidos automaticamente."
+                    gridClassName="grid gap-3 md:grid-cols-6"
+                  >
                   <Field label="CEP" className="md:col-span-2">
                     <Input
                       name="cep"
@@ -978,11 +1162,12 @@ function StudentsPage() {
                   <Field label="UF" className="md:col-span-2">
                     <Input name="uf" value={form.state} onChange={(e) => set("state", e.target.value)} maxLength={2} />
                   </Field>
-
+                  </Section>
                 </TabsContent>
 
                 {/* ============ CONTATOS ============ */}
-                <TabsContent value="contato" className="mt-4 grid gap-3 md:grid-cols-2">
+                <TabsContent value="contato" className="mt-0 space-y-4">
+                  <Section icon={Mail} title="Contato do aluno" description="Informe ao menos telefone ou e-mail.">
                   <Field label="E-mail">
                     <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
                   </Field>
@@ -998,7 +1183,8 @@ function StudentsPage() {
                       <p className="mt-1 text-[11px] text-destructive">Telefone incompleto — use (XX)XXXXX-XXXX.</p>
                     )}
                   </Field>
-                  <div className="md:col-span-2 mt-2 text-sm font-semibold">Contato de emergência</div>
+                  </Section>
+                  <Section icon={LifeBuoy} title="Contato de emergência" description="Quem a academia deve avisar se algo acontecer no treino.">
                   <Field label="Nome">
                     <Input value={form.emergency_contact_name} onChange={(e) => set("emergency_contact_name", e.target.value)} />
                   </Field>
@@ -1008,13 +1194,15 @@ function StudentsPage() {
                   <Field label="Parentesco" className="md:col-span-2">
                     <Input value={form.emergency_contact_relationship} onChange={(e) => set("emergency_contact_relationship", e.target.value)} placeholder="Ex.: cônjuge, mãe, irmão" />
                   </Field>
+                  </Section>
                 </TabsContent>
 
                 {/* ============ DOJO ============ */}
-                <TabsContent value="dojo" className="mt-4 grid gap-3 md:grid-cols-2">
-                  <Field label="Unidade" className="md:col-span-2">
+                <TabsContent value="dojo" className="mt-0 space-y-4">
+                  <Section icon={Building2} title="Unidade e situação" description="Onde o aluno treina e a situação da matrícula.">
+                  <Field label="Unidade" className="">
                     <select
-                      className="border rounded p-2 bg-background w-full"
+                      className={SELECT_CLS}
                       value={form.unit_id ?? ""}
                       onChange={(e) => set("unit_id", e.target.value || null)}
                     >
@@ -1024,15 +1212,25 @@ function StudentsPage() {
                       ))}
                     </select>
                   </Field>
-
-                  <div className="md:col-span-2 rounded-md border border-dashed p-3 space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <div className="text-sm font-semibold">Modalidades e faixas</div>
-                        <p className="text-[11px] text-muted-foreground">
-                          Selecione a modalidade e a faixa atual do aluno. Adicione linhas para cadastrar em mais de uma modalidade.
-                        </p>
-                      </div>
+                  <Field label="Status">
+                    <select
+                      className={SELECT_CLS}
+                      value={form.status}
+                      onChange={(e) => set("status", e.target.value as StudentForm["status"])}
+                    >
+                      <option value="active">Ativo</option>
+                      <option value="inactive">Inativo</option>
+                      <option value="frozen">Trancado</option>
+                    </select>
+                  </Field>
+                  </Section>
+                  <Section
+                    icon={Award}
+                    title="Modalidades, faixas e turmas"
+                    description="A primeira modalidade é a faixa principal do aluno. Adicione linhas para treinar em mais de uma."
+                    gridClassName="space-y-3"
+                    badge={
+                      <div className="ml-auto">
                       <Button
                         type="button"
                         size="sm"
@@ -1050,10 +1248,11 @@ function StudentsPage() {
                       >
                         + Adicionar modalidade
                       </Button>
-                    </div>
-
+                      </div>
+                    }
+                  >
                     {form.modalities.length === 0 && (
-                      <div className="text-xs text-muted-foreground border rounded p-3 bg-muted/40">
+                      <div className="rounded-xl border border-dashed p-5 text-center text-xs text-muted-foreground">
                         Nenhuma modalidade selecionada. Clique em <strong>Adicionar modalidade</strong> para vincular a faixa atual do aluno.
                       </div>
                     )}
@@ -1073,11 +1272,11 @@ function StudentsPage() {
                         set("modalities", next);
                       };
                       return (
-                        <div key={idx} className="grid gap-2 md:grid-cols-12 items-end border rounded p-2 bg-background">
+                        <div key={idx} className="grid items-end gap-3 rounded-xl border border-neutral-200/80 bg-neutral-50/60 p-3 md:grid-cols-12">
                           <div className="md:col-span-4">
                             <label className="text-[11px] text-muted-foreground">Modalidade</label>
                             <select
-                              className="border rounded p-2 bg-background w-full"
+                              className={SELECT_CLS}
                               value={m.modality}
                               onChange={(e) => update({ modality: e.target.value, belt_id: "" })}
                             >
@@ -1088,7 +1287,7 @@ function StudentsPage() {
                           </div>
                           <div className="md:col-span-3">
                             <label className="text-[11px] text-muted-foreground">Turmas</label>
-                            <div className="flex flex-col gap-1 max-h-[120px] overflow-y-auto border rounded p-2 bg-background">
+                            <div className="flex max-h-[120px] flex-col gap-1 overflow-y-auto rounded-lg border border-input bg-background p-2">
                               {((classes.data ?? []) as any[])
                                 .filter((c) => c.modality === m.modality)
                                 .map((c) => {
@@ -1118,7 +1317,7 @@ function StudentsPage() {
                           <div className="md:col-span-3">
                             <label className="text-[11px] text-muted-foreground">Graduação atual</label>
                             <select
-                              className="border rounded p-2 bg-background w-full"
+                              className={SELECT_CLS}
                               value={m.belt_id}
                               onChange={(e) => update({ belt_id: e.target.value, degree: 0 })}
                             >
@@ -1133,7 +1332,7 @@ function StudentsPage() {
                               {selectedBelt ? degreeUnit(selectedBelt.modality) : "Grau"}
                             </label>
                             <select
-                              className="border rounded p-2 bg-background w-full disabled:opacity-50"
+                              className={SELECT_CLS}
                               disabled={!selectedBelt || maxDeg <= 0}
                               value={String(Math.min(Number(m.degree ?? 0), maxDeg))}
                               onChange={(e) => update({ degree: Number(e.target.value) || 0 })}
@@ -1171,37 +1370,24 @@ function StudentsPage() {
                         </div>
                       );
                     })}
-                  </div>
-
-                  <Field label="Status">
-                    <select
-                      className="border rounded p-2 bg-background w-full"
-                      value={form.status}
-                      onChange={(e) => set("status", e.target.value as StudentForm["status"])}
-                    >
-                      <option value="active">Ativo</option>
-                      <option value="inactive">Inativo</option>
-                      <option value="frozen">Trancado</option>
-                    </select>
-                  </Field>
-                  <Field label="Observações" className="md:col-span-2">
+                  </Section>
+                  <Section icon={StickyNote} title="Observações" description="Anotações internas da equipe sobre o aluno." gridClassName="grid">
                     <Textarea rows={3} value={form.notes} onChange={(e) => set("notes", e.target.value)} />
-                  </Field>
+                  </Section>
                 </TabsContent>
 
                 {/* ============ PLANO & COBRANÇA ============ */}
-                {(
-                  <TabsContent value="plano" className="mt-4 space-y-4">
-                    <p className="text-xs text-muted-foreground">
-                      {form.id
-                        ? "Selecione um plano para criar uma nova matrícula para este aluno (opcional)."
-                        : "Selecione o plano do aluno. Uma matrícula é criada automaticamente e a 1ª mensalidade é gerada com base no plano."}
-                      {" "}As mensalidades seguintes são criadas mensalmente no Financeiro.
-                    </p>
-                    <div className="grid gap-3 md:grid-cols-2">
+                <TabsContent value="plano" className="mt-0 space-y-4">
+                  <Section
+                    icon={Wallet}
+                    title="Plano e cobrança"
+                    description={form.id
+                      ? "Selecione um plano para criar uma nova matrícula para este aluno (opcional). As mensalidades seguintes são criadas no Financeiro."
+                      : "Uma matrícula é criada automaticamente e a 1ª mensalidade é gerada com base no plano. As seguintes são criadas no Financeiro."}
+                  >
                       <Field label={form.id ? "Plano" : "Plano *"} className="md:col-span-2">
                         <select
-                          className="border rounded p-2 bg-background w-full"
+                          className={SELECT_CLS}
                           data-tour="student-plan"
                           value={enrollment.plan_id}
                           onChange={(e) => setEnrollment((s) => ({ ...s, plan_id: e.target.value }))}
@@ -1228,6 +1414,27 @@ function StudentsPage() {
                           </p>
                         )}
                       </Field>
+                    {chosenPlan && (
+                      <div className="md:col-span-2 flex flex-wrap items-center gap-3 rounded-xl border border-primary/20 bg-primary/[0.04] p-3">
+                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+                          <Wallet className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-semibold">{chosenPlan.name}</div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {Number(chosenPlan.enrollment_fee ?? 0) > 0
+                              ? `Taxa de matrícula ${brl(Number(chosenPlan.enrollment_fee))}`
+                              : "Sem taxa de matrícula"}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-bold tabular-nums">{brl(chosenPlanAmount ?? 0)}</div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                            {parseAmountBR(enrollment.custom_amount) != null ? "valor customizado" : "por cobrança"}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                       <Field label="Data de início">
                         <Input
                           type="date"
@@ -1306,7 +1513,7 @@ function StudentsPage() {
                             return (
                               <>
                                 <select
-                                  className="border rounded p-2 bg-background w-full"
+                                  className={SELECT_CLS}
                                   value="manual"
                                   disabled
                                 >
@@ -1325,7 +1532,7 @@ function StudentsPage() {
                           return (
                             <>
                               <select
-                                className="border rounded p-2 bg-background w-full"
+                                className={SELECT_CLS}
                                 value={enrollment.payment_method}
                                 onChange={(e) =>
                                   setEnrollment((s) => ({ ...s, payment_method: e.target.value }))
@@ -1355,20 +1562,12 @@ function StudentsPage() {
                           );
                         })()}
                       </Field>
-
-                    </div>
-                  </TabsContent>
-                )}
-
-
+                  </Section>
+                </TabsContent>
 
                 {/* ============ ANAMNESE ============ */}
-                <TabsContent value="anamnese" className="mt-4 space-y-4">
-                  <p className="text-xs text-muted-foreground">
-                    Ficha de anamnese — informações essenciais para prescrição segura da prática.
-                  </p>
-
-                  <div className="grid gap-3 md:grid-cols-2">
+                <TabsContent value="anamnese" className="mt-0 space-y-4">
+                  <Section icon={HeartPulse} title="Condições de saúde" description="Marque o que se aplica ao aluno.">
                     <BoolChk label="Problemas cardíacos" checked={!!form.anamnesis.heart_issues} onChange={(v) => setAnamn("heart_issues", v)} />
                     <BoolChk label="Hipertensão" checked={!!form.anamnesis.hypertension} onChange={(v) => setAnamn("hypertension", v)} />
                     <BoolChk label="Diabetes" checked={!!form.anamnesis.diabetes} onChange={(v) => setAnamn("diabetes", v)} />
@@ -1376,9 +1575,8 @@ function StudentsPage() {
                     <BoolChk label="Fumante" checked={!!form.anamnesis.smoking} onChange={(v) => setAnamn("smoking", v)} />
                     <BoolChk label="Consumo de álcool" checked={!!form.anamnesis.alcohol} onChange={(v) => setAnamn("alcohol", v)} />
                     <BoolChk label="Gestante" checked={!!form.anamnesis.pregnant} onChange={(v) => setAnamn("pregnant", v)} />
-                  </div>
-
-                  <div className="grid gap-3 md:grid-cols-2">
+                  </Section>
+                  <Section icon={Stethoscope} title="Histórico e objetivos" description="Informações essenciais para uma prática segura.">
                     <Field label="Doenças / condições diagnosticadas" className="md:col-span-2">
                       <Textarea rows={2} value={form.anamnesis.medical_conditions ?? ""} onChange={(e) => setAnamn("medical_conditions", e.target.value)} />
                     </Field>
@@ -1396,7 +1594,7 @@ function StudentsPage() {
                     </Field>
                     <Field label="Nível de atividade física">
                       <select
-                        className="border rounded p-2 bg-background w-full"
+                        className={SELECT_CLS}
                         value={form.anamnesis.physical_activity_level ?? ""}
                         onChange={(e) => setAnamn("physical_activity_level", e.target.value)}
                       >
@@ -1413,9 +1611,8 @@ function StudentsPage() {
                     <Field label="Outras observações" className="md:col-span-2">
                       <Textarea rows={2} value={form.anamnesis.other ?? ""} onChange={(e) => setAnamn("other", e.target.value)} />
                     </Field>
-                  </div>
-
-                  <div className="grid gap-3 md:grid-cols-2 border-t pt-3">
+                  </Section>
+                  <Section icon={BadgeCheck} title="Liberação médica">
                     <BoolChk
                       label="Possui liberação médica para atividade física"
                       checked={form.has_medical_clearance}
@@ -1429,24 +1626,35 @@ function StudentsPage() {
                         disabled={!form.has_medical_clearance}
                       />
                     </Field>
-                  </div>
+                  </Section>
                 </TabsContent>
 
                 {/* ============ FOTO ============ */}
-                <TabsContent value="foto" className="mt-4">
+                <TabsContent value="foto" className="mt-0 space-y-4">
+                  <Section icon={Camera} title="Foto do aluno" description="Aparece na ficha, no app do aluno e no check-in por reconhecimento facial." gridClassName="">
                   <StudentPhotoCapture value={form.photo_url} onChange={(url) => set("photo_url", url)} />
+                  </Section>
                 </TabsContent>
 
                 {/* ============ CONSENTIMENTOS ============ */}
-                <TabsContent value="consent" className="mt-4 space-y-3">
+                <TabsContent value="consent" className="mt-0 space-y-4">
+                  <Section
+                    icon={ShieldCheck}
+                    title="Consentimentos"
+                    description="LGPD, biometria facial e os termos são obrigatórios para concluir. Ficam registrados com data e hora, como exige a LGPD."
+                    gridClassName="space-y-2.5"
+                    tone={flaggedStep === "consent" && !consentsOk ? "warn" : "default"}
+                  >
                   <BoolChk
                     label="Autorizo o tratamento dos meus dados pessoais conforme a LGPD (Lei nº 13.709/2018) para fins de matrícula, controle acadêmico e comunicação da academia."
                     checked={form.lgpd_consent}
+                    required
                     onChange={(v) => set("lgpd_consent", v)}
                   />
                   <BoolChk
                     label="Autorizo a coleta e processamento de biometria facial para identificação automática em check-ins por foto (Reconhecimento Facial)."
                     checked={form.facial_recognition_consent}
+                    required
                     onChange={(v) => set("facial_recognition_consent", v)}
                   />
                   <BoolChk
@@ -1457,29 +1665,20 @@ function StudentsPage() {
                   <BoolChk
                     label="Declaro estar ciente dos riscos inerentes à prática esportiva e aceito o regulamento interno e o termo de responsabilidade da academia."
                     checked={form.terms_accepted}
+                    required
                     onChange={(v) => set("terms_accepted", v)}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Os consentimentos são registrados com data e hora conforme exigido pela LGPD.
-                  </p>
+                  </Section>
                 </TabsContent>
 
                 {/* ============ CONTRATO ============ */}
-                <TabsContent value="contrato" className="mt-4 space-y-4">
-                  <div className="rounded-xl border bg-muted/30 p-4">
-                    <div className="flex items-start gap-3">
-                      <FileText className="mt-0.5 h-5 w-5 text-primary" />
-                      <div className="text-sm">
-                        <p className="font-medium">Contrato no ato da matrícula</p>
-                        <p className="text-xs text-muted-foreground">
-                          Escolha um modelo para gerar o contrato automaticamente ao concluir o cadastro.
-                          Os dados do aluno, plano e valores são preenchidos nas variáveis do modelo.
-                          O contrato fica salvo no perfil do aluno e no app dele para assinatura.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
+                <TabsContent value="contrato" className="mt-0 space-y-4">
+                  <Section
+                    icon={FileText}
+                    title="Contrato no ato da matrícula"
+                    description="Escolha um modelo para gerar o contrato ao concluir. Os dados do aluno, plano e valores preenchem as variáveis do modelo, e o contrato fica no perfil e no app do aluno para assinatura."
+                    gridClassName="space-y-4"
+                  >
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="space-y-1.5">
                       <Label>Modelo de contrato</Label>
@@ -1544,60 +1743,46 @@ function StudentsPage() {
                       </div>
                     );
                   })()}
+                  </Section>
                 </TabsContent>
-
-                </div>
-              </Tabs>
-
-              <div className="flex flex-col gap-3 border-t bg-gradient-to-b from-background to-muted/40 px-4 py-3 sm:flex-row sm:items-center sm:px-6">
-                <div className="flex min-w-0 items-center gap-2">
-                  <div className="hidden items-center gap-1 sm:flex">
-                    {tabOrder.map((v, i) => (
-                      <span
-                        key={v}
-                        className={[
-                          "h-1.5 rounded-full transition-all duration-300",
-                          i === tabIndex ? "w-6 bg-primary" : i < tabIndex ? "w-3 bg-emerald-500/70" : "w-3 bg-muted-foreground/20",
-                        ].join(" ")}
-                      />
-                    ))}
                   </div>
-                  <p className="truncate text-[11px] text-muted-foreground">
-                    {form.id ? "Alterações salvas ao clicar em Salvar." : "Ao salvar, o aluno será matriculado no plano selecionado."}
-                  </p>
-                </div>
-                <div className="ml-auto flex items-center gap-2">
-                  <Button variant="ghost" className="rounded-xl" onClick={() => setOpen(false)}>Cancelar</Button>
-                  {form.id ? (
-                    <Button data-tour="student-save" onClick={onSave} className="rounded-xl px-5 shadow-sm transition-transform active:scale-[0.98]">
-                      Salvar alterações
-                    </Button>
-                  ) : (
-                    <>
-                      {!isLastTab && (
-                        <Button variant="outline" className="rounded-xl" onClick={() => setTab(tabOrder[tabIndex - 1])} disabled={tabIndex === 0}>
-                          Voltar
-                        </Button>
-                      )}
-                      {isLastTab ? (
-                        <Button data-tour="student-save" onClick={onSave} className="rounded-xl px-5 shadow-sm transition-transform active:scale-[0.98]">
-                          Cadastrar aluno
+
+                  <div className="flex shrink-0 items-center gap-2 border-t bg-white/90 px-4 py-3 backdrop-blur sm:px-6">
+                    <p className="hidden min-w-0 flex-1 truncate text-[11px] text-muted-foreground sm:block">
+                      {form.id ? "As alterações só valem ao clicar em Salvar." : "Ao concluir, o aluno é matriculado no plano selecionado."}
+                    </p>
+                    <div className="ml-auto flex items-center gap-2">
+                      <Button variant="ghost" className="rounded-xl" onClick={() => setOpen(false)} disabled={saving}>
+                        Cancelar
+                      </Button>
+                      {form.id ? (
+                        <Button data-tour="student-save" onClick={onSave} disabled={saving} className="rounded-xl px-5 shadow-sm transition-transform active:scale-[0.98]">
+                          {saving ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Check className="mr-1.5 h-4 w-4" />}
+                          Salvar alterações
                         </Button>
                       ) : (
-                        <Button
-                          data-tour="student-next"
-                          onClick={() => { if (validateStep(tab)) setTab(tabOrder[tabIndex + 1]); }}
-                          className="rounded-xl px-5 shadow-sm transition-transform active:scale-[0.98]"
-                        >
-                          Continuar
-                        </Button>
+                        <>
+                          {tabIndex > 0 && (
+                            <Button variant="outline" className="rounded-xl" onClick={goBack} disabled={saving}>
+                              <ChevronLeft className="mr-1 h-4 w-4" /> Voltar
+                            </Button>
+                          )}
+                          {isLastTab ? (
+                            <Button data-tour="student-save" onClick={onSave} disabled={saving} className="rounded-xl px-5 shadow-sm transition-transform active:scale-[0.98]">
+                              {saving ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Check className="mr-1.5 h-4 w-4" />}
+                              Cadastrar aluno
+                            </Button>
+                          ) : (
+                            <Button data-tour="student-next" onClick={goNext} className="rounded-xl px-5 shadow-sm transition-transform active:scale-[0.98]">
+                              Continuar <ChevronRight className="ml-1 h-4 w-4" />
+                            </Button>
+                          )}
+                        </>
                       )}
-                    </>
-                  )}
+                    </div>
+                  </div>
                 </div>
-
-              </div>
-
+              </Tabs>
             </DialogContent>
           </Dialog>
 
@@ -1895,16 +2080,156 @@ function BoolChk({
   label,
   checked,
   onChange,
+  required,
 }: {
   label: string;
   checked: boolean;
   onChange: (v: boolean) => void;
+  required?: boolean;
 }) {
   return (
-    <label className="flex items-start gap-2.5 text-sm rounded-md border border-transparent hover:border-border hover:bg-muted/40 px-2 py-1.5 -mx-2 transition-colors cursor-pointer">
+    <label
+      className={cn(
+        "flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 text-sm transition-colors",
+        checked
+          ? "border-primary/35 bg-primary/[0.04]"
+          : "border-neutral-200/80 bg-card hover:border-neutral-300 hover:bg-muted/40",
+      )}
+    >
       <Checkbox checked={checked} onCheckedChange={(v) => onChange(v === true)} className="mt-0.5" />
-      <span className="leading-snug">{label}</span>
+      <span className="flex-1 leading-snug">{label}</span>
+      {required && (
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+            checked ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800",
+          )}
+        >
+          {checked ? "Registrado" : "Obrigatório"}
+        </span>
+      )}
     </label>
+  );
+}
+
+/** Bloco da ficha: cabeçalho com ícone, título e descrição + grade de campos. */
+function Section({
+  icon: Icon,
+  title,
+  description,
+  badge,
+  tone = "default",
+  gridClassName = "grid gap-3 md:grid-cols-2",
+  children,
+}: {
+  icon?: ComponentType<{ className?: string }>;
+  title: string;
+  description?: React.ReactNode;
+  badge?: React.ReactNode;
+  tone?: "default" | "warn";
+  gridClassName?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      className={cn(
+        "rounded-2xl border bg-card p-4 shadow-xs transition-colors sm:p-5",
+        tone === "warn" ? "border-amber-300/80 ring-2 ring-amber-100" : "border-neutral-200/80",
+      )}
+    >
+      <div className="mb-4 flex items-start gap-2.5">
+        {Icon && (
+          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-neutral-100 text-neutral-600">
+            <Icon className="h-4 w-4" />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h4 className="text-sm font-semibold leading-tight">{title}</h4>
+            {badge}
+          </div>
+          {description && <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{description}</p>}
+        </div>
+      </div>
+      <div className={gridClassName}>{children}</div>
+    </section>
+  );
+}
+
+/** Cartão lateral com o resumo ao vivo do aluno sendo cadastrado. */
+function StudentSummaryCard({
+  isEdit,
+  name,
+  photoUrl,
+  age,
+  cpf,
+  unitName,
+  beltText,
+  planText,
+  consentsOk,
+}: {
+  isEdit: boolean;
+  name: string;
+  photoUrl: string | null;
+  age: number | null;
+  cpf: string;
+  unitName: string | null;
+  beltText: string | null;
+  planText: string | null;
+  consentsOk: boolean;
+}) {
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join("");
+  const rows: Array<{ icon: ComponentType<{ className?: string }>; label: string; value: string; tone?: "ok" | "warn" }> = [
+    { icon: Fingerprint, label: "CPF", value: cpf || "—" },
+    { icon: Building2, label: "Unidade", value: unitName || "—" },
+    { icon: Award, label: "Faixa", value: beltText || "—" },
+    { icon: Wallet, label: "Plano", value: planText || "—" },
+    { icon: ShieldCheck, label: "Termos", value: consentsOk ? "Registrados" : "Pendentes", tone: consentsOk ? "ok" : "warn" },
+  ];
+  return (
+    <div className="overflow-hidden rounded-2xl border border-neutral-200/80 bg-card shadow-xs">
+      <div className="h-12 bg-[linear-gradient(135deg,#2a0a0c_0%,#7f1417_100%)]" />
+      <div className="-mt-7 px-4 pb-4">
+        <div className="grid h-14 w-14 place-items-center overflow-hidden rounded-2xl border-4 border-card bg-gradient-to-br from-red-500 to-red-800 text-lg font-bold text-white shadow-md">
+          {photoUrl ? (
+            <img src={photoUrl} alt="" className="h-full w-full object-cover" />
+          ) : initials ? (
+            initials
+          ) : (
+            <User className="h-6 w-6" />
+          )}
+        </div>
+        <div className="mt-2 truncate text-sm font-semibold">{name || (isEdit ? "Aluno" : "Novo aluno")}</div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span>{age != null ? `${age} ${age === 1 ? "ano" : "anos"}` : "Idade não informada"}</span>
+          {age != null && age < 18 && (
+            <span className="rounded-full bg-amber-100 px-1.5 py-px font-medium text-amber-800">Menor</span>
+          )}
+        </div>
+        <dl className="mt-3 space-y-2 border-t pt-3">
+          {rows.map((r) => (
+            <div key={r.label} className="flex items-center gap-2 text-[12px]">
+              <r.icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <dt className="w-16 shrink-0 text-muted-foreground">{r.label}</dt>
+              <dd
+                className={cn(
+                  "min-w-0 flex-1 truncate text-right font-medium",
+                  r.tone === "ok" ? "text-emerald-700" : r.tone === "warn" ? "text-amber-700" : "text-foreground",
+                )}
+                title={r.value}
+              >
+                {r.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </div>
   );
 }
 
