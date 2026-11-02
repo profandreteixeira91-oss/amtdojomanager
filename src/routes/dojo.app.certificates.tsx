@@ -192,7 +192,7 @@ export function CertificatesPage() {
     }
     base.certificado_numero = base.certificado_numero || "0001";
     base.certificado_codigo = base.certificado_codigo || "AMT-2026-0001";
-    base.certificado_validacao = base.certificado_validacao || "https://dojomanager.amtfightwear.com.br/validar/AMT-2026-0001";
+    base.certificado_validacao = base.certificado_validacao || "https://amtdojomanager.com.br/validar/AMT-2026-0001";
     const ap: any = academyProfile.data;
     if (ap) {
       if (ap.trade_name || ap.legal_name) base.academia_nome = ap.trade_name || ap.legal_name;

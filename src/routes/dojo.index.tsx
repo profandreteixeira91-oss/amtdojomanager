@@ -37,7 +37,7 @@ export const Route = createFileRoute("/dojo/")({
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:image", content: "https://gudjmkiyprgwgxmzbgji.supabase.co/storage/v1/object/public/site-assets/a13608b2-2d5c-4d53-b64e-78e38c6083e9/dojo-manager-logo.png" },
     ],
-    links: [{ rel: "canonical", href: "https://amtfightwear.com.br/dojo" }],
+    links: [{ rel: "canonical", href: "https://amtdojomanager.com.br/dojo" }],
     scripts: [
       {
         type: "application/ld+json",
