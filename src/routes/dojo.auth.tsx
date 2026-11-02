@@ -387,7 +387,7 @@ function DojoAuthPage() {
   };
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-[#F6F6F7] text-[#111111]">
+    <div className="dojo-auth-page min-h-screen w-full overflow-x-hidden bg-[#F6F6F7] text-[#111111]">
       <div className="grid min-h-screen lg:grid-cols-[1.02fr_0.98fr]">
         <aside className="relative hidden min-h-screen overflow-hidden bg-[#0B0B0D] text-white lg:flex lg:flex-col">
           <div className="pointer-events-none absolute inset-0">
