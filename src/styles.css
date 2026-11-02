@@ -1036,3 +1036,27 @@ body:has([data-student-shell]) {
   hyphens: none !important;
   -webkit-hyphens: none !important;
 }
+
+/* Login AMT Dojo Manager — mesma tipografia do painel administrativo */
+.dojo-auth-page,
+body:has(.dojo-auth-page) {
+  --dojo-auth-font: Arial, "Helvetica Neue", Helvetica, Arimo, "Liberation Sans", ui-sans-serif, sans-serif;
+  font-family: var(--dojo-auth-font);
+  font-feature-settings: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+.dojo-auth-page :is(h1, h2, h3, h4),
+body:has(.dojo-auth-page) [role="dialog"] :is(h1, h2, h3, h4) {
+  font-family: var(--dojo-auth-font);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.dojo-auth-page :is(.font-black, .font-extrabold),
+body:has(.dojo-auth-page) [role="dialog"] :is(.font-black, .font-extrabold) {
+  font-weight: 700;
+}
+
