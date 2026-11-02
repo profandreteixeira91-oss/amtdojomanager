@@ -6,24 +6,24 @@ import { makeTextElement, makeVariableElement, makeShapeElement, makeImageElemen
 import { CertificateRenderer } from "./CertificateRenderer";
 import { CERTIFICATE_PRESETS } from "@/lib/dojo/certificates/presets";
 import { supabase } from "@/integrations/supabase/client";
-import { Type, Variable, Image as ImageIcon, Shapes, QrCode, Signature, BadgeCheck, Layout, Search, Upload, Circle, Square, Minus, Sparkles, Star, ChevronLeft } from "lucide-react";
+import { Type, Variable, Image as ImageIcon, Shapes, QrCode, Signature, BadgeCheck, Layout, LayoutGrid, Search, Upload, Circle, Square, Minus, Sparkles, Star, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { makeId } from "@/components/dojo/certificate-editor/types";
 
 const SECTIONS = [
-  { id: "templates", label: "Modelos", icon: Layout },
-  { id: "text", label: "Textos", icon: Type },
-  { id: "vars", label: "Variáveis", icon: Variable },
-  { id: "images", label: "Imagens", icon: ImageIcon },
-  { id: "icons", label: "Ícones", icon: Star },
-  { id: "ornaments", label: "Ornamentos", icon: Sparkles },
-  { id: "logo", label: "Logo", icon: BadgeCheck },
-  { id: "sig", label: "Assinaturas", icon: Signature },
-  { id: "qr", label: "QR Code", icon: QrCode },
-  { id: "shapes", label: "Formas", icon: Shapes },
-  { id: "page", label: "Página", icon: Layout },
+  { id: "templates", label: "Modelos", icon: Layout, hint: "Comece de um design pronto e personalize." },
+  { id: "text", label: "Textos", icon: Type, hint: "Títulos, combinações de fontes e estilos." },
+  { id: "vars", label: "Variáveis", icon: Variable, hint: "Campos preenchidos na emissão: aluno, faixa, data…" },
+  { id: "images", label: "Imagens", icon: ImageIcon, hint: "Envie fotos e ilustrações." },
+  { id: "icons", label: "Ícones", icon: Star, hint: "Ícones na cor que você escolher." },
+  { id: "ornaments", label: "Ornamentos", icon: Sparkles, hint: "Divisores, ornamentos e molduras." },
+  { id: "logo", label: "Logo", icon: BadgeCheck, hint: "A logo da academia entra sozinha na emissão." },
+  { id: "sig", label: "Assinaturas", icon: Signature, hint: "Assinatura do professor em PNG." },
+  { id: "qr", label: "QR Code", icon: QrCode, hint: "Validação pública do certificado." },
+  { id: "shapes", label: "Formas", icon: Shapes, hint: "Retângulos, círculos e linhas." },
+  { id: "page", label: "Página", icon: LayoutGrid, hint: "Tamanho, margens e fundo." },
 ] as const;
 
 export function StudioLeft() {
@@ -50,15 +50,17 @@ export function StudioLeft() {
 
       {/* Sidebar Desktop & Mobile Drawer */}
       <aside className={`
-        fixed top-0 bottom-16 left-0 z-50 w-[min(320px,88vw)] bg-card border-r border-border flex transition-transform duration-300 ease-in-out
-        md:static md:h-auto md:w-[272px] lg:w-[300px] xl:w-[320px] md:shrink-0 md:translate-x-0
+        fixed top-0 bottom-16 left-0 z-50 w-[min(340px,88vw)] bg-card border-r border-border flex transition-transform duration-300 ease-in-out
+        md:static md:h-auto md:w-[292px] lg:w-[320px] xl:w-[344px] md:shrink-0 md:translate-x-0
         ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
       `}>
-        <nav aria-label="Ferramentas do editor" className="flex flex-col w-16 border-r border-border bg-muted/40 shrink-0 overflow-y-auto no-scrollbar">
+        <nav aria-label="Ferramentas do editor" className="no-scrollbar flex w-[72px] shrink-0 flex-col overflow-y-auto bg-[#160708] py-1.5">
           {SECTIONS.map((s) => (
             <button key={s.id} onClick={() => setTab(s.id)}
-              aria-pressed={tab === s.id} className={`mx-1.5 my-0.5 flex flex-col items-center gap-1 rounded-md py-2.5 text-[10px] font-medium shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${tab === s.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
-              <s.icon className="h-4 w-4" />
+              aria-pressed={tab === s.id}
+              className={`relative mx-1.5 my-0.5 flex shrink-0 flex-col items-center gap-1 rounded-xl py-2.5 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${tab === s.id ? "bg-white/10 text-white" : "text-white/55 hover:bg-white/5 hover:text-white"}`}>
+              {tab === s.id && <span className="absolute left-[-6px] top-2 bottom-2 w-[3px] rounded-r-full bg-red-500" />}
+              <s.icon className="h-[18px] w-[18px]" />
               <span>{s.label}</span>
             </button>
           ))}
@@ -67,10 +69,13 @@ export function StudioLeft() {
             <ChevronLeft className="h-6 w-6 mx-auto" />
           </button>
         </nav>
-        <div className="flex-1 overflow-y-auto p-3">
-          <div className="flex items-center justify-between mb-4 md:hidden">
-            <h3 className="font-bold text-foreground">{SECTIONS.find(s => s.id === tab)?.label}</h3>
-            <Button variant="ghost" size="sm" onClick={() => setMobileOpen(false)}>Fechar</Button>
+        <div className="flex-1 overflow-y-auto p-3.5">
+          <div className="mb-4 flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-foreground">{SECTIONS.find(s => s.id === tab)?.label}</h3>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">{SECTIONS.find(s => s.id === tab)?.hint}</p>
+            </div>
+            <Button variant="ghost" size="sm" className="md:hidden" onClick={() => setMobileOpen(false)}>Fechar</Button>
           </div>
           {tab === "text" && <TextsPanel />}
           {tab === "vars" && <VariablesPanel />}
@@ -133,7 +138,7 @@ function TextsPanel() {
                 addElement(makeTextElement("CERTIFICADO", { fontFamily: p.title, fontSize: 72, bold: true, uppercase: true, x: 50, y: 25 } as any));
                 setTimeout(() => addElement(makeTextElement("Texto do certificado", { fontFamily: p.body, fontSize: 22, x: 50, y: 55 } as any)), 30);
               }}
-              className="w-full text-left p-2.5 rounded-lg border border-neutral-200 hover:border-red-700 hover:bg-red-50 transition">
+              className="w-full text-left p-2.5 rounded-lg border border-border hover:border-primary/50 hover:bg-primary/[0.04] transition">
               <div className="text-[10px] text-neutral-500 uppercase tracking-wide">{p.label}</div>
               <div style={{ fontFamily: p.title }} className="text-base font-bold leading-tight">{p.title}</div>
               <div style={{ fontFamily: p.body }} className="text-xs text-neutral-600">{p.body}</div>
@@ -147,7 +152,7 @@ function TextsPanel() {
         <div className="space-y-2">
           {presets.map((p) => (
             <button key={p.label} onClick={() => addElement(makeTextElement(p.opts.text, p.opts as any))}
-              className="w-full text-left p-3 rounded-lg border border-neutral-200 hover:border-red-700 hover:bg-red-50 transition">
+              className="w-full text-left p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-primary/[0.04] transition">
               <div className="text-xs text-neutral-500">{p.label}</div>
               <div style={{ fontFamily: p.opts.fontFamily, fontWeight: p.opts.bold ? 800 : 400, textTransform: (p.opts as any).uppercase ? "uppercase" : "none" }}
                 className="text-lg truncate">
@@ -180,7 +185,7 @@ function IconsPanel() {
         {items.map((a) => (
           <button key={a.id} title={a.label}
             onClick={() => insertSvgAsset(a, color, addElement, { w: 10, h: 10 })}
-            className="aspect-square rounded-lg border border-neutral-200 hover:border-red-700 hover:bg-red-50 flex items-center justify-center p-2">
+            className="aspect-square rounded-lg border border-border hover:border-primary/50 hover:bg-primary/[0.04] flex items-center justify-center p-2">
             <div style={{ color, width: "100%", height: "100%" }} dangerouslySetInnerHTML={{ __html: a.svg(color) }} />
           </button>
         ))}
@@ -212,7 +217,7 @@ function OrnamentsPanel() {
               {items.map((a) => (
                 <button key={a.id}
                   onClick={() => insertSvgAsset(a, color, addElement, g.size)}
-                  className="w-full rounded-lg border border-neutral-200 hover:border-red-700 hover:bg-red-50 p-2 flex items-center gap-2">
+                  className="w-full rounded-lg border border-border hover:border-primary/50 hover:bg-primary/[0.04] p-2 flex items-center gap-2">
                   <div style={{ color, width: 80, height: g.key === "frame" ? 44 : 20, flexShrink: 0 }} dangerouslySetInnerHTML={{ __html: a.svg(color) }} />
                   <span className="text-xs text-neutral-600 truncate">{a.label}</span>
                 </button>
@@ -246,7 +251,7 @@ function VariablesPanel() {
             {cat.items.map((v) => (
               <button key={v.key}
                 onClick={() => addElement(makeVariableElement(v.key))}
-                className="text-left px-2 py-1.5 rounded border border-neutral-200 hover:border-red-700 hover:bg-red-50 text-sm">
+                className="text-left px-2 py-1.5 rounded border border-border hover:border-primary/50 hover:bg-primary/[0.04] text-sm">
                 <span className="text-red-700 font-mono text-xs">{`{{${v.key}}}`}</span>
                 <div className="text-neutral-600">{v.label}</div>
               </button>
@@ -368,7 +373,7 @@ function ShapesPanel() {
 }
 function ShapeButton({ icon: Icon, label, onClick }: { icon: any; label: string; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="aspect-square rounded-lg border border-neutral-200 hover:border-red-700 hover:bg-red-50 flex flex-col items-center justify-center gap-1 text-xs">
+    <button onClick={onClick} className="aspect-square rounded-lg border border-border hover:border-primary/50 hover:bg-primary/[0.04] flex flex-col items-center justify-center gap-1 text-xs">
       <Icon className="h-6 w-6" />
       {label}
     </button>
@@ -460,7 +465,7 @@ function PresetCard({ preset, onSelect }: { preset: typeof CERTIFICATE_PRESETS[n
   return (
     <button
       onClick={() => onSelect(preset)}
-      className="text-left rounded-lg border border-neutral-200 hover:border-red-700 hover:shadow-sm transition overflow-hidden bg-white group"
+      className="text-left rounded-xl border border-border hover:border-primary/50 hover:shadow-md transition overflow-hidden bg-white group"
     >
       <div className="relative w-full bg-neutral-100 overflow-hidden" style={{ height: doc.page.height * scale }}>
         <div style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: doc.page.width, height: doc.page.height }}>

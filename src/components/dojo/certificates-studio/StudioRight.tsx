@@ -36,7 +36,7 @@ export function StudioRight() {
              <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileOpen(false)}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">
+            <span className="truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {el ? (el.name || labelForKind(el.kind)) : "Propriedades"}
             </span>
           </div>
@@ -60,8 +60,21 @@ export function StudioRight() {
 
         <div className="flex-1 overflow-y-auto shrink-0">
           {!el ? (
-            <div className="p-4 text-sm text-muted-foreground">
-              Selecione um elemento para editar suas propriedades. Use os atalhos: <b>Ctrl+Z</b> desfazer, <b>Ctrl+D</b> duplicar, <b>Del</b> excluir.
+            <div className="space-y-3 p-4 text-sm text-muted-foreground">
+              <p className="font-medium text-foreground">Nada selecionado</p>
+              <ul className="space-y-1.5 text-xs leading-relaxed">
+                <li>• Clique num elemento para ver todas as propriedades aqui.</li>
+                <li>• Duplo clique num texto edita direto na página.</li>
+                <li>• Arraste no fundo da página para selecionar vários.</li>
+                <li>• Botão direito abre o menu rápido.</li>
+              </ul>
+              <button
+                type="button"
+                onClick={() => document.dispatchEvent(new CustomEvent("cert-studio:shortcuts"))}
+                className="w-full rounded-lg border border-dashed py-2 text-xs hover:bg-muted/60"
+              >
+                Ver atalhos do teclado
+              </button>
             </div>
           ) : (
             <div className="p-3 space-y-4">

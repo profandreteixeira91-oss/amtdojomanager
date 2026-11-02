@@ -1,17 +1,21 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   listCertificateTemplates, saveCertificateTemplate, deleteCertificateTemplate,
-  listDojoStudents,
+  listDojoStudents, listIssuedCertificates,
 } from "@/lib/dojo/dojo.functions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Trash2, Copy, Plus, Star, Search, Upload, ImageOff, Send, FileCheck, Award, Flame, Sparkles, Eye } from "lucide-react";
+import { Trash2, Copy, Plus, Star, Search, Upload, ImageOff, Send, FileCheck, Award, Sparkles, Eye, MoreHorizontal, Pencil, CalendarCheck, LayoutTemplate, FilePlus2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { CertificateThumb } from "@/components/dojo/certificates-studio/CertificateThumb";
+import { CERTIFICATE_PRESETS } from "@/lib/dojo/certificates/presets";
+import { cn } from "@/lib/utils";
 import { CertificateEditor } from "@/components/dojo/certificate-editor/CertificateEditor";
 import { migrateLegacyFields, toLegacyFields, type EditorSchema } from "@/components/dojo/certificate-editor/types";
 import { CertificatePreviewDialog, type CertificateTemplate } from "@/components/dojo/CertificatePreview";
@@ -53,6 +57,8 @@ export function CertificatesPage() {
 
   const templates = useQuery({ queryKey: ["dojo-templates"], queryFn: () => listFn() });
   const students = useQuery({ queryKey: ["dojo-students-mini"], queryFn: () => studentsFn() });
+  const issuedFn = useServerFn(listIssuedCertificates);
+  const issued = useQuery({ queryKey: ["dojo-issued-certificates"], queryFn: () => issuedFn() });
 
   const [editing, setEditing] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
@@ -263,223 +269,222 @@ export function CertificatesPage() {
     );
   }
 
+  const openEditor = (id: string) => navigate({ to: "/dojo/certificate-editor/$id", params: { id } });
+  const newFromPreset = (preset?: string) =>
+    navigate({ to: "/dojo/certificate-editor/$id", params: { id: "new" }, search: preset ? { preset } : {} });
+  const totalTemplates = (templates.data ?? []).length;
+  const now = new Date();
+  const issuedThisMonth = (issued.data ?? []).filter((c: any) => {
+    const d = c.issued_at ? new Date(c.issued_at) : null;
+    return d && d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  }).length;
+  const categoryCount = (id: string) => (templates.data ?? []).filter((t: any) => (t.category || "personalizado") === id).length;
+
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 p-4 md:gap-6 md:p-6">
-      {/* ===== HERO ===== */}
-      <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-neutral-950 text-white shadow-[0_30px_80px_-40px_rgba(220,38,38,0.65)]">
-        <div aria-hidden className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-red-600/25 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -right-16 top-8 h-64 w-64 rounded-full bg-amber-500/15 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(255,255,255,0.06),transparent_45%)]" />
-        <div className="relative flex flex-col gap-4 p-5 sm:p-7">
-          <div className="flex items-start gap-4">
-            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-amber-400 via-red-500 to-red-700 text-white shadow-[0_10px_25px_-10px_rgba(220,38,38,0.9)] ring-1 ring-white/20">
-              <Award className="h-6 w-6" />
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 md:p-6">
+      {/* ===== CABEÇALHO ===== */}
+      <section className="relative overflow-hidden rounded-3xl border border-neutral-200/80 bg-card shadow-xs">
+        <div aria-hidden className="pointer-events-none absolute -right-24 -top-28 h-80 w-80 rounded-full bg-red-500/10 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute right-40 top-10 h-40 w-40 rounded-full bg-amber-400/10 blur-3xl" />
+        <div className="relative flex flex-col gap-6 p-5 sm:p-7 lg:flex-row lg:items-center">
+          <div className="min-w-0 flex-1">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-primary">
+              <Award className="h-3.5 w-3.5" /> Certificados
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-red-200 backdrop-blur">
-                <Flame className="h-3 w-3" /> Certificados
+            <h1 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">Certificados que valorizam cada conquista</h1>
+            <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">
+              Crie modelos no editor, emita para os alunos em poucos cliques e acompanhe tudo o que foi entregue — com validação por QR Code.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Button onClick={() => newFromPreset()} className="rounded-xl px-4 shadow-sm">
+                <Plus className="mr-1 h-4 w-4" /> Novo modelo
+              </Button>
+              <Button variant="outline" onClick={() => setIssueOpen(true)} className="rounded-xl px-4">
+                <Send className="mr-1 h-4 w-4" /> Emitir certificado
+              </Button>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3 lg:w-[420px]">
+            {[
+              { icon: LayoutTemplate, label: "Modelos", value: templates.isLoading ? "—" : totalTemplates },
+              { icon: FileCheck, label: "Emitidos", value: issued.isLoading ? "—" : (issued.data ?? []).length },
+              { icon: CalendarCheck, label: "Este mês", value: issued.isLoading ? "—" : issuedThisMonth },
+            ].map((k) => (
+              <div key={k.label} className="rounded-2xl border border-neutral-200/80 bg-white/70 p-3.5 backdrop-blur">
+                <k.icon className="h-4 w-4 text-primary" />
+                <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight">{k.value}</div>
+                <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{k.label}</div>
               </div>
-              <h1 className="mt-2 font-display text-2xl font-black leading-tight tracking-tight sm:text-3xl md:text-4xl">
-                Reconhecimento em cada linha.
-              </h1>
-              <p className="mt-1 max-w-xl text-sm text-neutral-300">
-                Desenhe modelos, emita certificados e acompanhe cada entrega com padrão premium.
-              </p>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <TabsList className="w-full justify-start rounded-full border border-white/10 bg-neutral-950/60 p-1 backdrop-blur md:w-auto">
-            <TabsTrigger
-              value="modelos"
-              className="rounded-full px-4 text-xs font-semibold text-neutral-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-600 data-[state=active]:to-red-500 data-[state=active]:text-white data-[state=active]:shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)]"
-            >
-              <FileCheck className="mr-1 h-4 w-4" /> Modelos
-            </TabsTrigger>
-            <TabsTrigger
-              value="emitidos"
-              className="rounded-full px-4 text-xs font-semibold text-neutral-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-600 data-[state=active]:to-red-500 data-[state=active]:text-white data-[state=active]:shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)]"
-            >
-              <Sparkles className="mr-1 h-4 w-4" /> Emitidos
-            </TabsTrigger>
-          </TabsList>
-          <div className="flex flex-wrap items-center gap-2">
-            {tab === "modelos" && (
-              <>
-                <div className="relative w-full sm:w-auto">
-                  <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar modelo…" className="h-9 w-full pl-7 text-sm sm:w-56" />
-                </div>
-                <select value={category} onChange={(e) => setCategory(e.target.value)} className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-sm sm:flex-none">
-                  <option value="">Todas as categorias</option>
-                  {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-                </select>
-                <Button variant="outline" onClick={() => setIssueOpen(true)} className="flex-1 sm:flex-none">
-                  <Send className="h-4 w-4 mr-1" /> Emitir
-                </Button>
-                <Button
-                  onClick={() => navigate({ to: "/dojo/certificate-editor/$id", params: { id: "new" } })}
-                  className="flex-1 bg-gradient-to-r from-red-600 to-red-500 text-white shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)] hover:from-red-500 hover:to-red-400 sm:flex-none"
-                >
-                  <Plus className="h-4 w-4 mr-1" /> Novo modelo
-                </Button>
-              </>
-            )}
-            {tab === "emitidos" && (
-              <Button onClick={() => setIssueOpen(true)} className="w-full bg-gradient-to-r from-red-600 to-red-500 text-white shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)] hover:from-red-500 hover:to-red-400 sm:w-auto">
-                <Send className="h-4 w-4 mr-1" /> Emitir certificado
-              </Button>
-            )}
+      {/* ===== COMEÇAR DE UM MODELO PRONTO ===== */}
+      <section>
+        <div className="mb-3 flex items-end justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold">Comece com um modelo pronto</h2>
+            <p className="text-xs text-muted-foreground">Escolha um design e personalize tudo no editor — textos, cores, logo e assinaturas.</p>
           </div>
         </div>
+        <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:thin] md:-mx-6 md:px-6">
+          <button
+            type="button"
+            onClick={() => newFromPreset()}
+            className="group flex w-48 shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-dashed border-neutral-300 bg-card text-left transition hover:border-primary/50 hover:shadow-md"
+          >
+            <div className="grid aspect-[1754/1240] w-full place-items-center bg-neutral-50 text-muted-foreground transition-colors group-hover:text-primary">
+              <FilePlus2 className="h-8 w-8" />
+            </div>
+            <div className="border-t border-neutral-100 px-3 py-2.5">
+              <div className="text-sm font-semibold">Em branco</div>
+              <div className="text-[11px] text-muted-foreground">Comece do zero</div>
+            </div>
+          </button>
+          {CERTIFICATE_PRESETS.map((p) => (
+            <PresetTile key={p.id} preset={p} values={previewValues} onPick={() => newFromPreset(p.id)} />
+          ))}
+        </div>
+      </section>
 
-        <TabsContent value="modelos" className="mt-4">
-          <p className="mb-3 text-sm text-muted-foreground">Modelos de certificado disponíveis para emissão.</p>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <TabsList className="h-10 w-full justify-start rounded-xl bg-muted p-1 sm:w-auto">
+            <TabsTrigger value="modelos" className="h-8 rounded-lg px-4 text-sm">
+              <LayoutTemplate className="mr-1.5 h-4 w-4" /> Meus modelos
+              <span className="ml-1.5 rounded-full bg-foreground/[0.06] px-1.5 text-[11px] tabular-nums">{totalTemplates}</span>
+            </TabsTrigger>
+            <TabsTrigger value="emitidos" className="h-8 rounded-lg px-4 text-sm">
+              <Sparkles className="mr-1.5 h-4 w-4" /> Emitidos
+              <span className="ml-1.5 rounded-full bg-foreground/[0.06] px-1.5 text-[11px] tabular-nums">{(issued.data ?? []).length}</span>
+            </TabsTrigger>
+          </TabsList>
+          {tab === "modelos" && (
+            <div className="relative w-full lg:w-72">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar modelo…" className="h-10 rounded-xl pl-9" />
+            </div>
+          )}
+        </div>
 
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filteredTemplates.map((t: any) => {
-          const editorSchema: EditorSchema | undefined = t.variables?.editor_schema;
-          const elCount = editorSchema?.elements.length ?? t.fields?.length ?? 0;
-          const catLabel = CATEGORIES.find((c) => c.id === t.category)?.label ?? "Personalizado";
-          const previewUrl = editorSchema?.page.backgroundUrl || t.background_url;
-
-          const setBackground = async (url: string | undefined, w?: number, h?: number) => {
-            try {
-              const schema: EditorSchema = editorSchema ?? migrateLegacyFields(t);
-              const nextSchema: EditorSchema = {
-                ...schema,
-                page: { ...schema.page, backgroundUrl: url, ...(w ? { width: w } : {}), ...(h ? { height: h } : {}) },
-              };
-              const legacy = toLegacyFields(nextSchema);
-              await saveFn({ data: {
-                id: t.id,
-                name: t.name,
-                background_url: legacy.background_url,
-                width: legacy.width,
-                height: legacy.height,
-                fields: legacy.fields as any,
-                variables: { ...(t.variables ?? {}), editor_schema: nextSchema },
-                category: t.category ?? "personalizado",
-                is_default: !!t.is_default,
-                active: true,
-              }});
-              toast.success(url ? "Plano de fundo atualizado" : "Plano de fundo removido");
-              qc.invalidateQueries({ queryKey: ["dojo-templates"] });
-            } catch (e: any) { toast.error(e.message); }
-          };
-
-          const uploadBackground = async (file: File) => {
-            if (!file.type.startsWith("image/")) { toast.error("Envie um arquivo de imagem"); return; }
-            if (file.size > 10 * 1024 * 1024) { toast.error("Imagem muito grande (máx. 10MB)"); return; }
-            try {
-              const path = `certificates/bg-${Date.now()}-${file.name.replace(/[^a-z0-9.\-_]/gi, "_")}`;
-              const { error } = await supabase.storage.from("product-images").upload(path, file, { upsert: true, contentType: file.type });
-              if (error) throw error;
-              const { data } = supabase.storage.from("product-images").getPublicUrl(path);
-              const img = new Image();
-              await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = () => rej(new Error("Falha ao ler imagem")); img.src = data.publicUrl; });
-              await setBackground(data.publicUrl, img.naturalWidth, img.naturalHeight);
-            } catch (e: any) { toast.error(e.message); }
-          };
-
-          return (
-            <Card key={t.id} className="group relative overflow-hidden border-white/10 bg-neutral-950/70 text-white shadow-[0_20px_50px_-30px_rgba(220,38,38,0.5)] backdrop-blur transition-all hover:-translate-y-1 hover:border-red-500/30 hover:shadow-[0_25px_60px_-25px_rgba(220,38,38,0.7)]">
-              <div
-                className="relative aspect-[7/5] bg-gradient-to-br from-neutral-900 via-neutral-950 to-black"
-                onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("ring-2","ring-red-500"); }}
-                onDragLeave={(e) => e.currentTarget.classList.remove("ring-2","ring-red-500")}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  e.currentTarget.classList.remove("ring-2","ring-red-500");
-                  const f = e.dataTransfer.files?.[0];
-                  if (f) uploadBackground(f);
-                }}
-              >
-                {previewUrl ? (
-                  <img src={previewUrl} alt={t.name} className="h-full w-full object-contain" />
-                ) : (
-                  <div className="grid h-full w-full place-items-center px-4 text-center text-xs text-neutral-400">Arraste uma imagem ou use o botão abaixo</div>
-                )}
-                {t.is_default && (
-                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 px-2 py-0.5 text-[10px] font-bold text-yellow-950 shadow-[0_6px_16px_-8px_rgba(245,158,11,0.9)] ring-1 ring-white/30">
-                    <Star className="h-3 w-3 fill-current" /> Padrão
-                  </span>
-                )}
-                <span className="absolute right-2 top-2 rounded-full border border-white/15 bg-neutral-950/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-red-200 backdrop-blur">{catLabel}</span>
-
-                {/* Overlay de ações do fundo */}
-                <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 transition group-hover:opacity-100">
-                  <label className="inline-flex cursor-pointer items-center gap-1 rounded-md bg-white/95 px-2 py-1 text-[11px] font-medium text-foreground shadow hover:bg-white">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      hidden
-                      onChange={(e) => e.target.files?.[0] && uploadBackground(e.target.files[0])}
-                    />
-                    <Upload className="h-3 w-3" /> {previewUrl ? "Trocar fundo" : "Enviar fundo"}
-                  </label>
-                  {previewUrl && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (confirm("Remover plano de fundo deste modelo?")) setBackground(undefined);
-                      }}
-                      className="inline-flex items-center gap-1 rounded-md bg-white/95 px-2 py-1 text-[11px] font-medium text-destructive shadow hover:bg-white"
-                    >
-                      <ImageOff className="h-3 w-3" /> Remover
-                    </button>
+        <TabsContent value="modelos" className="mt-4 space-y-4">
+          <div className="flex flex-wrap gap-1.5">
+            {[{ id: "", label: "Todos", count: totalTemplates }, ...CATEGORIES.map((c) => ({ ...c, count: categoryCount(c.id) }))]
+              .filter((c) => c.id === "" || c.count > 0)
+              .map((c) => (
+                <button
+                  key={c.id || "all"}
+                  type="button"
+                  onClick={() => setCategory(c.id)}
+                  className={cn(
+                    "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                    category === c.id
+                      ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                      : "border-neutral-200 bg-card text-muted-foreground hover:border-neutral-300 hover:text-foreground",
                   )}
+                >
+                  {c.label} <span className="ml-0.5 opacity-70">{c.count}</span>
+                </button>
+              ))}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {templates.isLoading &&
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="overflow-hidden rounded-2xl border border-neutral-200/80 bg-card">
+                  <div className="aspect-[1754/1240] animate-pulse bg-neutral-100" />
+                  <div className="space-y-2 p-3"><div className="h-4 w-2/3 animate-pulse rounded bg-neutral-100" /><div className="h-3 w-1/3 animate-pulse rounded bg-neutral-100" /></div>
                 </div>
+              ))}
+
+            {filteredTemplates.map((t: any) => {
+              const editorSchema: EditorSchema | undefined = t.variables?.editor_schema;
+              const schema: EditorSchema = editorSchema ?? migrateLegacyFields(t);
+              const elCount = schema.elements.length;
+              const catLabel = CATEGORIES.find((c) => c.id === t.category)?.label ?? "Personalizado";
+              const hasBackground = !!(schema.page.backgroundUrl || t.background_url);
+
+              const setBackground = async (url: string | undefined, w?: number, h?: number) => {
+                try {
+                  const nextSchema: EditorSchema = {
+                    ...schema,
+                    page: { ...schema.page, backgroundUrl: url, ...(w ? { width: w } : {}), ...(h ? { height: h } : {}) },
+                  };
+                  const legacy = toLegacyFields(nextSchema);
+                  await saveFn({ data: {
+                    id: t.id,
+                    name: t.name,
+                    background_url: legacy.background_url,
+                    width: legacy.width,
+                    height: legacy.height,
+                    fields: legacy.fields as any,
+                    variables: { ...(t.variables ?? {}), editor_schema: nextSchema },
+                    category: t.category ?? "personalizado",
+                    is_default: !!t.is_default,
+                    active: true,
+                  }});
+                  toast.success(url ? "Plano de fundo atualizado" : "Plano de fundo removido");
+                  qc.invalidateQueries({ queryKey: ["dojo-templates"] });
+                } catch (e: any) { toast.error(e.message); }
+              };
+
+              const uploadBackground = async (file: File) => {
+                if (!file.type.startsWith("image/")) { toast.error("Envie um arquivo de imagem"); return; }
+                if (file.size > 10 * 1024 * 1024) { toast.error("Imagem muito grande (máx. 10MB)"); return; }
+                try {
+                  const path = `certificates/bg-${Date.now()}-${file.name.replace(/[^a-z0-9.\-_]/gi, "_")}`;
+                  const { error } = await supabase.storage.from("product-images").upload(path, file, { upsert: true, contentType: file.type });
+                  if (error) throw error;
+                  const { data } = supabase.storage.from("product-images").getPublicUrl(path);
+                  const img = new Image();
+                  await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = () => rej(new Error("Falha ao ler imagem")); img.src = data.publicUrl; });
+                  await setBackground(data.publicUrl, img.naturalWidth, img.naturalHeight);
+                } catch (e: any) { toast.error(e.message); }
+              };
+
+              return (
+                <TemplateCard
+                  key={t.id}
+                  name={t.name}
+                  schema={schema}
+                  values={previewValues}
+                  isDefault={!!t.is_default}
+                  categoryLabel={catLabel}
+                  elementCount={elCount}
+                  hasBackground={hasBackground}
+                  onEdit={() => openEditor(t.id)}
+                  onView={() => setViewingTemplate(t)}
+                  onDuplicate={() => duplicate(t)}
+                  onUploadBackground={uploadBackground}
+                  onRemoveBackground={() => { if (confirm("Remover plano de fundo deste modelo?")) setBackground(undefined); }}
+                  onDelete={async () => {
+                    if (confirm(`Excluir modelo "${t.name}"?`)) {
+                      await delFn({ data: { id: t.id } });
+                      qc.invalidateQueries({ queryKey: ["dojo-templates"] });
+                    }
+                  }}
+                />
+              );
+            })}
+
+            {!templates.isLoading && filteredTemplates.length === 0 && (
+              <div className="col-span-full flex flex-col items-center rounded-2xl border border-dashed border-neutral-300 bg-card px-6 py-12 text-center">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary"><Award className="h-6 w-6" /></div>
+                <h3 className="mt-3 text-base font-semibold">
+                  {totalTemplates === 0 ? "Crie o primeiro modelo da academia" : "Nenhum modelo encontrado"}
+                </h3>
+                <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                  {totalTemplates === 0
+                    ? "Escolha um modelo pronto acima ou comece em branco. Depois é só emitir para os alunos."
+                    : "Ajuste a busca ou a categoria para ver outros modelos."}
+                </p>
+                {totalTemplates === 0 && (
+                  <Button onClick={() => newFromPreset()} className="mt-4 rounded-xl"><Plus className="mr-1 h-4 w-4" /> Novo modelo</Button>
+                )}
               </div>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base font-semibold leading-tight text-white">{t.name}</CardTitle>
-                <div className="text-[11px] text-neutral-400">{elCount} elemento{elCount === 1 ? "" : "s"}</div>
-              </CardHeader>
-              <CardContent className="flex gap-2 pt-0">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  title="Visualizar modelo"
-                  onClick={() => setViewingTemplate(t)}
-                  className="border-white/15 bg-white/5 text-white hover:bg-white/10"
-                >
-                  <Eye className="h-4 w-4 mr-1" /> Ver
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => navigate({ to: "/dojo/certificate-editor/$id", params: { id: t.id } })}
-                  className="flex-1 bg-gradient-to-r from-red-600 to-red-500 text-white shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)] hover:from-red-500 hover:to-red-400"
-                >
-                  Editar
-                </Button>
-                <Button size="icon" variant="outline" title="Duplicar" onClick={() => duplicate(t)} className="border-white/15 bg-white/5 text-white hover:bg-white/10"><Copy className="h-4 w-4" /></Button>
-                <Button size="icon" variant="ghost" title="Excluir" onClick={async () => {
-                  if (confirm(`Excluir modelo "${t.name}"?`)) {
-                    await delFn({ data: { id: t.id } });
-                    qc.invalidateQueries({ queryKey: ["dojo-templates"] });
-                  }
-                }} className="text-red-300 hover:bg-red-500/10 hover:text-red-200"><Trash2 className="h-4 w-4" /></Button>
-              </CardContent>
-            </Card>
-          );
-        })}
-
-        {filteredTemplates.length === 0 && (
-          <Card className="col-span-full border-white/10 bg-neutral-950/60 text-white backdrop-blur">
-            <CardContent className="p-10 text-center text-sm text-neutral-300">
-              Nenhum modelo encontrado. Clique em <strong className="text-red-300">Novo modelo</strong> para criar seu primeiro certificado.
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      <p className="text-xs text-muted-foreground">
-        Para emitir um certificado a partir de um modelo, use o botão <strong>Emitir</strong> acima ou a aba <strong>Emitidos</strong>.
-      </p>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="emitidos" className="mt-4">
@@ -508,5 +513,125 @@ export function CertificatesPage() {
         title={viewingTemplate?.name ?? "Modelo"}
       />
     </div>
+  );
+}
+
+/** Cartão de um modelo da academia, com miniatura fiel e ações. */
+function TemplateCard({
+  name, schema, values, isDefault, categoryLabel, elementCount, hasBackground,
+  onEdit, onView, onDuplicate, onUploadBackground, onRemoveBackground, onDelete,
+}: {
+  name: string;
+  schema: EditorSchema;
+  values: Record<string, string>;
+  isDefault: boolean;
+  categoryLabel: string;
+  elementCount: number;
+  hasBackground: boolean;
+  onEdit: () => void;
+  onView: () => void;
+  onDuplicate: () => void;
+  onUploadBackground: (f: File) => void;
+  onRemoveBackground: () => void;
+  onDelete: () => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const portrait = schema.page.height > schema.page.width;
+  return (
+    <div className="group overflow-hidden rounded-2xl border border-neutral-200/80 bg-card shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-lg">
+      <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadBackground(f); e.target.value = ""; }} />
+      <div
+        className={cn("relative bg-[linear-gradient(180deg,#f4f4f5,#ececee)] p-4 transition-shadow", dragOver && "ring-2 ring-inset ring-primary")}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          const f = e.dataTransfer.files?.[0];
+          if (f) onUploadBackground(f);
+        }}
+      >
+        <button
+          type="button"
+          onClick={onEdit}
+          aria-label={`Editar ${name}`}
+          className={cn("mx-auto block overflow-hidden rounded-[3px] shadow-[0_8px_24px_-10px_rgba(15,23,42,0.45)] ring-1 ring-black/5", portrait ? "w-[58%]" : "w-full")}
+        >
+          <CertificateThumb doc={schema} values={values} />
+        </button>
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 bg-neutral-950/0 opacity-0 transition-all group-hover:bg-neutral-950/35 group-hover:opacity-100">
+          <Button size="sm" onClick={onEdit} className="pointer-events-auto rounded-lg bg-white text-foreground shadow-lg hover:bg-white/90">
+            <Pencil className="mr-1 h-3.5 w-3.5" /> Editar
+          </Button>
+          <Button size="sm" variant="outline" onClick={onView} className="pointer-events-auto rounded-lg border-white/40 bg-white/15 text-white backdrop-blur hover:bg-white/25 hover:text-white">
+            <Eye className="mr-1 h-3.5 w-3.5" /> Ver
+          </Button>
+        </div>
+        {isDefault && (
+          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold text-amber-950 shadow-sm">
+            <Star className="h-3 w-3 fill-current" /> Padrão
+          </span>
+        )}
+        {dragOver && (
+          <div className="absolute inset-0 grid place-items-center bg-primary/10 text-sm font-semibold text-primary">Solte para usar como fundo</div>
+        )}
+      </div>
+      <div className="flex items-center gap-2 border-t border-neutral-100 p-3">
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-semibold" title={name}>{name}</div>
+          <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span className="rounded-full bg-muted px-1.5 py-px font-medium">{categoryLabel}</span>
+            <span>{elementCount} elemento{elementCount === 1 ? "" : "s"}</span>
+            <span>· {portrait ? "Retrato" : "Paisagem"}</span>
+          </div>
+        </div>
+        <Button size="sm" variant="outline" onClick={onEdit} className="h-8 rounded-lg">Editar</Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg" aria-label="Mais ações"><MoreHorizontal className="h-4 w-4" /></Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-[200px]">
+            <DropdownMenuItem onSelect={onView}><Eye className="h-4 w-4" /> Visualizar</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onDuplicate}><Copy className="h-4 w-4" /> Duplicar</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => fileRef.current?.click()}>
+              <Upload className="h-4 w-4" /> {hasBackground ? "Trocar imagem de fundo" : "Enviar imagem de fundo"}
+            </DropdownMenuItem>
+            {hasBackground && (
+              <DropdownMenuItem onSelect={onRemoveBackground}><ImageOff className="h-4 w-4" /> Remover fundo</DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={onDelete} className="text-destructive focus:text-destructive"><Trash2 className="h-4 w-4" /> Excluir</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+}
+
+/** Miniatura de um modelo pronto (galeria "Comece com um modelo pronto"). */
+function PresetTile({ preset, values, onPick }: { preset: (typeof CERTIFICATE_PRESETS)[number]; values: Record<string, string>; onPick: () => void }) {
+  const doc = useMemo(() => preset.build(), [preset]);
+  const portrait = doc.page.height > doc.page.width;
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      className="group flex w-48 shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-neutral-200/80 bg-card text-left shadow-xs transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
+    >
+      <div className="grid aspect-[1754/1240] w-full place-items-center bg-[linear-gradient(180deg,#f4f4f5,#ececee)] p-2.5">
+        <div className={cn("overflow-hidden rounded-[2px] shadow-md ring-1 ring-black/5", portrait ? "h-full" : "w-full")}>
+          <CertificateThumb doc={doc} values={values} width={portrait ? 74 : 168} />
+        </div>
+      </div>
+      <div className="border-t border-neutral-100 px-3 py-2.5">
+        <div className="flex items-center gap-1.5">
+          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: preset.accent }} />
+          <span className="truncate text-sm font-semibold">{preset.name}</span>
+        </div>
+        <div className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground">{preset.description}</div>
+      </div>
+    </button>
   );
 }

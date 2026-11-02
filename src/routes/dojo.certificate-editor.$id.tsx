@@ -3,10 +3,15 @@ import { CertificateStudio } from "@/components/dojo/certificates-studio/Certifi
 
 export const Route = createFileRoute("/dojo/certificate-editor/$id")({
   head: () => ({ meta: [{ title: "Editor de Certificados — AMT Dojo Manager" }] }),
+  // `preset`: modelo pronto escolhido na tela inicial ao criar um novo modelo.
+  validateSearch: (search: Record<string, unknown>): { preset?: string } => ({
+    preset: typeof search.preset === "string" ? search.preset : undefined,
+  }),
   component: EditorPage,
 });
 
 function EditorPage() {
   const { id } = Route.useParams();
-  return <CertificateStudio templateId={id as any} />;
+  const { preset } = Route.useSearch();
+  return <CertificateStudio templateId={id as any} presetId={preset} />;
 }

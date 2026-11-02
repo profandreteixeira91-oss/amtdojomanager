@@ -11,8 +11,18 @@ export type CertificatePreset = {
   build: () => EditorSchema;
 };
 
-const el = (e: Partial<AnyElement> & { kind: AnyElement["kind"] }, z: number): AnyElement =>
-  ({ id: makeId(), rotation: 0, opacity: 1, z, ...(e as any) } as AnyElement);
+/**
+ * Os retângulos abaixo foram escritos pelo canto superior esquerdo (x, y),
+ * mas o editor posiciona todo elemento pelo centro: converte aqui. Círculos
+ * e textos já estão escritos pelo centro.
+ */
+const el = (e: Partial<AnyElement> & { kind: AnyElement["kind"] }, z: number): AnyElement => {
+  const centered =
+    e.kind === "rect" && e.w != null && e.h != null && e.x != null && e.y != null
+      ? { ...e, x: e.x + e.w / 2, y: e.y + e.h / 2 }
+      : e;
+  return { id: makeId(), rotation: 0, opacity: 1, z, ...(centered as any) } as AnyElement;
+};
 
 function landscape(bg: string, elements: AnyElement[]): EditorSchema {
   const p = PAGE_PRESETS.a4_landscape;

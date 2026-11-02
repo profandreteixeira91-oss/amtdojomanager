@@ -275,7 +275,8 @@ function renderElementHtml(el: any, values: Record<string, string>): string {
     const padding = el.padding ? `padding:${el.padding}px;` : "";
     const border = (el.borderWidth ?? 0) > 0 ? `border:${el.borderWidth}px solid ${el.borderColor || "#000"};` : "";
     const radius = el.borderRadius ? `border-radius:${el.borderRadius}px;` : "";
-    const width = hasW ? `width:${el.w}%;` : "";
+    // Mesmo modelo do CertificateRenderer: sem largura definida, a caixa acompanha o conteúdo.
+    const width = hasW ? `width:${el.w}%;` : "width:max-content;";
     const height = hasH ? `height:${el.h}%;` : "";
     const boxStyle = `${common}${width}${height}display:flex;align-items:${alignItems};justify-content:${justify};${bg}${padding}${border}${radius}box-sizing:border-box;`;
     const textStyle = `font-size:${el.fontSize}px;color:${el.color};font-weight:${el.bold ? 800 : 400};${el.italic ? "font-style:italic;" : ""}${el.underline ? "text-decoration:underline;" : ""}${el.uppercase ? "text-transform:uppercase;" : ""}text-align:${el.align};${el.fontFamily ? `font-family:'${el.fontFamily}',serif;` : ""}line-height:${el.lineHeight ?? 1.25};${el.letterSpacing != null ? `letter-spacing:${el.letterSpacing}px;` : ""}${hasW ? "width:100%;" : ""}white-space:pre-wrap;word-break:break-word;`;
@@ -285,7 +286,7 @@ function renderElementHtml(el: any, values: Record<string, string>): string {
   if (el.kind === "date") {
     const now = new Date();
     const s = el.format === "long" ? now.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" }) : el.format === "iso" ? now.toISOString().slice(0, 10) : now.toLocaleDateString("pt-BR");
-    return `<div style="${common}font-size:${el.fontSize}px;color:${el.color};font-weight:${el.bold ? 800 : 400};text-align:${el.align};${el.fontFamily ? `font-family:'${el.fontFamily}',serif;` : ""}">${esc(s)}</div>`;
+    return `<div style="${common}width:max-content;font-size:${el.fontSize}px;color:${el.color};font-weight:${el.bold ? 800 : 400};text-align:${el.align};${el.fontFamily ? `font-family:'${el.fontFamily}',serif;` : ""}">${esc(s)}</div>`;
   }
   if (el.kind === "image" || el.kind === "logo" || el.kind === "signature") {
     const src = el.imageUrl || (el.kind === "logo" ? values.academia_logo : "");

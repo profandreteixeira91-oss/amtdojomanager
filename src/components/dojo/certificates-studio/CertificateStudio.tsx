@@ -5,7 +5,10 @@ import { useStudioStore, emptyDoc, starterDoc } from "@/lib/dojo/certificates/st
 import { StudioTopbar } from "./StudioTopbar";
 import { StudioLeft } from "./StudioLeft";
 import { StudioRight } from "./StudioRight";
-import { StudioCanvas } from "./StudioCanvas";
+import { StudioCanvas, useStudioPreviewValues } from "./StudioCanvas";
+import { StudioContextBar } from "./StudioContextBar";
+import { StudioDock, ShortcutsDialog } from "./StudioDock";
+import { CERTIFICATE_PRESETS } from "@/lib/dojo/certificates/presets";
 import { CertificateRenderer } from "./CertificateRenderer";
 import { toLegacyFields, type EditorSchema, migrateLegacyFields } from "@/components/dojo/certificate-editor/types";
 import { listCertificateTemplates, saveCertificateTemplate } from "@/lib/dojo/dojo.functions";
@@ -14,9 +17,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { PreviewStage } from "./PreviewStage";
 import { useForceLightTheme } from "./useForceLightTheme";
 
-type Props = { templateId: string | "new" };
+type Props = { templateId: string | "new"; presetId?: string };
 
-export function CertificateStudio({ templateId }: Props) {
+export function CertificateStudio({ templateId, presetId }: Props) {
   const listFn = useServerFn(listCertificateTemplates);
   const saveFn = useServerFn(saveCertificateTemplate);
   const navigate = useNavigate();
@@ -25,6 +28,8 @@ export function CertificateStudio({ templateId }: Props) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [presentation, setPresentation] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const exportValues = useStudioPreviewValues();
   useForceLightTheme();
 
   // Load template
@@ -32,7 +37,10 @@ export function CertificateStudio({ templateId }: Props) {
     let cancelled = false;
     (async () => {
       if (templateId === "new") {
-        loadDoc(starterDoc(), { id: null, name: "Novo modelo", category: "graduacao" });
+        // Novo modelo pode partir de um modelo pronto escolhido na tela inicial.
+        const preset = presetId ? CERTIFICATE_PRESETS.find((p) => p.id === presetId) : undefined;
+        if (preset) loadDoc(preset.build(), { id: null, name: preset.name, category: preset.category });
+        else loadDoc(starterDoc(), { id: null, name: "Novo modelo", category: "graduacao" });
         setLoaded(true);
         return;
       }
@@ -93,6 +101,8 @@ export function CertificateStudio({ templateId }: Props) {
     const onSaveEvt = () => { save().catch(() => {}); };
     const onTogglePres = () => setPresentation((p) => !p);
     const onExitPres = () => setPresentation(false);
+    const onShortcuts = () => setShortcutsOpen(true);
+    document.addEventListener("cert-studio:shortcuts", onShortcuts);
     document.addEventListener("cert-studio:save", onSaveEvt);
     document.addEventListener("cert-studio:toggle-presentation", onTogglePres);
     document.addEventListener("cert-studio:exit-presentation", onExitPres);
@@ -100,6 +110,7 @@ export function CertificateStudio({ templateId }: Props) {
       document.removeEventListener("cert-studio:save", onSaveEvt);
       document.removeEventListener("cert-studio:toggle-presentation", onTogglePres);
       document.removeEventListener("cert-studio:exit-presentation", onExitPres);
+      document.removeEventListener("cert-studio:shortcuts", onShortcuts);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc, name, category]);
@@ -133,13 +144,32 @@ export function CertificateStudio({ templateId }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-background overflow-hidden">
-      <StudioTopbar onSave={save} saving={saving} onPreview={() => setPreviewOpen(true)} onPresentation={() => setPresentation(true)} />
-      <div className="relative flex flex-1 min-h-0 overflow-hidden">
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-background">
+      <StudioTopbar
+        onSave={save}
+        saving={saving}
+        onPreview={() => setPreviewOpen(true)}
+        onPresentation={() => setPresentation(true)}
+        onShortcuts={() => setShortcutsOpen(true)}
+      />
+      <div className="relative flex min-h-0 flex-1 overflow-hidden">
         <StudioLeft />
-        <StudioCanvas />
+        <div className="relative flex min-w-0 flex-1 flex-col">
+          <StudioContextBar />
+          <StudioCanvas />
+          <StudioDock />
+        </div>
         <StudioRight />
       </div>
+
+      {/* Cópia limpa do certificado (sem seleção, margens e guias) usada para baixar/imprimir. */}
+      <div aria-hidden style={{ position: "fixed", left: -100000, top: 0, pointerEvents: "none" }}>
+        <div data-cert-export>
+          <CertificateRenderer doc={doc} values={exportValues} />
+        </div>
+      </div>
+
+      <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="w-auto max-w-[95vw] gap-3 p-4 sm:p-5">

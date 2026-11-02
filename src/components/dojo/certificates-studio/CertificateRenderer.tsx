@@ -13,7 +13,7 @@ export function ElementView({ el, values, editable = false }: { el: AnyElement; 
   if (el.hidden && !editable) return null;
 
   if (el.kind === "text" || el.kind === "date") {
-    return <TextView el={el as TextElement | DateElement} values={values} style={style} />;
+    return <TextView el={el as TextElement | DateElement} values={values} style={style} page={doc.page} />;
   }
   if (el.kind === "image" || el.kind === "logo" || el.kind === "signature") {
     return <ImageView el={el as ImageElement} style={style} values={values} />;
@@ -32,11 +32,14 @@ function elementBoxStyle(el: AnyElement, pageW: number, pageH: number): React.CS
   const cy = (el.y / 100) * pageH;
   const w = el.w != null ? (el.w / 100) * pageW : undefined;
   const h = el.h != null ? (el.h / 100) * pageH : undefined;
+  // Texto sem largura definida ocupa a largura do próprio conteúdo: sem isso, perto da borda
+  // direita o navegador espremia a caixa e quebrava a linha sozinho ("CERTIFIC / ADO").
+  const isText = el.kind === "text" || el.kind === "date";
   return {
     position: "absolute",
     left: cx,
     top: cy,
-    width: w,
+    width: w ?? (isText ? "max-content" : undefined),
     height: h,
     transform: `translate(-50%, -50%) rotate(${el.rotation ?? 0}deg)`,
     transformOrigin: "center center",
@@ -45,8 +48,9 @@ function elementBoxStyle(el: AnyElement, pageW: number, pageH: number): React.CS
   };
 }
 
-function TextView({ el, values, style }: { el: TextElement | DateElement; values: Record<string, string>; style: React.CSSProperties }) {
-  const { doc } = useStudioStore();
+type PageInfo = Pick<EditorSchema["page"], "background" | "backgroundUrl">;
+
+function TextView({ el, values, style, page }: { el: TextElement | DateElement; values: Record<string, string>; style: React.CSSProperties; page: PageInfo }) {
   const isText = el.kind === "text";
   const raw = isText ? (el as TextElement).text : formatDate((el as DateElement).format ?? "long", values.data_atual);
   let display = resolveText(raw, values);
@@ -58,7 +62,8 @@ function TextView({ el, values, style }: { el: TextElement | DateElement; values
   const border = borderWidth > 0 ? `${borderWidth}px solid ${t.borderColor || "#000"}` : undefined;
   const vAlign = t.verticalAlign ?? "middle";
   const alignItems = vAlign === "top" ? "flex-start" : vAlign === "bottom" ? "flex-end" : "center";
-  const effectiveBg = bg ?? (doc.page.backgroundUrl ? undefined : doc.page.background) ?? "#ffffff";
+  // Contraste avaliado contra o fundo do PRÓPRIO certificado desenhado (não o do editor aberto).
+  const effectiveBg = bg ?? (page.backgroundUrl ? undefined : page.background) ?? "#ffffff";
   const safeColor = ensureReadableTextColor(el.color, effectiveBg);
   return (
     <div style={{
@@ -196,7 +201,7 @@ export function CertificateRenderer({ doc, values, className }: { doc: EditorSch
         position: "relative",
         width: doc.page.width,
         height: doc.page.height,
-        background: doc.page.background || "#ffffff",
+        backgroundColor: doc.page.background || "#ffffff",
         backgroundImage: doc.page.backgroundUrl ? `url(${doc.page.backgroundUrl})` : undefined,
         backgroundSize: "cover",
         backgroundPosition: "center",
@@ -206,7 +211,7 @@ export function CertificateRenderer({ doc, values, className }: { doc: EditorSch
       {sortedEls.map((el) => (el.hidden ? null : (
         // display:contents não gera caixa: o wrapper só identifica o elemento para o editor medir o tamanho real renderizado.
         <div key={el.id} data-el-id={el.id} style={{ display: "contents" }}>
-          <ElementViewInline el={el} values={merged} pageW={doc.page.width} pageH={doc.page.height} />
+          <ElementViewInline el={el} values={merged} page={doc.page} />
         </div>
       )))}
     </div>
@@ -214,9 +219,9 @@ export function CertificateRenderer({ doc, values, className }: { doc: EditorSch
 }
 
 /** Inline variant that doesn't rely on the store (used from CertificateRenderer). */
-function ElementViewInline({ el, values, pageW, pageH }: { el: AnyElement; values: Record<string, string>; pageW: number; pageH: number }) {
-  const style = elementBoxStyle(el, pageW, pageH);
-  if (el.kind === "text" || el.kind === "date") return <TextView el={el as any} values={values} style={style} />;
+function ElementViewInline({ el, values, page }: { el: AnyElement; values: Record<string, string>; page: EditorSchema["page"] }) {
+  const style = elementBoxStyle(el, page.width, page.height);
+  if (el.kind === "text" || el.kind === "date") return <TextView el={el as any} values={values} style={style} page={page} />;
   if (el.kind === "image" || el.kind === "logo" || el.kind === "signature") return <ImageView el={el as ImageElement} style={style} values={values} />;
   if (el.kind === "rect" || el.kind === "circle" || el.kind === "line") return <ShapeView el={el as ShapeElement} style={style} />;
   if (el.kind === "qr") return <QrView el={el as QrElement} values={values} style={style} />;

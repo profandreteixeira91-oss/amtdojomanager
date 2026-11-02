@@ -82,6 +82,12 @@ export type StudioState = {
   historyIndex: number;
   dirty: boolean;
   lastSavedAt: number | null;
+  /** Guias inteligentes visíveis durante o arraste (em % da página). */
+  guides: { v: number[]; h: number[] };
+  /** Texto em edição direta no canvas (duplo clique). */
+  editingTextId: string | null;
+  /** Incrementado para o canvas reajustar o zoom à tela. */
+  fitSignal: number;
 
   // setters
   setName: (n: string) => void;
@@ -92,6 +98,9 @@ export type StudioState = {
   toggleRulers: () => void;
   toggleSnap: () => void;
   setPage: (patch: Partial<EditorSchema["page"]>) => void;
+  setGuides: (g: { v: number[]; h: number[] }) => void;
+  setEditingText: (id: string | null) => void;
+  requestFit: () => void;
 
   // doc mutations (all push history)
   addElement: (el: AnyElement, select?: boolean) => void;
@@ -108,6 +117,10 @@ export type StudioState = {
   toggleHidden: (id: string) => void;
   renameElement: (id: string, name: string) => void;
   reorderElements: (order: string[]) => void;
+  /** Move cada elemento selecionado pelo mesmo deslocamento (em %). */
+  moveSelectedBy: (dx: number, dy: number, commit?: boolean) => void;
+  /** Aplica várias posições de uma vez (alinhar/distribuir/arrastar em grupo). */
+  setPositions: (positions: Record<string, { x: number; y: number }>, commit?: boolean) => void;
 
   // selection
   select: (ids: Selection, additive?: boolean) => void;
@@ -143,6 +156,13 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   historyIndex: 0,
   dirty: false,
   lastSavedAt: null,
+  guides: { v: [], h: [] },
+  editingTextId: null,
+  fitSignal: 0,
+
+  setGuides: (g) => set({ guides: g }),
+  setEditingText: (id) => set({ editingTextId: id }),
+  requestFit: () => set((s) => ({ fitSignal: s.fitSignal + 1 })),
 
   setName: (n) => set({ name: n, dirty: true }),
   setCategory: (c) => set({ category: c, dirty: true }),
@@ -275,6 +295,28 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     get().pushHistory(next);
   },
 
+  moveSelectedBy: (dx, dy, commit = true) => {
+    const s = get();
+    if (!s.selection.length) return;
+    const next: EditorSchema = {
+      ...s.doc,
+      elements: s.doc.elements.map((e) =>
+        s.selection.includes(e.id) && !e.locked ? ({ ...e, x: e.x + dx, y: e.y + dy } as AnyElement) : e,
+      ),
+    };
+    set({ doc: next, dirty: true });
+    if (commit) get().pushHistory(next);
+  },
+  setPositions: (positions, commit = true) => {
+    const s = get();
+    const next: EditorSchema = {
+      ...s.doc,
+      elements: s.doc.elements.map((e) => (positions[e.id] ? ({ ...e, ...positions[e.id] } as AnyElement) : e)),
+    };
+    set({ doc: next, dirty: true });
+    if (commit) get().pushHistory(next);
+  },
+
   select: (ids, additive = false) => {
     const s = get();
     set({ selection: additive ? Array.from(new Set([...s.selection, ...ids])) : ids });
@@ -328,6 +370,8 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       historyIndex: 0,
       dirty: false,
       lastSavedAt: null,
+      guides: { v: [], h: [] },
+      editingTextId: null,
     });
   },
 }));
