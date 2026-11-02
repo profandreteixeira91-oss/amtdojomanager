@@ -44,7 +44,17 @@ const domainRoutingMiddleware = createMiddleware().server(async ({ next, request
     return Response.redirect(target.toString(), 307);
   }
 
-  if (isDojoHost && !url.pathname.startsWith("/dojo")) {
+  // The Dojo host serves three public route families directly:
+  // /dojo/* (management), /app/* (student portal), and /api/public/app/*
+  // (public student-app endpoints). Keep this in sync with DOMAIN_ROUTING_SCRIPT
+  // in src/routes/__root.tsx. Prefixing /app with /dojo makes valid student
+  // routes unreachable (for example /app/login -> /dojo/app/login).
+  const isDojoArea =
+    url.pathname.startsWith("/dojo") ||
+    url.pathname.startsWith("/app") ||
+    url.pathname.startsWith("/api/public/app");
+
+  if (isDojoHost && !isDojoArea) {
     const targetPath = url.pathname === "/" ? "/dojo" : `/dojo${url.pathname}`;
     // Permanece no domínio acessado (produção ou testes).
     return Response.redirect(`https://${dojoHost}${targetPath}${url.search}`, 307);
