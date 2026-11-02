@@ -49,6 +49,7 @@ import {
   Gavel,
   LifeBuoy,
   ShieldAlert,
+  MessageCircle,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -190,6 +191,7 @@ const nav: { label: string; items: NavItem[] }[] = [
     label: "App do Aluno",
     items: [
       { to: "/dojo/app/student-app-qr", label: "QR do App", icon: Smartphone },
+      { to: "/dojo/app/whatsapp", label: "WhatsApp", icon: MessageCircle },
     ],
   },
   {
@@ -227,6 +229,7 @@ const routeTitles: Array<{ match: (p: string) => boolean; title: string; subtitl
   { match: (p) => p.startsWith("/dojo/app/subscription"), title: "Assinatura AMT", subtitle: "Plano mensal do sistema" },
   { match: (p) => p.startsWith("/dojo/app/integrations"), title: "AMT Pay", subtitle: "Central financeira do dojo" },
   { match: (p) => p.startsWith("/dojo/app/student-app-qr"), title: "QR do App do Aluno", subtitle: "Imprima e distribua para os alunos" },
+  { match: (p) => p.startsWith("/dojo/app/whatsapp"), title: "WhatsApp", subtitle: "Notificações dos alunos pelo WhatsApp da academia" },
   { match: (p) => p.startsWith("/dojo/app/system-users"), title: "Usuários do Sistema", subtitle: "Logins e permissões da equipe" },
   { match: (p) => p.startsWith("/dojo/app/notifications"), title: "App & Notificações", subtitle: "Instalação do app e alertas push" },
   { match: (p) => p.startsWith("/dojo/app/tutorial"), title: "Tutorial guiado", subtitle: "Escolha uma dúvida e siga o passo a passo dentro do sistema" },

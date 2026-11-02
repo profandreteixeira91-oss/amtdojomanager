@@ -3,6 +3,8 @@
 // Regras: cada academia liga/desliga categorias em
 // dojo_student_notification_prefs (sem linha ou categoria ausente = ligada);
 // o aparelho recebe pelo aluno inscrito em dojo_push_subscriptions.
+// A mesma notificação entra na fila de WhatsApp da academia (quando o dono
+// conectou o WhatsApp) — ver src/lib/whatsapp/dojo-whatsapp.server.ts.
 
 import {
   deliverPush,
@@ -71,6 +73,9 @@ export async function sendPushToStudents(
     const unique = Array.from(new Set(studentIds.filter((id): id is string => !!id)));
     const allowed = await filterByAcademyPrefs(unique, category);
     if (allowed.length === 0) return { ...EMPTY_DELIVERY };
+
+    const { enqueueStudentWhatsApp } = await import("@/lib/whatsapp/dojo-whatsapp.server");
+    await enqueueStudentWhatsApp(allowed, payload, category);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: subs, error } = await supabaseAdmin

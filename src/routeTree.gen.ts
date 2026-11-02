@@ -86,6 +86,7 @@ import { Route as DojoAppSystemUsersRouteImport } from './routes/dojo.app.system
 import { Route as DojoAppTutorialRouteImport } from './routes/dojo.app.tutorial'
 import { Route as DojoAppTutorialEditorRouteImport } from './routes/dojo.app.tutorial-editor'
 import { Route as DojoAppVideosRouteImport } from './routes/dojo.app.videos'
+import { Route as DojoAppWhatsappRouteImport } from './routes/dojo.app.whatsapp'
 import { Route as DojoCertificateEditorIdRouteImport } from './routes/dojo.certificate-editor.$id'
 import { Route as DojoMatriculaSlugRouteImport } from './routes/dojo.matricula.$slug'
 import { Route as DojoPayInvoiceIdRouteImport } from './routes/dojo.pay.$invoiceId'
@@ -97,10 +98,12 @@ import { Route as ApiPublicHooksApplyScheduledGraduationsRouteImport } from './r
 import { Route as ApiPublicHooksAsaasRouteImport } from './routes/api/public/hooks/asaas'
 import { Route as ApiPublicHooksCompetitionsIngestRouteImport } from './routes/api/public/hooks/competitions-ingest'
 import { Route as ApiPublicHooksDojoWalletReconcileRouteImport } from './routes/api/public/hooks/dojo-wallet-reconcile'
+import { Route as ApiPublicHooksEvolutionRouteImport } from './routes/api/public/hooks/evolution'
 import { Route as ApiPublicHooksGenerateDojoInvoicesRouteImport } from './routes/api/public/hooks/generate-dojo-invoices'
 import { Route as ApiPublicHooksMercadopagoRouteImport } from './routes/api/public/hooks/mercadopago'
 import { Route as ApiPublicHooksSendClassRemindersRouteImport } from './routes/api/public/hooks/send-class-reminders'
 import { Route as ApiPublicHooksSendDojoRemindersRouteImport } from './routes/api/public/hooks/send-dojo-reminders'
+import { Route as ApiPublicHooksWhatsappDispatchRouteImport } from './routes/api/public/hooks/whatsapp-dispatch'
 import { Route as AppStudentCompetitionsIdRouteImport } from './routes/app._student.competitions.$id'
 import { Route as AppStudentDocumentsIndexRouteImport } from './routes/app._student.documents.index'
 import { Route as AppStudentDocumentsIdRouteImport } from './routes/app._student.documents.$id'
@@ -555,6 +558,11 @@ const DojoAppVideosRoute = DojoAppVideosRouteImport.update({
   path: '/videos',
   getParentRoute: () => DojoAppRoute,
 } as any)
+const DojoAppWhatsappRoute = DojoAppWhatsappRouteImport.update({
+  id: '/whatsapp',
+  path: '/whatsapp',
+  getParentRoute: () => DojoAppRoute,
+} as any)
 const DojoCertificateEditorIdRoute = DojoCertificateEditorIdRouteImport.update({
   id: '/certificate-editor/$id',
   path: '/certificate-editor/$id',
@@ -615,6 +623,11 @@ const ApiPublicHooksDojoWalletReconcileRoute =
     path: '/api/public/hooks/dojo-wallet-reconcile',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksEvolutionRoute = ApiPublicHooksEvolutionRouteImport.update({
+  id: '/api/public/hooks/evolution',
+  path: '/api/public/hooks/evolution',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksGenerateDojoInvoicesRoute =
   ApiPublicHooksGenerateDojoInvoicesRouteImport.update({
     id: '/api/public/hooks/generate-dojo-invoices',
@@ -637,6 +650,12 @@ const ApiPublicHooksSendDojoRemindersRoute =
   ApiPublicHooksSendDojoRemindersRouteImport.update({
     id: '/api/public/hooks/send-dojo-reminders',
     path: '/api/public/hooks/send-dojo-reminders',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksWhatsappDispatchRoute =
+  ApiPublicHooksWhatsappDispatchRouteImport.update({
+    id: '/api/public/hooks/whatsapp-dispatch',
+    path: '/api/public/hooks/whatsapp-dispatch',
     getParentRoute: () => rootRouteImport,
   } as any)
 const AppStudentCompetitionsIdRoute =
@@ -1074,6 +1093,7 @@ export interface FileRoutesByFullPath {
   '/dojo/app/tutorial': typeof DojoAppTutorialRoute
   '/dojo/app/tutorial-editor': typeof DojoAppTutorialEditorRoute
   '/dojo/app/videos': typeof DojoAppVideosRouteWithChildren
+  '/dojo/app/whatsapp': typeof DojoAppWhatsappRoute
   '/dojo/certificate-editor/$id': typeof DojoCertificateEditorIdRoute
   '/dojo/matricula/$slug': typeof DojoMatriculaSlugRoute
   '/dojo/pay/$invoiceId': typeof DojoPayInvoiceIdRoute
@@ -1086,10 +1106,12 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/asaas': typeof ApiPublicHooksAsaasRoute
   '/api/public/hooks/competitions-ingest': typeof ApiPublicHooksCompetitionsIngestRoute
   '/api/public/hooks/dojo-wallet-reconcile': typeof ApiPublicHooksDojoWalletReconcileRoute
+  '/api/public/hooks/evolution': typeof ApiPublicHooksEvolutionRoute
   '/api/public/hooks/generate-dojo-invoices': typeof ApiPublicHooksGenerateDojoInvoicesRoute
   '/api/public/hooks/mercadopago': typeof ApiPublicHooksMercadopagoRoute
   '/api/public/hooks/send-class-reminders': typeof ApiPublicHooksSendClassRemindersRoute
   '/api/public/hooks/send-dojo-reminders': typeof ApiPublicHooksSendDojoRemindersRoute
+  '/api/public/hooks/whatsapp-dispatch': typeof ApiPublicHooksWhatsappDispatchRoute
   '/app/competitions/$id': typeof AppStudentCompetitionsIdRoute
   '/app/documents/$id': typeof AppStudentDocumentsIdRoute
   '/app/invoice/$id': typeof AppStudentInvoiceIdRoute
@@ -1221,6 +1243,7 @@ export interface FileRoutesByTo {
   '/dojo/app/system-users': typeof DojoAppSystemUsersRoute
   '/dojo/app/tutorial': typeof DojoAppTutorialRoute
   '/dojo/app/tutorial-editor': typeof DojoAppTutorialEditorRoute
+  '/dojo/app/whatsapp': typeof DojoAppWhatsappRoute
   '/dojo/certificate-editor/$id': typeof DojoCertificateEditorIdRoute
   '/dojo/matricula/$slug': typeof DojoMatriculaSlugRoute
   '/dojo/pay/$invoiceId': typeof DojoPayInvoiceIdRoute
@@ -1232,10 +1255,12 @@ export interface FileRoutesByTo {
   '/api/public/hooks/asaas': typeof ApiPublicHooksAsaasRoute
   '/api/public/hooks/competitions-ingest': typeof ApiPublicHooksCompetitionsIngestRoute
   '/api/public/hooks/dojo-wallet-reconcile': typeof ApiPublicHooksDojoWalletReconcileRoute
+  '/api/public/hooks/evolution': typeof ApiPublicHooksEvolutionRoute
   '/api/public/hooks/generate-dojo-invoices': typeof ApiPublicHooksGenerateDojoInvoicesRoute
   '/api/public/hooks/mercadopago': typeof ApiPublicHooksMercadopagoRoute
   '/api/public/hooks/send-class-reminders': typeof ApiPublicHooksSendClassRemindersRoute
   '/api/public/hooks/send-dojo-reminders': typeof ApiPublicHooksSendDojoRemindersRoute
+  '/api/public/hooks/whatsapp-dispatch': typeof ApiPublicHooksWhatsappDispatchRoute
   '/app/competitions/$id': typeof AppStudentCompetitionsIdRoute
   '/app/documents/$id': typeof AppStudentDocumentsIdRoute
   '/app/invoice/$id': typeof AppStudentInvoiceIdRoute
@@ -1378,6 +1403,7 @@ export interface FileRoutesById {
   '/dojo/app/tutorial': typeof DojoAppTutorialRoute
   '/dojo/app/tutorial-editor': typeof DojoAppTutorialEditorRoute
   '/dojo/app/videos': typeof DojoAppVideosRouteWithChildren
+  '/dojo/app/whatsapp': typeof DojoAppWhatsappRoute
   '/dojo/certificate-editor/$id': typeof DojoCertificateEditorIdRoute
   '/dojo/matricula/$slug': typeof DojoMatriculaSlugRoute
   '/dojo/pay/$invoiceId': typeof DojoPayInvoiceIdRoute
@@ -1390,10 +1416,12 @@ export interface FileRoutesById {
   '/api/public/hooks/asaas': typeof ApiPublicHooksAsaasRoute
   '/api/public/hooks/competitions-ingest': typeof ApiPublicHooksCompetitionsIngestRoute
   '/api/public/hooks/dojo-wallet-reconcile': typeof ApiPublicHooksDojoWalletReconcileRoute
+  '/api/public/hooks/evolution': typeof ApiPublicHooksEvolutionRoute
   '/api/public/hooks/generate-dojo-invoices': typeof ApiPublicHooksGenerateDojoInvoicesRoute
   '/api/public/hooks/mercadopago': typeof ApiPublicHooksMercadopagoRoute
   '/api/public/hooks/send-class-reminders': typeof ApiPublicHooksSendClassRemindersRoute
   '/api/public/hooks/send-dojo-reminders': typeof ApiPublicHooksSendDojoRemindersRoute
+  '/api/public/hooks/whatsapp-dispatch': typeof ApiPublicHooksWhatsappDispatchRoute
   '/app/_student/competitions/$id': typeof AppStudentCompetitionsIdRoute
   '/app/_student/documents/$id': typeof AppStudentDocumentsIdRoute
   '/app/_student/invoice/$id': typeof AppStudentInvoiceIdRoute
@@ -1538,6 +1566,7 @@ export interface FileRouteTypes {
     | '/dojo/app/tutorial'
     | '/dojo/app/tutorial-editor'
     | '/dojo/app/videos'
+    | '/dojo/app/whatsapp'
     | '/dojo/certificate-editor/$id'
     | '/dojo/matricula/$slug'
     | '/dojo/pay/$invoiceId'
@@ -1550,10 +1579,12 @@ export interface FileRouteTypes {
     | '/api/public/hooks/asaas'
     | '/api/public/hooks/competitions-ingest'
     | '/api/public/hooks/dojo-wallet-reconcile'
+    | '/api/public/hooks/evolution'
     | '/api/public/hooks/generate-dojo-invoices'
     | '/api/public/hooks/mercadopago'
     | '/api/public/hooks/send-class-reminders'
     | '/api/public/hooks/send-dojo-reminders'
+    | '/api/public/hooks/whatsapp-dispatch'
     | '/app/competitions/$id'
     | '/app/documents/$id'
     | '/app/invoice/$id'
@@ -1685,6 +1716,7 @@ export interface FileRouteTypes {
     | '/dojo/app/system-users'
     | '/dojo/app/tutorial'
     | '/dojo/app/tutorial-editor'
+    | '/dojo/app/whatsapp'
     | '/dojo/certificate-editor/$id'
     | '/dojo/matricula/$slug'
     | '/dojo/pay/$invoiceId'
@@ -1696,10 +1728,12 @@ export interface FileRouteTypes {
     | '/api/public/hooks/asaas'
     | '/api/public/hooks/competitions-ingest'
     | '/api/public/hooks/dojo-wallet-reconcile'
+    | '/api/public/hooks/evolution'
     | '/api/public/hooks/generate-dojo-invoices'
     | '/api/public/hooks/mercadopago'
     | '/api/public/hooks/send-class-reminders'
     | '/api/public/hooks/send-dojo-reminders'
+    | '/api/public/hooks/whatsapp-dispatch'
     | '/app/competitions/$id'
     | '/app/documents/$id'
     | '/app/invoice/$id'
@@ -1841,6 +1875,7 @@ export interface FileRouteTypes {
     | '/dojo/app/tutorial'
     | '/dojo/app/tutorial-editor'
     | '/dojo/app/videos'
+    | '/dojo/app/whatsapp'
     | '/dojo/certificate-editor/$id'
     | '/dojo/matricula/$slug'
     | '/dojo/pay/$invoiceId'
@@ -1853,10 +1888,12 @@ export interface FileRouteTypes {
     | '/api/public/hooks/asaas'
     | '/api/public/hooks/competitions-ingest'
     | '/api/public/hooks/dojo-wallet-reconcile'
+    | '/api/public/hooks/evolution'
     | '/api/public/hooks/generate-dojo-invoices'
     | '/api/public/hooks/mercadopago'
     | '/api/public/hooks/send-class-reminders'
     | '/api/public/hooks/send-dojo-reminders'
+    | '/api/public/hooks/whatsapp-dispatch'
     | '/app/_student/competitions/$id'
     | '/app/_student/documents/$id'
     | '/app/_student/invoice/$id'
@@ -1944,10 +1981,12 @@ export interface RootRouteChildren {
   ApiPublicHooksAsaasRoute: typeof ApiPublicHooksAsaasRoute
   ApiPublicHooksCompetitionsIngestRoute: typeof ApiPublicHooksCompetitionsIngestRoute
   ApiPublicHooksDojoWalletReconcileRoute: typeof ApiPublicHooksDojoWalletReconcileRoute
+  ApiPublicHooksEvolutionRoute: typeof ApiPublicHooksEvolutionRoute
   ApiPublicHooksGenerateDojoInvoicesRoute: typeof ApiPublicHooksGenerateDojoInvoicesRoute
   ApiPublicHooksMercadopagoRoute: typeof ApiPublicHooksMercadopagoRoute
   ApiPublicHooksSendClassRemindersRoute: typeof ApiPublicHooksSendClassRemindersRoute
   ApiPublicHooksSendDojoRemindersRoute: typeof ApiPublicHooksSendDojoRemindersRoute
+  ApiPublicHooksWhatsappDispatchRoute: typeof ApiPublicHooksWhatsappDispatchRoute
   ApiPublicAppSlugDownloadRoute: typeof ApiPublicAppSlugDownloadRoute
   ApiPublicDojoPartnerCheckinProviderRoute: typeof ApiPublicDojoPartnerCheckinProviderRoute
 }
@@ -2493,6 +2532,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DojoAppVideosRouteImport
       parentRoute: typeof DojoAppRoute
     }
+    '/dojo/app/whatsapp': {
+      id: '/dojo/app/whatsapp'
+      path: '/whatsapp'
+      fullPath: '/dojo/app/whatsapp'
+      preLoaderRoute: typeof DojoAppWhatsappRouteImport
+      parentRoute: typeof DojoAppRoute
+    }
     '/dojo/certificate-editor/$id': {
       id: '/dojo/certificate-editor/$id'
       path: '/certificate-editor/$id'
@@ -2570,6 +2616,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksDojoWalletReconcileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/evolution': {
+      id: '/api/public/hooks/evolution'
+      path: '/api/public/hooks/evolution'
+      fullPath: '/api/public/hooks/evolution'
+      preLoaderRoute: typeof ApiPublicHooksEvolutionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/generate-dojo-invoices': {
       id: '/api/public/hooks/generate-dojo-invoices'
       path: '/api/public/hooks/generate-dojo-invoices'
@@ -2596,6 +2649,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/hooks/send-dojo-reminders'
       fullPath: '/api/public/hooks/send-dojo-reminders'
       preLoaderRoute: typeof ApiPublicHooksSendDojoRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/whatsapp-dispatch': {
+      id: '/api/public/hooks/whatsapp-dispatch'
+      path: '/api/public/hooks/whatsapp-dispatch'
+      fullPath: '/api/public/hooks/whatsapp-dispatch'
+      preLoaderRoute: typeof ApiPublicHooksWhatsappDispatchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/_student/competitions/$id': {
@@ -3397,6 +3457,7 @@ interface DojoAppRouteChildren {
   DojoAppTutorialRoute: typeof DojoAppTutorialRoute
   DojoAppTutorialEditorRoute: typeof DojoAppTutorialEditorRoute
   DojoAppVideosRoute: typeof DojoAppVideosRouteWithChildren
+  DojoAppWhatsappRoute: typeof DojoAppWhatsappRoute
   DojoAppIndexRoute: typeof DojoAppIndexRoute
   DojoAppContractTemplatesIdRoute: typeof DojoAppContractTemplatesIdRoute
   DojoAppTeamIdRoute: typeof DojoAppTeamIdRoute
@@ -3442,6 +3503,7 @@ const DojoAppRouteChildren: DojoAppRouteChildren = {
   DojoAppTutorialRoute: DojoAppTutorialRoute,
   DojoAppTutorialEditorRoute: DojoAppTutorialEditorRoute,
   DojoAppVideosRoute: DojoAppVideosRouteWithChildren,
+  DojoAppWhatsappRoute: DojoAppWhatsappRoute,
   DojoAppIndexRoute: DojoAppIndexRoute,
   DojoAppContractTemplatesIdRoute: DojoAppContractTemplatesIdRoute,
   DojoAppTeamIdRoute: DojoAppTeamIdRoute,
@@ -3545,11 +3607,13 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksCompetitionsIngestRoute: ApiPublicHooksCompetitionsIngestRoute,
   ApiPublicHooksDojoWalletReconcileRoute:
     ApiPublicHooksDojoWalletReconcileRoute,
+  ApiPublicHooksEvolutionRoute: ApiPublicHooksEvolutionRoute,
   ApiPublicHooksGenerateDojoInvoicesRoute:
     ApiPublicHooksGenerateDojoInvoicesRoute,
   ApiPublicHooksMercadopagoRoute: ApiPublicHooksMercadopagoRoute,
   ApiPublicHooksSendClassRemindersRoute: ApiPublicHooksSendClassRemindersRoute,
   ApiPublicHooksSendDojoRemindersRoute: ApiPublicHooksSendDojoRemindersRoute,
+  ApiPublicHooksWhatsappDispatchRoute: ApiPublicHooksWhatsappDispatchRoute,
   ApiPublicAppSlugDownloadRoute: ApiPublicAppSlugDownloadRoute,
   ApiPublicDojoPartnerCheckinProviderRoute:
     ApiPublicDojoPartnerCheckinProviderRoute,
