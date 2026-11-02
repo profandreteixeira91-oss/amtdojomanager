@@ -80,14 +80,20 @@ function readQr(raw: any): EvolutionQr {
   };
 }
 
-/** Cria a instância e devolve o token dela e o primeiro QR (se veio). */
+/**
+ * Cria a instância e devolve o token dela e o primeiro QR (se veio). Para
+ * conectar por código de pareamento, a instância precisa nascer com o número
+ * (na v2.3 o código não sai para instância criada sem ele).
+ */
 export async function evolutionCreateInstance(
   instanceName: string,
+  number?: string,
 ): Promise<{ token: string | null; qr: EvolutionQr }> {
   const res = await evo("POST", "/instance/create", {
     instanceName,
     qrcode: true,
     integration: "WHATSAPP-BAILEYS",
+    ...(number ? { number } : {}),
   });
   const hash = res?.hash;
   const token = typeof hash === "string" ? hash : typeof hash?.apikey === "string" ? hash.apikey : null;

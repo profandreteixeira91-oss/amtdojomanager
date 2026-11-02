@@ -147,7 +147,26 @@ export const startWhatsAppConnection = createServerFn({ method: "POST" })
 
     const phone = data.phone ? s.normalizePhone(data.phone) : null;
     if (data.phone && !phone) throw new Error("Informe o celular com DDD (ex.: 11 98765-4321).");
-    const qr = phone || !firstQr?.base64 ? await s.evolutionConnect(instanceName, phone ?? undefined) : firstQr;
+    let qr = firstQr?.base64 ? firstQr : null;
+    if (phone) {
+      // Código de pareamento: recria a instância (ainda não conectada) já com o número.
+      await s.evolutionDeleteInstance(instanceName).catch(() => undefined);
+      const created = await s.evolutionCreateInstance(instanceName, phone);
+      if (created.token) await db.from(s.INSTANCES_TABLE).update({ instance_token: created.token }).eq("owner_id", ownerId);
+      try {
+        await s.evolutionSetWebhook(instanceName, `${dojoPublicOrigin()}/api/public/hooks/evolution`, row.webhook_secret);
+      } catch (err: any) {
+        console.warn("[whatsapp] webhook não configurado:", err?.message ?? err);
+      }
+      qr = null;
+      for (let i = 0; i < 6 && !qr?.pairingCode; i++) {
+        await new Promise((r) => setTimeout(r, 1500));
+        qr = await s.evolutionConnect(instanceName, phone);
+      }
+      if (!qr?.pairingCode) throw new Error("O WhatsApp não gerou o código agora. Tente de novo ou use o QR Code.");
+    } else if (!qr) {
+      qr = await s.evolutionConnect(instanceName);
+    }
     await db.from(s.INSTANCES_TABLE).update({ status: "connecting", last_status_at: new Date().toISOString() }).eq("owner_id", ownerId);
     return { status: "connecting" as const, qr: qr.base64, pairingCode: qr.pairingCode, instance: publicInstance({ ...row, status: "connecting" }) };
   });

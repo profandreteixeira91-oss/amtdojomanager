@@ -224,7 +224,7 @@ export async function enqueueStudentWhatsApp(
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function looksDisconnected(message: string): boolean {
-  return /connection closed|not connected|disconnected|instance.*(does not exist|not found)|close/i.test(message);
+  return /connection closed|not connected|disconnected|instance.*(does not exist|not found)|close|não respondeu/i.test(message);
 }
 
 /** Envia o próximo lote da fila (chamado pelo cron a cada minuto). */
