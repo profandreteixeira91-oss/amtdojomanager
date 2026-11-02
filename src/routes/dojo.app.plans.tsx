@@ -50,6 +50,7 @@ import { toast } from "sonner";
 import {
   Plus, Trash2, Save, Info, CheckCircle2, XCircle, Sparkles, ChevronRight, Copy,
   QrCode, Link as LinkIcon,
+  ScrollText,
 } from "lucide-react";
 
 export const Route = createFileRoute("/dojo/app/plans")({
@@ -293,12 +294,15 @@ function PlansPage() {
   return (
     <TooltipProvider delayDuration={200}>
       <DojoPageShell
+        icon={ScrollText}
+        eyebrow="Financeiro"
+        title="Planos"
         description="Fonte única de configuração comercial: valores, formas de pagamento e regras usadas por todo o sistema."
       >
         <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
 
           {/* ============ SIDEBAR ============ */}
-          <aside className="space-y-2 lg:sticky lg:top-4 lg:self-start">
+          <aside className="space-y-2 lg:sticky lg:top-20 lg:self-start">
             <Card className="dojo-card overflow-hidden">
               <CardHeader className="flex flex-row items-center justify-between gap-2 p-3 sm:p-4">
                 <CardTitle className="text-xs font-bold uppercase tracking-wider sm:text-sm">Planos</CardTitle>

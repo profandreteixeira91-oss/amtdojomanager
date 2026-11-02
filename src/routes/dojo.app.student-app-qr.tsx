@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { getMyBranding } from "@/lib/student/student.functions";
 import { getMyAcademySlug } from "@/lib/dojo/academy-public.functions";
 import { getAcademyPublicUrl } from "@/lib/dojo/apk-distribution.functions";
+import { DojoPageHero } from "@/components/dojo/DojoPageHero";
 
 export const Route = createFileRoute("/dojo/app/student-app-qr")({
   head: () => ({
@@ -105,61 +106,26 @@ function StudentAppQrPage() {
     <div className="mx-auto w-full max-w-7xl space-y-6">
       {/* Barra superior — some na impressão */}
       <div className="space-y-6 print:hidden">
-        {/* HERO PREMIUM — padrão Ruby Noir das demais páginas do Dojo */}
-        <section className="relative overflow-hidden rounded-3xl border border-red-500/20 bg-gradient-to-br from-neutral-950 via-neutral-900 to-black text-white shadow-[0_30px_80px_-30px_rgba(220,38,38,0.45)]">
-          <div
-            aria-hidden
-            className="absolute inset-0 opacity-[0.08]"
-            style={{
-              backgroundImage:
-                "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
-              backgroundSize: "44px 44px",
-            }}
-          />
-          <div aria-hidden className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-red-600/40 blur-3xl" />
-          <div aria-hidden className="absolute -bottom-24 left-1/4 h-64 w-64 rounded-full bg-red-500/20 blur-3xl" />
-
-          <div className="relative flex flex-col gap-5 p-5 sm:p-7 md:flex-row md:items-center md:justify-between md:p-9">
-            <div className="min-w-0 space-y-3">
-              <div className="inline-flex items-center gap-2 rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-red-200">
-                <Smartphone className="h-3 w-3" />
-                Portal do Aluno
-              </div>
-              <h1 className="font-display text-2xl font-black leading-tight tracking-tight sm:text-3xl md:text-4xl">
-                QR do <span className="text-red-400">App do Aluno</span>
-              </h1>
-              <p className="max-w-2xl text-sm leading-relaxed text-neutral-300 md:text-base">
-                Imprima este cartaz e fixe na academia — os alunos escaneiam e entram direto no portal, sem precisar baixar nada.
-              </p>
-            </div>
-
-            <div className="grid w-full shrink-0 grid-cols-1 gap-2 sm:grid-cols-3 md:w-auto md:gap-3">
-              <Button
-                variant="outline"
-                onClick={copyLink}
-                className="h-10 border-red-500/30 bg-white/5 text-white hover:bg-white/10 hover:text-white text-xs sm:text-sm"
-              >
+        <DojoPageHero
+          icon={Smartphone}
+          eyebrow="Portal do Aluno"
+          title={<>QR do <span className="text-red-600">App do Aluno</span></>}
+          description="Imprima este cartaz e fixe na academia — os alunos escaneiam e entram direto no portal, sem precisar baixar nada."
+          actions={
+            <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3 lg:w-auto">
+              <Button variant="outline" onClick={copyLink} className="h-10 text-xs sm:text-sm">
                 {copied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
                 <span className="truncate">Copiar link</span>
               </Button>
-              <Button
-                variant="outline"
-                onClick={downloadPng}
-                disabled={!dataUrl}
-                className="h-10 border-red-500/30 bg-white/5 text-white hover:bg-white/10 hover:text-white text-xs sm:text-sm"
-              >
+              <Button variant="outline" onClick={downloadPng} disabled={!dataUrl} className="h-10 text-xs sm:text-sm">
                 <Download className="mr-2 h-4 w-4" /> <span className="truncate">Baixar PNG</span>
               </Button>
-              <Button
-                onClick={printPoster}
-                disabled={!url}
-                className="h-10 bg-gradient-to-br from-red-600 to-red-800 text-white shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)] hover:from-red-500 hover:to-red-700 text-xs sm:text-sm"
-              >
+              <Button onClick={printPoster} disabled={!url} className="h-10 text-xs font-semibold sm:text-sm">
                 <Printer className="mr-2 h-4 w-4" /> <span className="truncate">Imprimir cartaz</span>
               </Button>
             </div>
-          </div>
-        </section>
+          }
+        />
 
         {/* Ajustes rápidos */}
         <section className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">

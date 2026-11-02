@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { CheckCircle2, Award, Eye, Printer, GraduationCap, Users, ScrollText, Search, ArrowRight, ArrowLeft, RotateCcw, Info, Sparkles, DollarSign, Save } from "lucide-react";
 import { todayISO } from "@/lib/dates";
 import { currentBeltEntries, rankedBelts, beltLabel, beltEntryKey } from "@/lib/dojo/current-belts";
+import { DojoPageHero } from "@/components/dojo/DojoPageHero";
 
 export const Route = createFileRoute("/dojo/app/graduations")({
   head: () => ({ meta: [{ title: "Graduações — AMT Dojo Manager" }] }),
@@ -622,42 +623,23 @@ function NewGraduationPage() {
     name.split(/\s+/).filter(Boolean).slice(0, 2).map((n) => n[0]?.toUpperCase()).join("") || "?";
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 md:gap-8 md:p-6">
-      {/* ============ HERO / HEADER ============ */}
-      <header className="relative overflow-hidden rounded-3xl border border-white/10 bg-neutral-950 text-white shadow-[0_30px_80px_-40px_rgba(220,38,38,0.65)]">
-        <div aria-hidden className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-red-600/25 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -right-16 top-8 h-64 w-64 rounded-full bg-amber-500/15 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(255,255,255,0.06),transparent_45%)]" />
-
-        <div className="relative flex flex-col gap-4 p-5 sm:p-7">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 sm:flex sm:flex-wrap sm:items-center sm:justify-between">
-            <div className="flex min-w-0 items-center gap-4">
-              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-amber-400 via-red-500 to-red-700 text-white shadow-[0_10px_25px_-10px_rgba(220,38,38,0.9)] ring-1 ring-white/20">
-                <GraduationCap className="h-7 w-7" />
-              </div>
-              <div className="min-w-0">
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-red-200 backdrop-blur">
-                  <Sparkles className="h-3 w-3" /> Cerimônia
-                </div>
-                <h1 className="mt-2 font-display text-2xl font-black leading-tight tracking-tight sm:text-3xl md:text-4xl">
-                  Nova graduação
-                </h1>
-                <p className="mt-1 max-w-2xl text-sm text-neutral-300">
-                  Selecione os alunos, registre a graduação e emita os certificados em um único fluxo guiado.
-                </p>
-              </div>
-            </div>
-            {step !== "select" && (
-              <Button variant="outline" size="sm" onClick={reset} className="shrink-0 border-white/15 bg-white/5 text-white hover:bg-white/10">
-                <RotateCcw className="h-4 w-4 mr-1.5" /> Recomeçar
-              </Button>
-            )}
-          </div>
-        </div>
-      </header>
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 md:gap-7">
+      <DojoPageHero
+        icon={GraduationCap}
+        eyebrow={<><Sparkles className="h-3 w-3" /> Cerimônia</>}
+        title="Nova graduação"
+        description="Selecione os alunos, registre a graduação e emita os certificados em um único fluxo guiado."
+        actions={
+          step !== "select" ? (
+            <Button variant="outline" size="sm" onClick={reset} className="shrink-0">
+              <RotateCcw className="h-4 w-4 mr-1.5" /> Recomeçar
+            </Button>
+          ) : undefined
+        }
+      />
 
       {/* ============ STEPPER ============ */}
-      <nav aria-label="Etapas" className="rounded-2xl border border-white/10 bg-neutral-950/60 p-3 backdrop-blur md:p-4">
+      <nav aria-label="Etapas" className="rounded-2xl border border-neutral-200 bg-white p-3 md:p-4">
         <ol className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
           {(["select", "grad", "payment", "cert"] as Step[]).map((s, i) => {
             const meta = stepMeta[s];
@@ -670,35 +652,35 @@ function NewGraduationPage() {
                 <div
                   className={`flex items-start gap-3 rounded-xl border p-3 transition-all md:p-4 ${
                     active
-                      ? "border-red-500/40 bg-gradient-to-br from-red-950/60 via-neutral-950/80 to-neutral-950/80 shadow-[0_10px_30px_-20px_rgba(220,38,38,0.9)]"
+                      ? "border-red-300 bg-red-50 shadow-xs"
                       : done
-                        ? "border-emerald-400/30 bg-emerald-500/[0.06]"
-                        : "border-white/10 bg-white/[0.03]"
+                        ? "border-emerald-200 bg-emerald-50/70"
+                        : "border-neutral-200 bg-white"
                   }`}
                 >
                   <div
                     className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg text-sm font-bold ring-1 transition-colors ${
                       active
-                        ? "bg-gradient-to-br from-amber-400 via-red-500 to-red-700 text-white ring-white/20 shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)]"
+                        ? "dojo-hero-icon text-white ring-red-200"
                         : done
                           ? "bg-emerald-500 text-white ring-emerald-300/40"
-                          : "bg-white/5 text-neutral-300 ring-white/10"
+                          : "bg-neutral-50 text-neutral-600 ring-neutral-200"
                     }`}
                   >
                     {done ? <CheckCircle2 className="h-5 w-5" /> : <Icon className="h-4 w-4" />}
                   </div>
                   <div className="min-w-0">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-neutral-400">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-neutral-500">
                       Etapa {i + 1}
                     </div>
                     <div
                       className={`truncate text-sm font-semibold ${
-                        active ? "text-white" : done ? "text-emerald-200" : "text-neutral-300"
+                        active ? "text-red-700" : done ? "text-emerald-700" : "text-neutral-800"
                       }`}
                     >
                       {meta.label}
                     </div>
-                    <div className="mt-0.5 hidden truncate text-xs text-neutral-400 md:block">
+                    <div className="mt-0.5 hidden truncate text-xs text-neutral-500 md:block">
                       {meta.hint}
                     </div>
                   </div>
@@ -712,28 +694,28 @@ function NewGraduationPage() {
 
       {/* ============ INFO — CRITÉRIOS ============ */}
       {step === "select" && (
-        <div className="relative overflow-hidden rounded-2xl border border-red-500/20 bg-gradient-to-br from-neutral-950 via-neutral-900 to-red-950/40 p-5 text-white shadow-[0_20px_60px_-30px_rgba(220,38,38,0.5)]">
+        <div className="relative overflow-hidden rounded-2xl border border-[color:var(--dojo-border)] bg-white p-5 text-neutral-950 shadow-xs">
           <div aria-hidden className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-red-500/15 blur-3xl" />
           <div className="relative flex gap-4">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-amber-400 via-red-500 to-red-700 text-white ring-1 ring-white/20 shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)]">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-amber-400 via-red-500 to-red-700 text-white ring-1 ring-neutral-200 shadow-xs">
               <Info className="h-5 w-5" />
             </div>
-            <div className="min-w-0 space-y-2 text-sm text-neutral-300">
-              <div className="text-sm font-semibold text-white">Critérios de graduação</div>
+            <div className="min-w-0 space-y-2 text-sm text-neutral-600">
+              <div className="text-sm font-semibold text-neutral-950">Critérios de graduação</div>
               <p>
                 Cada aluno abaixo exibe seu progresso em relação ao critério configurado:
-                <span className="mx-1 rounded-md border border-white/10 bg-white/10 px-1.5 py-0.5 font-mono text-[11px] text-white">aulas feitas / mínimo</span>
+                <span className="mx-1 rounded-md border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-[11px] text-neutral-950">aulas feitas / mínimo</span>
                 e
-                <span className="mx-1 rounded-md border border-white/10 bg-white/10 px-1.5 py-0.5 font-mono text-[11px] text-white">meses de carência</span>.
+                <span className="mx-1 rounded-md border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-[11px] text-neutral-950">meses de carência</span>.
                 Alunos com etiqueta
-                <span className="mx-1 inline-flex items-center rounded-md border border-amber-400/30 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-200">critério individual</span>
+                <span className="mx-1 inline-flex items-center rounded-md border border-amber-400/30 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">critério individual</span>
                 possuem regra personalizada.
               </p>
               <p>
                 Defina os critérios padrão em{" "}
-                <a href="/dojo/app/belts" className="font-medium text-red-300 underline-offset-4 hover:underline">Graduações → Faixas</a>{" "}
+                <a href="/dojo/app/belts" className="font-medium text-red-600 underline-offset-4 hover:underline">Graduações → Faixas</a>{" "}
                 (tempo mínimo, número de aulas, avaliação ou mérito). Para regras caso a caso, edite o aluno em{" "}
-                <a href="/dojo/app/students" className="font-medium text-red-300 underline-offset-4 hover:underline">Alunos</a>.
+                <a href="/dojo/app/students" className="font-medium text-red-600 underline-offset-4 hover:underline">Alunos</a>.
               </p>
             </div>
           </div>

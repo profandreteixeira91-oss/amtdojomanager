@@ -24,6 +24,7 @@ import {
   announcementStats, readReport, targetOptions,
   listAnnouncementCategories, upsertAnnouncementCategory, deleteAnnouncementCategory,
 } from "@/lib/dojo/announcements.functions";
+import { DojoPageHero } from "@/components/dojo/DojoPageHero";
 
 export const Route = createFileRoute("/dojo/app/announcements")({
   head: () => ({ meta: [{ title: "Quadro de Avisos — AMT Dojo Manager" }] }),
@@ -94,51 +95,22 @@ function AnnouncementsAdmin() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 md:gap-7">
-      {/* HERO PREMIUM */}
-      <section className="relative overflow-hidden rounded-3xl border border-red-500/20 bg-gradient-to-br from-neutral-950 via-neutral-900 to-black text-white shadow-[0_30px_80px_-30px_rgba(220,38,38,0.45)]">
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-[0.08]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
-            backgroundSize: "44px 44px",
-          }}
-        />
-        <div aria-hidden className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-red-600/40 blur-3xl" />
-        <div aria-hidden className="absolute -bottom-24 left-1/4 h-64 w-64 rounded-full bg-red-500/20 blur-3xl" />
-
-        <div className="relative grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 p-5 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:p-7 md:p-9">
-          <div className="min-w-0 space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-red-200">
-              <Megaphone className="h-3 w-3" />
-              Quadro de Avisos
-            </div>
-            <h1 className="font-display text-2xl font-black leading-tight tracking-tight sm:text-3xl md:text-4xl">
-              Comunique-se com <span className="text-red-400">clareza</span> e impacto
-            </h1>
-            <p className="max-w-2xl text-sm leading-relaxed text-neutral-300 md:text-base">
-              Publique comunicados oficiais direto no App do Aluno com prioridade, categorias, capa, vídeo, confirmação de leitura e agendamento.
-            </p>
-          </div>
-
-          <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-            <Button
-              variant="outline"
-              onClick={() => setShowCatMgr(true)}
-              className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
-            >
+      <DojoPageHero
+        icon={Megaphone}
+        eyebrow="Quadro de Avisos"
+        title={<>Comunique-se com <span className="text-red-600">clareza</span> e impacto</>}
+        description="Publique comunicados oficiais direto no App do Aluno com prioridade, categorias, capa, vídeo, confirmação de leitura e agendamento."
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setShowCatMgr(true)}>
               Categorias
             </Button>
-            <Button
-              onClick={() => { setEditing(null); setShowEditor(true); }}
-              className="bg-red-600 text-white hover:bg-red-500 shadow-[0_10px_25px_-12px_rgba(220,38,38,0.9)]"
-            >
+            <Button onClick={() => { setEditing(null); setShowEditor(true); }} className="font-semibold">
               <Plus className="mr-1 h-4 w-4" /> Novo aviso
             </Button>
-          </div>
-        </div>
-      </section>
+          </>
+        }
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-5">
@@ -150,11 +122,11 @@ function AnnouncementsAdmin() {
         <StatCard icon={<Eye className="h-4 w-4 text-cyan-600" />} label="Visualizações" value={cards?.totalViews ?? 0} ring="ring-cyan-400/30" glow="from-cyan-400/20 to-cyan-500/5" />
         <StatCard icon={<Star className="h-4 w-4 text-pink-500" />} label="Curtidas" value={cards?.totalLikes ?? 0} ring="ring-pink-400/30" glow="from-pink-400/20 to-pink-500/5" />
         <StatCard icon={<CheckCircle2 className="h-4 w-4 text-violet-600" />} label="Leituras" value={cards?.totalReads ?? 0} ring="ring-violet-400/30" glow="from-violet-400/20 to-violet-500/5" />
-        <div className="col-span-2 flex flex-col justify-center rounded-2xl border border-neutral-200/70 bg-gradient-to-br from-neutral-950 to-neutral-900 px-4 py-3 text-white shadow-sm md:col-span-2 xl:col-span-2">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-red-300">Última publicação</span>
-          <span className="mt-1 truncate text-sm font-bold">{cards?.latest?.title ?? "—"}</span>
+        <div className="col-span-2 flex flex-col justify-center rounded-2xl border border-red-200 bg-red-50/70 px-4 py-3 shadow-xs md:col-span-2 xl:col-span-2">
+          <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-red-600">Última publicação</span>
+          <span className="mt-1 truncate text-sm font-bold text-neutral-950">{cards?.latest?.title ?? "—"}</span>
           {cards?.latest?.publish_at && (
-            <span className="text-xs text-neutral-400">
+            <span className="text-xs text-neutral-500">
               {new Date(cards.latest.publish_at).toLocaleString("pt-BR")}
             </span>
           )}

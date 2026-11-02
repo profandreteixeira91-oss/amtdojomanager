@@ -49,9 +49,9 @@ export const Route = createFileRoute("/dojo/app/lesson-plans/")({
 
 const STATUS_COLORS: Record<string, string> = {
   planejada: "bg-sky-500/15 text-sky-200 border-sky-400/30",
-  ministrada: "bg-emerald-500/15 text-emerald-200 border-emerald-400/30",
-  cancelada: "bg-neutral-500/15 text-neutral-300 border-neutral-400/30",
-  reagendada: "bg-amber-500/15 text-amber-200 border-amber-400/30",
+  ministrada: "bg-emerald-500/15 text-emerald-700 border-emerald-400/30",
+  cancelada: "bg-neutral-500/15 text-neutral-600 border-neutral-400/30",
+  reagendada: "bg-amber-500/15 text-amber-700 border-amber-400/30",
 };
 
 
@@ -179,13 +179,13 @@ function LessonPlansDashboardPage() {
       </div>
 
       {stats?.next_lesson ? (
-        <div className="relative overflow-hidden rounded-2xl border border-red-500/20 bg-gradient-to-br from-neutral-950 via-neutral-900 to-red-950/40 p-5 text-white shadow-[0_20px_60px_-30px_rgba(220,38,38,0.6)]">
+        <div className="relative overflow-hidden rounded-2xl border border-[color:var(--dojo-border)] bg-white p-5 text-neutral-950 shadow-xs">
           <div aria-hidden className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-red-500/20 blur-3xl" />
           <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0 flex-1 space-y-1">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-red-300">Próxima aula</div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-red-600">Próxima aula</div>
               <div className="break-words text-lg font-bold leading-tight sm:text-xl">{stats.next_lesson.title}</div>
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm text-neutral-300">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm text-neutral-600">
                 <span className="shrink-0">{new Date(stats.next_lesson.date).toLocaleDateString("pt-BR")}</span>
                 {stats.next_lesson.start_time && <span className="shrink-0">· {stats.next_lesson.start_time.slice(0, 5)}</span>}
                 {(stats.next_lesson.dojo_classes as { name?: string } | null)?.name && (
@@ -193,7 +193,7 @@ function LessonPlansDashboardPage() {
                 )}
               </div>
             </div>
-            <Button asChild size="sm" className="bg-gradient-to-r from-red-600 to-red-500 text-white shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)] hover:from-red-500 hover:to-red-400">
+            <Button asChild size="sm" className="bg-gradient-to-r from-red-600 to-red-500 text-white shadow-xs hover:from-red-500 hover:to-red-400">
               <Link to="/dojo/app/lesson-plans/$id" params={{ id: stats.next_lesson.id as string }}>
                 Abrir plano
               </Link>
@@ -203,21 +203,21 @@ function LessonPlansDashboardPage() {
       ) : null}
 
       {/* CALENDAR HEADER */}
-      <div className="rounded-2xl border border-white/10 bg-neutral-950/60 p-3 sm:p-4 backdrop-blur">
+      <div className="rounded-2xl border border-neutral-200 bg-white p-3 sm:p-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center justify-between gap-1 sm:justify-start">
             <div className="flex items-center gap-1">
-              <Button variant="outline" size="icon" className="h-9 w-9 border-white/15 bg-white/5 text-white hover:bg-white/10" onClick={() => setAnchor(addDays(anchor, view === "month" ? -30 : -7))}>
+              <Button variant="outline" size="icon" className="h-9 w-9 border-neutral-200 bg-white text-neutral-800 shadow-xs hover:bg-neutral-50" onClick={() => setAnchor(addDays(anchor, view === "month" ? -30 : -7))}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="sm" className="h-9 border-white/15 bg-white/5 text-white hover:bg-white/10" onClick={() => setAnchor(new Date())}>
+              <Button variant="outline" size="sm" className="h-9 border-neutral-200 bg-white text-neutral-800 shadow-xs hover:bg-neutral-50" onClick={() => setAnchor(new Date())}>
                 Hoje
               </Button>
-              <Button variant="outline" size="icon" className="h-9 w-9 border-white/15 bg-white/5 text-white hover:bg-white/10" onClick={() => setAnchor(addDays(anchor, view === "month" ? 30 : 7))}>
+              <Button variant="outline" size="icon" className="h-9 w-9 border-neutral-200 bg-white text-neutral-800 shadow-xs hover:bg-neutral-50" onClick={() => setAnchor(addDays(anchor, view === "month" ? 30 : 7))}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-            <span className="ml-2 text-xs font-semibold capitalize text-neutral-200 sm:ml-3 sm:text-sm">{formatRangeLabel(range.from, range.to, view)}</span>
+            <span className="ml-2 text-xs font-semibold capitalize text-neutral-800 sm:ml-3 sm:text-sm">{formatRangeLabel(range.from, range.to, view)}</span>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-1.5">
             {(["week", "month", "list"] as ViewMode[]).map((v) => (
@@ -229,8 +229,8 @@ function LessonPlansDashboardPage() {
                   cn(
                     "h-9 text-[11px] sm:text-sm",
                     view === v
-                      ? "bg-gradient-to-r from-red-600 to-red-500 text-white shadow-[0_6px_16px_-8px_rgba(220,38,38,0.9)] hover:from-red-500 hover:to-red-400"
-                      : "border-white/15 bg-white/5 text-white hover:bg-white/10",
+                      ? "bg-gradient-to-r from-red-600 to-red-500 text-white shadow-xs hover:from-red-500 hover:to-red-400"
+                      : "border-neutral-200 bg-white text-neutral-800 shadow-xs hover:bg-neutral-50",
                     v === "list" ? "col-span-2 sm:col-span-1" : ""
                   )
                 }
@@ -241,14 +241,14 @@ function LessonPlansDashboardPage() {
             ))}
             <Dialog>
               <DialogTrigger asChild>
-                <Button size="sm" variant="outline" className="h-9 text-[11px] border-amber-400/40 bg-amber-400/10 text-amber-100 hover:bg-amber-400/20 sm:text-sm">
+                <Button size="sm" variant="outline" className="h-9 text-[11px] border-amber-400/40 bg-amber-400/10 text--700 hover:bg-amber-400/20 sm:text-sm">
                   <Sparkles className="mr-1 h-3.5 w-3.5" /> <span className="truncate">Modelo</span>
                 </Button>
               </DialogTrigger>
               <TemplatePickerDialog onPick={(payload) => createFromTpl.mutate(payload)} />
             </Dialog>
 
-            <Button size="sm" className="h-9 text-[11px] bg-gradient-to-r from-red-600 to-red-500 text-white shadow-[0_6px_16_px_-8px_rgba(220,38,38,0.9)] hover:from-red-500 hover:to-red-400 sm:text-sm" onClick={() => createDraft.mutate(fmt(new Date()))}>
+            <Button size="sm" className="h-9 text-[11px] bg-gradient-to-r from-red-600 to-red-500 text-white shadow-xs hover:from-red-500 hover:to-red-400 sm:text-sm" onClick={() => createDraft.mutate(fmt(new Date()))}>
               <Plus className="mr-1 h-3.5 w-3.5" /> <span className="truncate">Novo</span>
             </Button>
           </div>
@@ -315,14 +315,14 @@ function KpiCard({
   } as const;
   const t = toneMap[tone];
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-neutral-950/70 p-3 sm:p-4 text-white backdrop-blur">
+    <div className="relative overflow-hidden rounded-2xl border border-neutral-200 bg-white p-3 sm:p-4 text-neutral-950">
       <div aria-hidden className={`pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-gradient-to-br ${t.grad} opacity-20 blur-2xl sm:h-24 sm:w-24`} />
       <div className="relative flex items-center gap-2.5 sm:gap-3">
         <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${t.grad} text-white ring-1 ${t.ring} ${t.glow} sm:h-11 sm:w-11`}>
           <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
         </div>
         <div className="min-w-0">
-          <div className="truncate text-[9px] font-medium uppercase tracking-wider text-neutral-400 sm:text-[11px]">{label}</div>
+          <div className="truncate text-[9px] font-medium uppercase tracking-wider text-neutral-500 sm:text-[11px]">{label}</div>
           <div className="truncate text-lg font-black tracking-tight sm:text-2xl">{value}</div>
         </div>
       </div>
@@ -352,16 +352,16 @@ function WeekView({ from, plans, onCreate }: { from: Date; plans: PlanRow[]; onC
             className={cn(
               "min-h-[160px] rounded-xl border p-2 backdrop-blur transition-colors",
               isToday
-                ? "border-red-500/40 bg-gradient-to-br from-red-950/40 via-neutral-950/70 to-neutral-950/70 shadow-[0_10px_30px_-20px_rgba(220,38,38,0.7)]"
-                : "border-white/10 bg-neutral-950/50 hover:border-white/20"
+                ? "border-red-500/40 bg-white shadow-xs"
+                : "border-neutral-200 bg-white hover:border-neutral-200"
             )}
           >
             <div className="mb-2 flex items-center justify-between">
-              <div className={`text-xs font-semibold capitalize ${isToday ? "text-red-200" : "text-neutral-300"}`}>
+              <div className={`text-xs font-semibold capitalize ${isToday ? "text-red-700" : "text-neutral-600"}`}>
                 {d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit" })}
               </div>
               <button
-                className="text-neutral-400 transition-colors hover:text-red-300"
+                className="text-neutral-500 transition-colors hover:text-red-600"
                 onClick={() => onCreate(key)}
                 title="Adicionar aula"
               >
@@ -375,8 +375,8 @@ function WeekView({ from, plans, onCreate }: { from: Date; plans: PlanRow[]; onC
                   to="/dojo/app/lesson-plans/$id"
                   params={{ id: p.id as string }}
                   className={cn(
-                    "block rounded-md border px-2 py-1 text-[10px] sm:text-xs backdrop-blur transition-transform hover:scale-[1.02]",
-                    STATUS_COLORS[p.status as string] ?? "border-white/10 bg-white/5 text-white"
+                    "block rounded-md border px-2 py-1 text-[10px] sm:text-xs transition-transform hover:scale-[1.02]",
+                    STATUS_COLORS[p.status as string] ?? "border-neutral-200 bg-neutral-50 text-neutral-950"
                   )}
                 >
                   <div className="break-words font-semibold leading-tight">{p.title}</div>
@@ -399,10 +399,10 @@ function MonthView({ anchor, plans, onCreate }: { anchor: Date; plans: PlanRow[]
   const byDay: Record<string, PlanRow[]> = {};
   for (const p of plans) (byDay[p.date as string] ??= []).push(p);
   return (
-    <div className="rounded-2xl border border-white/10 bg-neutral-950/50 p-2 backdrop-blur overflow-x-auto">
+    <div className="rounded-2xl border border-neutral-200 bg-white p-2 overflow-x-auto">
       <div className="grid grid-cols-7 gap-1 min-w-[560px]">
         {["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((w) => (
-          <div key={w} className="pb-1 text-center text-[10px] font-bold uppercase tracking-widest text-neutral-400">
+          <div key={w} className="pb-1 text-center text-[10px] font-bold uppercase tracking-widest text-neutral-500">
             {w}
           </div>
         ))}
@@ -416,20 +416,20 @@ function MonthView({ anchor, plans, onCreate }: { anchor: Date; plans: PlanRow[]
               key={key}
               className={`min-h-[92px] rounded-lg border p-1 text-xs transition-colors ${
                 isToday
-                  ? "border-red-500/50 bg-red-950/30"
+                  ? "border-red-500/50 bg-red-50"
                   : inMonth
-                    ? "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
-                    : "border-white/5 bg-transparent text-neutral-500"
+                    ? "border-neutral-200 bg-white hover:bg-neutral-50"
+                    : "border-neutral-200 bg-transparent text-neutral-500"
               }`}
               onDoubleClick={() => onCreate(key)}
             >
-              <div className={`mb-1 text-[11px] font-bold ${isToday ? "text-red-200" : "text-neutral-300"}`}>{d.getDate()}</div>
+              <div className={`mb-1 text-[11px] font-bold ${isToday ? "text-red-700" : "text-neutral-600"}`}>{d.getDate()}</div>
               {items.slice(0, 3).map((p) => (
                 <Link
                   key={p.id}
                   to="/dojo/app/lesson-plans/$id"
                   params={{ id: p.id as string }}
-                  className={`mb-0.5 block truncate rounded border px-1 py-0.5 ${STATUS_COLORS[p.status as string] ?? "border-white/10 bg-white/5 text-white"}`}
+                  className={`mb-0.5 block truncate rounded border px-1 py-0.5 ${STATUS_COLORS[p.status as string] ?? "border-neutral-200 bg-neutral-50 text-neutral-950"}`}
                 >
                   {p.title}
                 </Link>
@@ -455,40 +455,40 @@ function ListView({
 }) {
   if (!plans.length) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-neutral-950/50 p-10 text-center text-sm text-neutral-400 backdrop-blur">
+      <div className="rounded-2xl border border-neutral-200 bg-white p-10 text-center text-sm text-neutral-500">
         Nenhuma aula planejada neste período.
       </div>
     );
   }
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-neutral-950/50 backdrop-blur">
-      <div className="divide-y divide-white/5">
+    <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+      <div className="divide-y divide-neutral-100">
         {plans.map((p) => (
-          <div key={p.id} className="flex flex-wrap items-center gap-3 p-3 text-white transition-colors hover:bg-white/[0.03]">
-            <div className="w-24 shrink-0 text-sm font-semibold text-neutral-300">
+          <div key={p.id} className="flex flex-wrap items-center gap-3 p-3 text-neutral-950 transition-colors hover:bg-neutral-50">
+            <div className="w-24 shrink-0 text-sm font-semibold text-neutral-600">
               {new Date(p.date as string).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
               {p.start_time ? ` · ${(p.start_time as string).slice(0, 5)}` : ""}
             </div>
             <div className="min-w-0 flex-1 space-y-0.5">
               <div className="break-words font-semibold leading-tight">{p.title}</div>
-              <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-neutral-400">
+              <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-neutral-500">
                 <span className="truncate">{(p.dojo_classes as { name?: string } | null)?.name ?? "—"}</span>
                 {p.modality && <span className="truncate">· {p.modality}</span>}
               </div>
             </div>
-            <Badge className={`${STATUS_COLORS[p.status as string] ?? "border-white/10 bg-white/5 text-white"} capitalize`} variant="outline">
+            <Badge className={`${STATUS_COLORS[p.status as string] ?? "border-neutral-200 bg-neutral-50 text-neutral-950"} capitalize`} variant="outline">
               {p.status as string}
             </Badge>
             <div className="flex items-center gap-1">
-              <Button asChild size="icon" variant="ghost" className="text-neutral-300 hover:bg-white/10 hover:text-white">
+              <Button asChild size="icon" variant="ghost" className="text-neutral-600 hover:bg-neutral-50 hover:text-neutral-950">
                 <Link to="/dojo/app/lesson-plans/$id" params={{ id: p.id as string }}>
                   <Pencil className="h-4 w-4" />
                 </Link>
               </Button>
-              <Button size="icon" variant="ghost" className="text-neutral-300 hover:bg-white/10 hover:text-white" onClick={() => onDuplicate(p.id as string)}>
+              <Button size="icon" variant="ghost" className="text-neutral-600 hover:bg-neutral-50 hover:text-neutral-950" onClick={() => onDuplicate(p.id as string)}>
                 <Copy className="h-4 w-4" />
               </Button>
-              <Button size="icon" variant="ghost" className="text-red-400 hover:bg-red-500/10 hover:text-red-300" onClick={() => onDelete(p.id as string)}>
+              <Button size="icon" variant="ghost" className="text-red-600 hover:bg-red-500/10 hover:text-red-600" onClick={() => onDelete(p.id as string)}>
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>

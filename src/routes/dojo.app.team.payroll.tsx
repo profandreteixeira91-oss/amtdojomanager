@@ -217,6 +217,8 @@ function PayrollPage() {
 
   return (
     <DojoPageShell
+      icon={Wallet}
+      eyebrow="Equipe"
       title="Folha de Pagamento"
       description="Calcule, feche e acompanhe a folha mensal — salário fixo, hora-aula, adiantamentos, bônus e recibos."
       actions={

@@ -98,22 +98,22 @@ function SystemUsersPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 min-w-0 overflow-x-hidden p-4 sm:p-6 md:gap-7">
+    <div className="mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-6 overflow-x-hidden md:gap-7">
       {/* ============ HERO — ============ */}
-      <div className="relative overflow-hidden rounded-2xl border border-red-500/20 bg-gradient-to-br from-neutral-950 via-neutral-900 to-red-950/50 p-5 text-white shadow-[0_20px_60px_-30px_rgba(220,38,38,0.55)] md:p-7">
-        <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-red-500/20 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-amber-500/10 blur-3xl" />
+      <div className="dojo-hero relative overflow-hidden p-5 md:p-7">
+        <div aria-hidden className="dojo-hero-pattern pointer-events-none absolute inset-0" />
+        <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-red-500 via-red-600 to-red-800" />
         <div className="relative flex flex-wrap items-center gap-4">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-amber-400 via-red-500 to-red-700 text-white ring-1 ring-white/20 shadow-[0_8px_24px_-8px_rgba(220,38,38,0.9)]">
+          <div className="dojo-hero-icon grid h-12 w-12 shrink-0 place-items-center rounded-xl text-white">
             <ShieldCheck className="h-6 w-6" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-red-300/80">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-red-600">
               <UserCircle className="h-3.5 w-3.5" />
               Estrutura · Usuários do Sistema
             </div>
-            <h1 className="mt-1 truncate text-xl font-semibold tracking-tight md:text-2xl">Logins e permissões da equipe</h1>
-            <p className="mt-1 max-w-2xl text-sm text-neutral-300">
+            <h1 className="mt-1 truncate text-[22px] font-bold leading-tight tracking-tight text-neutral-950 sm:text-2xl md:text-[28px]">Logins e permissões da equipe</h1>
+            <p className="mt-1 max-w-2xl text-sm text-neutral-600">
               Crie logins de acesso ao painel para cada colaborador e escolha quais módulos ficarão visíveis para ele.
             </p>
           </div>
@@ -121,10 +121,10 @@ function SystemUsersPage() {
       </div>
 
       {isLoading ? (
-        <div className="rounded-xl border border-red-500/10 bg-neutral-950/60 p-6 text-sm text-neutral-400">Carregando colaboradores…</div>
+        <div className="rounded-xl border border-[color:var(--dojo-border)] bg-white p-6 text-sm text-neutral-500">Carregando colaboradores…</div>
       ) : members.length === 0 ? (
-        <div className="rounded-xl border border-red-500/10 bg-neutral-950/60 p-6 text-sm text-neutral-400">
-          Nenhum colaborador cadastrado ainda. Cadastre em <b className="text-neutral-200">Pessoas › Equipe</b>.
+        <div className="rounded-xl border border-[color:var(--dojo-border)] bg-white p-6 text-sm text-neutral-500">
+          Nenhum colaborador cadastrado ainda. Cadastre em <b className="text-neutral-800">Pessoas › Equipe</b>.
         </div>
       ) : (
         <div className="space-y-3">
@@ -226,35 +226,35 @@ function MemberRow({ member, qc }: { member: any; qc: ReturnType<typeof useQuery
   };
 
   return (
-    <Card className="overflow-hidden border-red-500/15 bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 text-white shadow-[0_16px_40px_-30px_rgba(220,38,38,0.6)]">
+    <Card className="overflow-hidden border-[color:var(--dojo-border)] bg-white text-neutral-950 shadow-xs">
       <CardContent className="p-0">
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-white/5"
+          className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-neutral-50"
           aria-expanded={expanded}
         >
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-amber-400 via-red-500 to-red-700 text-white ring-1 ring-white/20 shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)]">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-amber-400 via-red-500 to-red-700 text-white ring-1 ring-neutral-200 shadow-xs">
             <UserCircle className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold text-white">{member.full_name}</div>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-neutral-400">
+            <div className="truncate text-sm font-semibold text-neutral-950">{member.full_name}</div>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
               <span className="inline-flex items-center gap-1">
                 <Mail className="h-3 w-3" />
-                {member.email || <em className="text-red-400">e-mail não cadastrado</em>}
+                {member.email || <em className="text-red-600">e-mail não cadastrado</em>}
               </span>
               {member.role && (
-                <Badge variant="outline" className="border-red-500/30 bg-red-500/10 text-[10px] uppercase text-red-200">
+                <Badge variant="outline" className="border-red-500/30 bg-red-500/10 text-[10px] uppercase text-red-700">
                   {translateRole(member.role)}
                 </Badge>
               )}
               {hasLogin ? (
-                <Badge className="gap-1 border border-emerald-500/30 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/15">
+                <Badge className="gap-1 border border-emerald-500/30 bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15">
                   <CheckCircle2 className="h-3 w-3" /> Login ativo
                 </Badge>
               ) : (
-                <Badge variant="outline" className="gap-1 border-neutral-700 bg-neutral-900 text-neutral-400">
+                <Badge variant="outline" className="gap-1 border-neutral-700 bg-white text-neutral-500">
                   <XCircle className="h-3 w-3" /> Sem login
                 </Badge>
               )}
@@ -267,12 +267,12 @@ function MemberRow({ member, qc }: { member: any; qc: ReturnType<typeof useQuery
 
 
         {expanded && (
-          <div className="space-y-4 border-t border-red-500/15 bg-neutral-950/40 p-4">
+          <div className="space-y-4 border-t border-[color:var(--dojo-border)] bg-white p-4">
             <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
                 variant="outline"
-                className="border-red-500/30 bg-red-500/10 text-red-100 hover:bg-red-500/20 hover:text-white"
+                className="border-red-500/30 bg-red-500/10 text-red-700 hover:bg-red-500/20 hover:text-red-800"
                 disabled={emailMissing || busy}
                 onClick={() => setPassOpen(true)}
               >
@@ -280,7 +280,7 @@ function MemberRow({ member, qc }: { member: any; qc: ReturnType<typeof useQuery
                 {hasLogin ? "Trocar senha" : "Criar login"}
               </Button>
               {hasLogin && (
-                <Button size="sm" variant="ghost" className="text-neutral-300 hover:bg-white/5 hover:text-white" disabled={busy} onClick={revokeLogin}>
+                <Button size="sm" variant="ghost" className="text-neutral-600 hover:bg-neutral-50 hover:text-neutral-950" disabled={busy} onClick={revokeLogin}>
                   Revogar acesso
                 </Button>
               )}
@@ -290,20 +290,20 @@ function MemberRow({ member, qc }: { member: any; qc: ReturnType<typeof useQuery
 
             <div className="space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-sm font-semibold text-white">
-                  <ShieldCheck className="h-4 w-4 text-red-300" />
+                <div className="flex items-center gap-2 text-sm font-semibold text-neutral-950">
+                  <ShieldCheck className="h-4 w-4 text-red-600" />
                   Módulos visíveis para {member.full_name?.split(" ")[0] ?? "o usuário"}
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="border-red-500/25 bg-transparent text-neutral-200 hover:bg-white/5 hover:text-white" onClick={() => setAll(true)}>
+                  <Button size="sm" variant="outline" className="border-[color:var(--dojo-border)] bg-transparent text-neutral-800 hover:bg-neutral-50 hover:text-neutral-950" onClick={() => setAll(true)}>
                     Marcar todos
                   </Button>
-                  <Button size="sm" variant="outline" className="border-red-500/25 bg-transparent text-neutral-200 hover:bg-white/5 hover:text-white" onClick={() => setAll(false)}>
+                  <Button size="sm" variant="outline" className="border-[color:var(--dojo-border)] bg-transparent text-neutral-800 hover:bg-neutral-50 hover:text-neutral-950" onClick={() => setAll(false)}>
                     Desmarcar todos
                   </Button>
                 </div>
               </div>
-              <p className="text-xs text-neutral-400">
+              <p className="text-xs text-neutral-500">
                 Só os módulos marcados aparecerão na barra lateral quando este colaborador
                 entrar no sistema.
               </p>
@@ -318,7 +318,7 @@ function MemberRow({ member, qc }: { member: any; qc: ReturnType<typeof useQuery
                       className={`flex cursor-pointer items-start gap-2 rounded-lg border p-2.5 transition-colors ${
                         checked
                           ? "border-red-500/40 bg-red-500/10"
-                          : "border-red-500/10 bg-neutral-900/60 hover:bg-white/5"
+                          : "border-[color:var(--dojo-border)] bg-white hover:bg-neutral-50"
                       }`}
                     >
                       <Checkbox
@@ -327,8 +327,8 @@ function MemberRow({ member, qc }: { member: any; qc: ReturnType<typeof useQuery
                         onCheckedChange={(v) => toggle(mod.key, v === true)}
                       />
                       <div className="min-w-0">
-                        <div className="text-sm font-medium leading-tight text-white">{mod.label}</div>
-                        <div className="text-[11px] text-neutral-400">{mod.description}</div>
+                        <div className="text-sm font-medium leading-tight text-neutral-950">{mod.label}</div>
+                        <div className="text-[11px] text-neutral-500">{mod.description}</div>
                       </div>
                     </label>
                   );
@@ -339,7 +339,7 @@ function MemberRow({ member, qc }: { member: any; qc: ReturnType<typeof useQuery
                   size="sm"
                   disabled={!dirty || busy}
                   onClick={savePerms}
-                  className="bg-gradient-to-br from-red-600 to-red-800 text-white shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)] hover:from-red-500 hover:to-red-700 disabled:opacity-50"
+                  className="bg-gradient-to-br from-red-600 to-red-800 text-white shadow-xs hover:from-red-500 hover:to-red-700 disabled:opacity-50"
                 >
                   <Save className="mr-2 h-4 w-4" /> Salvar permissões
                 </Button>

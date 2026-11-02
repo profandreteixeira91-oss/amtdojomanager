@@ -4,10 +4,11 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { DojoPageHero } from "@/components/dojo/DojoPageHero";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, ChevronLeft, ChevronRight, Users, CalendarDays, Percent, Activity, CalendarRange, Sparkles } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Users, CalendarDays, Percent, Activity, CalendarRange } from "lucide-react";
 import { listClasses, listOccurrences, listSpaces, scheduleStats } from "@/lib/dojo/schedule.functions";
 import { listDojoUnits } from "@/lib/dojo/dojo.functions";
 import { ClassFormDialog } from "@/components/dojo/schedule/ClassFormDialog";
@@ -177,50 +178,17 @@ function SchedulePage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 md:gap-7">
-      {/* Premium Hero */}
-      <div className="relative overflow-hidden rounded-3xl border border-red-950/40 bg-gradient-to-br from-[#1a0508] via-[#0f0304] to-black text-white shadow-2xl">
-        <div
-          className="absolute inset-0 opacity-[0.08] pointer-events-none"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
-            backgroundSize: "44px 44px",
-          }}
-        />
-        <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-red-600/25 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-red-900/30 blur-3xl pointer-events-none" />
-
-        <div className="relative grid gap-6 p-6 md:p-8 md:grid-cols-[1fr_auto] md:items-center">
-          <div className="flex items-start gap-4 min-w-0">
-            <div className="relative shrink-0">
-              <div className="absolute inset-0 rounded-2xl bg-red-500/40 blur-xl" />
-              <div className="relative grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-red-500 to-red-800 shadow-lg shadow-red-950/50 ring-1 ring-white/10">
-                <CalendarRange className="h-7 w-7 text-white" />
-              </div>
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-red-300/80">
-                <Sparkles className="h-3 w-3" /> Agenda inteligente
-              </div>
-              <h1 className="mt-1 font-display text-3xl md:text-4xl font-black tracking-tight text-white">
-                Agenda de Aulas
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm text-white/70">
-                Comande turmas, horários, professores e ocupação da academia com uma visão executiva do seu dojo.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex md:justify-end">
-            <Button
-              onClick={openNew}
-              className="h-11 rounded-full bg-white px-5 font-semibold text-red-700 shadow-lg shadow-red-950/40 hover:bg-white/95 hover:shadow-red-900/50 transition-all"
-            >
-              <Plus className="h-4 w-4 mr-1.5" /> Nova turma
-            </Button>
-          </div>
-        </div>
-      </div>
+      <DojoPageHero
+        icon={CalendarRange}
+        eyebrow="Agenda inteligente"
+        title="Agenda de Aulas"
+        description="Comande turmas, horários, professores e ocupação da academia com uma visão executiva do seu dojo."
+        actions={
+          <Button onClick={openNew} className="h-10 px-4 font-semibold">
+            <Plus className="mr-1.5 h-4 w-4" /> Nova turma
+          </Button>
+        }
+      />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

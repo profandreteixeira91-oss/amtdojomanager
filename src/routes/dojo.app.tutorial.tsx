@@ -105,16 +105,17 @@ function TutorialPage() {
   return (
     <div className="space-y-6">
       {/* Hero */}
-      <section className="relative overflow-hidden rounded-2xl border border-[color:var(--dojo-border)] bg-gradient-to-br from-red-700 via-red-800 to-neutral-950 p-6 text-white shadow-lg sm:p-8">
-        <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10 blur-2xl" />
+      <section className="dojo-hero relative overflow-hidden p-5 sm:p-6 lg:px-7">
+        <div aria-hidden className="dojo-hero-pattern pointer-events-none absolute inset-0" />
+        <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-red-500 via-red-600 to-red-800" />
         <div className="relative">
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider">
-            <Sparkles className="h-3.5 w-3.5" /> Instrutor virtual
+          <div className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-red-600">
+            <Sparkles className="h-3 w-3" /> Instrutor virtual
           </div>
-          <h2 className="font-display text-2xl font-bold leading-tight sm:text-3xl">
+          <h2 className="text-[22px] font-bold leading-tight tracking-tight text-neutral-950 sm:text-2xl md:text-[28px]">
             Qual é a sua dúvida hoje?
           </h2>
-          <p className="mt-1.5 max-w-2xl text-sm text-white/80">
+          <p className="mt-1.5 max-w-2xl text-sm text-neutral-600">
             Escolha um tema e o sistema conduz você passo a passo: destaca o elemento na tela,
             explica a função, mostra o objetivo e só avança depois que a ação é realizada.
           </p>
@@ -126,7 +127,7 @@ function TutorialPage() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Ex.: cadastrar aluno, PIX, mensalidade, turma, certificado…"
-                className="h-11 border-0 bg-white pl-9 text-black placeholder:text-neutral-500"
+                className="h-11 border-neutral-200 bg-white pl-9 text-neutral-950 shadow-xs placeholder:text-neutral-500"
               />
             </div>
           </div>
@@ -137,9 +138,9 @@ function TutorialPage() {
             <Stat icon={Clock} label="Em andamento" value={`${inProgress}`} />
           </div>
 
-          <div className="mt-4 flex items-center gap-3 text-xs text-white/85">
-            <div className="h-1.5 w-40 overflow-hidden rounded-full bg-white/20">
-              <div className="h-full rounded-full bg-white transition-all" style={{ width: `${pct}%` }} />
+          <div className="mt-4 flex items-center gap-3 text-xs text-neutral-600">
+            <div className="h-1.5 w-40 overflow-hidden rounded-full bg-neutral-100">
+              <div className="h-full rounded-full bg-red-600 transition-all" style={{ width: `${pct}%` }} />
             </div>
             {pct}% de capacitação na plataforma
           </div>
@@ -241,11 +242,13 @@ function Stat({
   value: string;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl bg-white/10 px-3 py-2.5 backdrop-blur">
-      <Icon className="h-4 w-4 shrink-0" />
+    <div className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white px-3 py-2.5 shadow-xs">
+      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-red-50 text-red-600">
+        <Icon className="h-4 w-4" />
+      </div>
       <div className="min-w-0">
-        <div className="text-sm font-bold leading-none">{value}</div>
-        <div className="truncate text-[11px] text-white/70">{label}</div>
+        <div className="text-base font-bold leading-none text-neutral-950">{value}</div>
+        <div className="mt-0.5 truncate text-[11px] text-neutral-500">{label}</div>
       </div>
     </div>
   );

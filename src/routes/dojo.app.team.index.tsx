@@ -255,7 +255,7 @@ function TeamPage() {
   const createDialog = (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-red-600 text-white hover:bg-red-500 shadow-[0_10px_25px_-12px_rgba(220,38,38,0.9)]">
+        <Button className="bg-red-600 text-white hover:bg-red-500 shadow-xs">
           <Plus className="mr-2 h-4 w-4" /> Novo Colaborador
         </Button>
       </DialogTrigger>
@@ -333,28 +333,19 @@ function TeamPage() {
   return (
     <DojoPageShell>
       {/* HERO PREMIUM */}
-      <section className="relative overflow-hidden rounded-3xl border border-red-500/20 bg-gradient-to-br from-neutral-950 via-neutral-900 to-black text-white shadow-[0_30px_80px_-30px_rgba(220,38,38,0.45)]">
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-[0.08]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
-            backgroundSize: "44px 44px",
-          }}
-        />
-        <div aria-hidden className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-red-600/40 blur-3xl" />
-        <div aria-hidden className="absolute -bottom-24 left-1/4 h-64 w-64 rounded-full bg-red-500/20 blur-3xl" />
+      <section className="dojo-hero relative overflow-hidden">
+        <div aria-hidden className="dojo-hero-pattern pointer-events-none absolute inset-0" />
+        <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-red-500 via-red-600 to-red-800" />
 
         <div className="relative grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 p-5 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:p-7 md:p-9">
           <div className="min-w-0 space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-red-200">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-red-600">
               <Users className="h-3 w-3" /> Equipe
             </div>
-            <h1 className="font-display text-2xl font-black leading-tight tracking-tight sm:text-3xl md:text-4xl">
-              Sua equipe, com <span className="text-red-400">precisão de tatame</span>
+            <h1 className="text-[22px] font-bold leading-tight tracking-tight text-neutral-950 sm:text-2xl md:text-[28px]">
+              Sua equipe, com <span className="text-red-600">precisão de tatame</span>
             </h1>
-            <p className="max-w-2xl text-sm leading-relaxed text-neutral-300 md:text-base">
+            <p className="max-w-2xl text-sm leading-relaxed text-neutral-600 md:text-base">
               Cadastre professores, instrutores, recepção e administrativo. Gerencie escalas, folha de pagamento, documentos e permissões em um único lugar.
             </p>
           </div>
@@ -362,7 +353,7 @@ function TeamPage() {
           <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
             <Button
               variant="outline"
-              className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+              className="border-neutral-200 bg-white text-neutral-800 shadow-xs hover:bg-neutral-50 hover:text-neutral-950"
               onClick={async () => {
                 const link = staffLink.data;
                 if (!link) return;
@@ -377,16 +368,16 @@ function TeamPage() {
             >
               Link do Portal da Equipe
             </Button>
-            <Button variant="outline" asChild className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white">
+            <Button variant="outline" asChild className="border-neutral-200 bg-white text-neutral-800 shadow-xs hover:bg-neutral-50 hover:text-neutral-950">
               <Link to="/dojo/app/team/schedules">Escalas</Link>
             </Button>
-            <Button variant="outline" asChild className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white">
+            <Button variant="outline" asChild className="border-neutral-200 bg-white text-neutral-800 shadow-xs hover:bg-neutral-50 hover:text-neutral-950">
               <Link to="/dojo/app/team/payroll">Folha</Link>
             </Button>
             {selectMode ? (
               <Button
                 variant="outline"
-                className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+                className="border-neutral-200 bg-white text-neutral-800 shadow-xs hover:bg-neutral-50 hover:text-neutral-950"
                 onClick={exitSelectMode}
               >
                 <X className="mr-2 h-4 w-4" /> Cancelar seleção
@@ -394,7 +385,7 @@ function TeamPage() {
             ) : (
               <Button
                 variant="outline"
-                className="border-red-400/40 bg-red-500/10 text-red-100 hover:bg-red-500/20 hover:text-white"
+                className="border-red-400/40 bg-red-500/10 text--700 hover:bg-red-500/20 hover:text-neutral-950"
                 onClick={() => setSelectMode(true)}
               >
                 <Trash2 className="mr-2 h-4 w-4" /> Excluir
@@ -488,7 +479,7 @@ function TeamPage() {
       </AlertDialog>
 
       {/* Filters */}
-      <div className="flex flex-col gap-2 rounded-2xl border border-neutral-200/70 bg-white/80 p-3 shadow-sm backdrop-blur sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="flex flex-col gap-2 rounded-2xl border border-neutral-200/70 bg-white/80 p-3 shadow-sm sm:flex-row sm:flex-wrap sm:items-center">
         <div className="relative w-full min-w-0 flex-1 sm:min-w-[220px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -549,7 +540,7 @@ function TeamPage() {
             )}
             <Avatar className="h-11 w-11 ring-2 ring-white shadow-sm">
               <AvatarImage src={m.photo_url ?? undefined} />
-              <AvatarFallback className="bg-gradient-to-br from-neutral-900 to-neutral-700 text-white">
+              <AvatarFallback className="dojo-hero-icon font-bold text-white">
                 {m.full_name?.slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>

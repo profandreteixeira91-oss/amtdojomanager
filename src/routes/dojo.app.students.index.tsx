@@ -737,47 +737,34 @@ function StudentsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Premium Hero */}
-      <div className="relative overflow-hidden rounded-3xl border border-red-950/40 bg-gradient-to-br from-[#1a0508] via-[#0f0304] to-black text-white shadow-2xl">
-        <div
-          className="absolute inset-0 opacity-[0.08] pointer-events-none"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
-            backgroundSize: "44px 44px",
-          }}
-        />
-        <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-red-600/25 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-red-900/30 blur-3xl pointer-events-none" />
+      {/* Card de título */}
+      <div className="dojo-hero relative overflow-hidden">
+        <div aria-hidden className="dojo-hero-pattern pointer-events-none absolute inset-0" />
+        <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-red-500 via-red-600 to-red-800" />
 
-        <div className="relative flex flex-col gap-6 p-6 md:p-8">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="flex items-start gap-4 min-w-0">
-              <div className="relative shrink-0">
-                <div className="absolute inset-0 rounded-2xl bg-red-500/40 blur-xl" />
-                <div className="relative grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-red-500 to-red-800 shadow-lg shadow-red-950/50 ring-1 ring-white/10">
-                  <Users className="h-7 w-7 text-white" />
-                </div>
+        <div className="relative flex flex-col gap-4 p-5 sm:p-6 lg:px-7">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-start gap-3.5 sm:gap-4">
+              <div className="dojo-hero-icon grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white sm:h-12 sm:w-12 sm:rounded-2xl md:h-14 md:w-14">
+                <Users className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7" />
               </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-red-300/80">
+                <div className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-red-600">
                   <Sparkles className="h-3 w-3" /> Gestão de Alunos
                 </div>
-                <h1 className="mt-1 font-display text-3xl md:text-4xl font-black tracking-tight text-white">
+                <h1 className="text-[22px] font-bold leading-tight tracking-tight text-neutral-950 sm:text-2xl md:text-[28px]">
                   Alunos do Dojo
                 </h1>
+                <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-neutral-600">
+                  <span className="font-semibold text-neutral-900">
+                    {filtered.length} {filtered.length === 1 ? "aluno encontrado" : "alunos encontrados"}
+                  </span>
+                  {q.data && q.data.length !== filtered.length ? ` de ${q.data.length} no total` : ""}
+                  {" · "}Cadastro completo, anamnese, graduações e contratos em um único lugar.
+                </p>
               </div>
             </div>
           </div>
-
-          <p className="w-full text-sm text-white/75 leading-relaxed">
-            <span className="font-semibold text-white">
-              {filtered.length} {filtered.length === 1 ? "aluno encontrado" : "alunos encontrados"}
-            </span>
-            {q.data && q.data.length !== filtered.length ? ` de ${q.data.length} no total` : ""}
-            {" · "}Cadastro completo, anamnese, graduações e contratos em um único lugar.
-          </p>
-
 
           <div className="flex flex-wrap gap-2 md:justify-end">
             <input
@@ -790,16 +777,16 @@ function StudentsPage() {
                 if (f) onPickFile(f);
               }}
             />
-            <Button size="sm" variant="outline" className="h-9 rounded-full border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white" onClick={() => downloadStudentsTemplate()}>
+            <Button size="sm" variant="outline" className="h-9 rounded-lg border-neutral-200 bg-white text-neutral-800 shadow-xs hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-950" onClick={() => downloadStudentsTemplate()}>
               <FileDown className="h-4 w-4 mr-1" /> Modelo XLSX
             </Button>
-            <Button size="sm" variant="outline" className="h-9 rounded-full border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white" onClick={() => fileInputRef.current?.click()}>
+            <Button size="sm" variant="outline" className="h-9 rounded-lg border-neutral-200 bg-white text-neutral-800 shadow-xs hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-950" onClick={() => fileInputRef.current?.click()}>
               <Upload className="h-4 w-4 mr-1" /> Importar
             </Button>
-            <Button size="sm" variant="outline" className="h-9 rounded-full border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white" onClick={onPrintAll}>
+            <Button size="sm" variant="outline" className="h-9 rounded-lg border-neutral-200 bg-white text-neutral-800 shadow-xs hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-950" onClick={onPrintAll}>
               <Printer className="h-4 w-4 mr-1" /> Imprimir fichas
             </Button>
-            <Button size="sm" variant="outline" className="h-9 rounded-full border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white" asChild>
+            <Button size="sm" variant="outline" className="h-9 rounded-lg border-neutral-200 bg-white text-neutral-800 shadow-xs hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-950" asChild>
               <Link to="/dojo/app/contracts">
                 <FileText className="h-4 w-4 mr-1" /> Contratos
               </Link>
@@ -807,7 +794,7 @@ function StudentsPage() {
             <Button
               size="sm"
               variant="outline"
-              className="h-9 rounded-full border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+              className="h-9 rounded-lg border-neutral-200 bg-white text-neutral-800 shadow-xs hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-950"
               onClick={() => setEnrollLinkOpen(true)}
             >
               <LinkIcon className="h-4 w-4 mr-1" /> Página de matrícula
@@ -868,7 +855,7 @@ function StudentsPage() {
 
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
-                <Button data-tour="novo-aluno" size="sm" onClick={openNew} className="h-9 rounded-full bg-white px-4 font-semibold text-red-700 shadow-lg shadow-red-950/40 hover:bg-white/95">
+                <Button data-tour="novo-aluno" size="sm" onClick={openNew} className="h-9 rounded-lg px-4 font-semibold">
                   <UserPlus className="h-4 w-4 mr-1" /> Novo aluno
                 </Button>
               </DialogTrigger>
@@ -884,7 +871,7 @@ function StudentsPage() {
               }}
               className="flex h-[min(92vh,900px)] w-[calc(100vw-1.5rem)] max-w-6xl flex-col gap-0 overflow-hidden rounded-2xl border-neutral-200/80 p-0 shadow-2xl"
             >
-              <DialogHeader className="relative shrink-0 space-y-0 overflow-hidden border-b border-white/10 bg-[linear-gradient(135deg,#1b0708_0%,#490d10_55%,#7f1417_100%)] px-5 py-4 text-left sm:px-6">
+              <DialogHeader className="relative shrink-0 space-y-0 overflow-hidden border-b border-white/10 bg-[linear-gradient(135deg,#dc2626_0%,#b91c1c_55%,#8f1414_100%)] px-5 py-4 text-left sm:px-6">
                 <div className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full bg-red-500/25 blur-3xl" />
                 <div className="pointer-events-none absolute -left-10 bottom-[-5rem] h-40 w-40 rounded-full bg-white/10 blur-3xl" />
                 <div className="relative flex items-center gap-3.5">

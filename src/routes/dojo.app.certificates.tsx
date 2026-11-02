@@ -283,16 +283,18 @@ export function CertificatesPage() {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 md:p-6">
       {/* ===== CABEÇALHO ===== */}
-      <section className="relative overflow-hidden rounded-3xl border border-neutral-200/80 bg-card shadow-xs">
-        <div aria-hidden className="pointer-events-none absolute -right-24 -top-28 h-80 w-80 rounded-full bg-red-500/10 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute right-40 top-10 h-40 w-40 rounded-full bg-amber-400/10 blur-3xl" />
-        <div className="relative flex flex-col gap-6 p-5 sm:p-7 lg:flex-row lg:items-center">
-          <div className="min-w-0 flex-1">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-primary">
-              <Award className="h-3.5 w-3.5" /> Certificados
+      <section className="dojo-hero relative overflow-hidden">
+        <div aria-hidden className="dojo-hero-pattern pointer-events-none absolute inset-0" />
+        <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-red-500 via-red-600 to-red-800" />
+        <div className="relative flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-center lg:px-7">
+          <div className="flex min-w-0 flex-1 items-start gap-3.5 sm:gap-4">
+            <div className="dojo-hero-icon grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white sm:h-12 sm:w-12 sm:rounded-2xl md:h-14 md:w-14">
+              <Award className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7" />
             </div>
-            <h1 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">Certificados que valorizam cada conquista</h1>
-            <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">
+          <div className="min-w-0 flex-1">
+            <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-red-600">Certificados</div>
+            <h1 className="text-[22px] font-bold leading-tight tracking-tight text-neutral-950 sm:text-2xl md:text-[28px]">Certificados que valorizam cada conquista</h1>
+            <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-neutral-600">
               Crie modelos no editor, emita para os alunos em poucos cliques e acompanhe tudo o que foi entregue — com validação por QR Code.
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
@@ -303,6 +305,7 @@ export function CertificatesPage() {
                 <Send className="mr-1 h-4 w-4" /> Emitir certificado
               </Button>
             </div>
+          </div>
           </div>
           <div className="grid grid-cols-3 gap-3 lg:w-[420px]">
             {[

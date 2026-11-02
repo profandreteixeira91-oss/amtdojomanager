@@ -15,7 +15,9 @@ import {
   Loader2,
   Package,
   Info,
+  Smartphone,
 } from "lucide-react";
+import { DojoPageHero } from "@/components/dojo/DojoPageHero";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -182,22 +184,23 @@ function ApkVersionsPage() {
   }, [publicPageUrl]);
 
   return (
-    <div className="dojo-theme min-h-screen bg-neutral-50">
-      <div className="mx-auto max-w-6xl px-4 py-6">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold">Aplicativo do Aluno — Versões</h1>
-            <p className="text-sm text-muted-foreground">
-              Publique o APK do aplicativo. O link de download é permanente e o QR nunca muda.
-            </p>
-          </div>
-          <Link
-            to="/dojo/app/student-app-qr"
-            className="inline-flex items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm hover:bg-neutral-50"
-          >
-            Cartaz/QR completo <ExternalLink className="h-4 w-4" />
-          </Link>
-        </div>
+    <div>
+      <div className="mx-auto max-w-6xl">
+        <DojoPageHero
+          className="mb-6"
+          icon={Smartphone}
+          eyebrow="App do Aluno"
+          title="Aplicativo do Aluno — Versões"
+          description="Publique o APK do aplicativo. O link de download é permanente e o QR nunca muda."
+          actions={
+            <Link
+              to="/dojo/app/student-app-qr"
+              className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-medium shadow-xs hover:bg-neutral-50"
+            >
+              Cartaz/QR completo <ExternalLink className="h-4 w-4" />
+            </Link>
+          }
+        />
 
         {!slug && (
           <Card className="mb-4 border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">

@@ -223,6 +223,8 @@ function SchedulesPage() {
 
   return (
     <DojoPageShell
+      icon={Calendar}
+      eyebrow="Equipe"
       title="Escalas"
       description="Agenda semanal, substituições e histórico completo"
 

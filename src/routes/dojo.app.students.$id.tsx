@@ -330,23 +330,14 @@ function StudentDetail() {
     <div className="space-y-5">
 
       {/* HERO PREMIUM */}
-      <section className="relative overflow-hidden rounded-3xl border border-red-500/20 bg-gradient-to-br from-neutral-950 via-neutral-900 to-black text-white shadow-[0_30px_80px_-30px_rgba(220,38,38,0.45)]">
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-[0.07]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
-            backgroundSize: "44px 44px",
-          }}
-        />
-        <div aria-hidden className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-red-600/40 blur-3xl" />
-        <div aria-hidden className="absolute -bottom-28 left-1/4 h-64 w-64 rounded-full bg-red-500/20 blur-3xl" />
+      <section className="dojo-hero relative overflow-hidden">
+        <div aria-hidden className="dojo-hero-pattern pointer-events-none absolute inset-0" />
+        <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-red-500 via-red-600 to-red-800" />
 
         <div className="relative flex flex-col gap-5 p-5 sm:p-7 md:p-8">
           <Link
             to="/dojo/app/students"
-            className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.22em] text-neutral-300 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-white"
+            className="inline-flex w-fit items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-600 shadow-xs transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
           >
             <ArrowLeft className="h-3.5 w-3.5" /> Alunos
           </Link>
@@ -354,12 +345,11 @@ function StudentDetail() {
           <div className="flex flex-col gap-5">
             <div className="flex min-w-0 items-center gap-4 sm:gap-5">
               <div className="relative shrink-0">
-                <div aria-hidden className="absolute -inset-1 rounded-full bg-gradient-to-br from-red-500/60 to-red-700/10 blur-md" />
-                <div className="relative h-20 w-20 overflow-hidden rounded-full border-2 border-white/30 bg-neutral-800 shadow-[0_10px_30px_-8px_rgba(220,38,38,0.55)] sm:h-24 sm:w-24">
+                <div className="relative h-20 w-20 overflow-hidden rounded-full border-4 border-white bg-white shadow-md ring-1 ring-neutral-200 sm:h-24 sm:w-24">
                   {s.photo_url ? (
                     <img src={s.photo_url} alt={s.full_name} className="h-full w-full object-cover" />
                   ) : (
-                    <div className="grid h-full w-full place-items-center text-2xl font-bold text-neutral-300">
+                    <div className="dojo-hero-icon grid h-full w-full place-items-center text-2xl font-bold text-white">
                       {s.full_name?.[0]?.toUpperCase() ?? "?"}
                     </div>
                   )}
@@ -367,14 +357,14 @@ function StudentDetail() {
               </div>
 
               <div className="min-w-0 space-y-2">
-                <div className="inline-flex items-center gap-2 rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-red-200">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-red-600">
                   <UserIcon className="h-3 w-3" />
                   Perfil do aluno
                 </div>
-                <h1 className="font-display text-2xl font-black leading-tight tracking-tight break-words sm:text-3xl md:text-4xl">
+                <h1 className="break-words text-[22px] font-bold leading-tight tracking-tight text-neutral-950 sm:text-2xl md:text-[28px]">
                   {s.full_name}
                 </h1>
-                <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-neutral-300">
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-neutral-600">
                   <HeroChip>{age != null ? `${age} anos` : "Idade não informada"}</HeroChip>
                   {s.unit?.name && <HeroChip icon={MapPin}>{s.unit.name}</HeroChip>}
                   {currentEnrollment?.plan?.name && <HeroChip icon={Wallet}>{currentEnrollment.plan.name}</HeroChip>}
@@ -387,7 +377,7 @@ function StudentDetail() {
               <Button
                 size="sm"
                 variant="outline"
-                className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+                className="w-full border-neutral-200 bg-white text-neutral-800 shadow-xs hover:bg-neutral-50 hover:text-neutral-950"
                 onClick={() => navigate({ to: "/dojo/app/students/$id/analysis", params: { id } })}
               >
                 <Activity className="mr-1.5 h-4 w-4" /> Performance
@@ -395,7 +385,7 @@ function StudentDetail() {
               <Button
                 size="sm"
                 variant="outline"
-                className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+                className="w-full border-neutral-200 bg-white text-neutral-800 shadow-xs hover:bg-neutral-50 hover:text-neutral-950"
                 onClick={() => {
                   try { sessionStorage.setItem("dojo-edit-student", id); } catch {}
                   navigate({ to: "/dojo/app/students" });
@@ -406,7 +396,7 @@ function StudentDetail() {
               <Button
                 size="sm"
                 variant="outline"
-                className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+                className="w-full border-neutral-200 bg-white text-neutral-800 shadow-xs hover:bg-neutral-50 hover:text-neutral-950"
                 onClick={() => printStudentReport({
                   student: s, branding, belts: belts.data ?? [], graduations, enrollments, invoices, certificates,
                   attendanceRows, competitions: competitionHistory.data ?? [],
@@ -421,7 +411,7 @@ function StudentDetail() {
                   size="sm"
                   variant="outline"
                   asChild
-                  className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+                  className="w-full border-neutral-200 bg-white text-neutral-800 shadow-xs hover:bg-neutral-50 hover:text-neutral-950"
                 >
                   <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
                     <MessageSquare className="mr-1.5 h-4 w-4" /> WhatsApp
@@ -433,7 +423,7 @@ function StudentDetail() {
                   size="sm"
                   variant="outline"
                   asChild
-                  className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+                  className="w-full border-neutral-200 bg-white text-neutral-800 shadow-xs hover:bg-neutral-50 hover:text-neutral-950"
                 >
                   <a href={emailLink}>
                     <MailIcon className="mr-1.5 h-4 w-4" /> E-mail
@@ -445,7 +435,7 @@ function StudentDetail() {
                   size="sm"
                   variant="outline"
                   onClick={doUnfreeze}
-                  className="w-full border-amber-400/40 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20 hover:text-white"
+                  className="w-full border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:text-amber-900"
                 >
                   <RefreshCw className="mr-1.5 h-4 w-4" /> Reativar matrícula
                 </Button>
@@ -454,7 +444,7 @@ function StudentDetail() {
                   size="sm"
                   variant="outline"
                   onClick={doRestore}
-                  className="w-full border-emerald-400/40 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/20 hover:text-white"
+                  className="w-full border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-900"
                 >
                   <RefreshCw className="mr-1.5 h-4 w-4" /> Restaurar matrícula
                 </Button>
@@ -463,7 +453,7 @@ function StudentDetail() {
                   size="sm"
                   variant="outline"
                   onClick={openCancelDialog}
-                  className="w-full border-red-400/40 bg-red-500/10 text-red-200 hover:bg-red-500/20 hover:text-white"
+                  className="w-full border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800"
                 >
                   <Trash2 className="mr-1.5 h-4 w-4" /> Cancelar matrícula
                 </Button>
@@ -1732,8 +1722,8 @@ function SectionCard({ title, icon: Icon, children }: { title: string; icon: any
 
 function HeroChip({ icon: Icon, children }: { icon?: any; children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-neutral-200 backdrop-blur">
-      {Icon ? <Icon className="h-3 w-3 text-red-300" /> : null}
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-700 shadow-xs">
+      {Icon ? <Icon className="h-3 w-3 text-red-600" /> : null}
       {children}
     </span>
   );
@@ -1741,10 +1731,10 @@ function HeroChip({ icon: Icon, children }: { icon?: any; children: React.ReactN
 
 function HeroStatusPill({ status }: { status?: string }) {
   const map: Record<string, { label: string; cls: string; dot: string }> = {
-    active: { label: "Ativo", cls: "border-emerald-300/40 bg-emerald-500/15 text-emerald-100", dot: "bg-emerald-400" },
-    inactive: { label: "Inativo", cls: "border-white/20 bg-white/5 text-neutral-300", dot: "bg-neutral-400" },
-    frozen: { label: "Trancado", cls: "border-amber-300/40 bg-amber-500/15 text-amber-100", dot: "bg-amber-400" },
-    trial: { label: "Experimental", cls: "border-sky-300/40 bg-sky-500/15 text-sky-100", dot: "bg-sky-400" },
+    active: { label: "Ativo", cls: "border-emerald-200 bg-emerald-50 text-emerald-700", dot: "bg-emerald-500" },
+    inactive: { label: "Inativo", cls: "border-neutral-200 bg-neutral-50 text-neutral-600", dot: "bg-neutral-400" },
+    frozen: { label: "Trancado", cls: "border-amber-200 bg-amber-50 text-amber-800", dot: "bg-amber-500" },
+    trial: { label: "Experimental", cls: "border-sky-200 bg-sky-50 text-sky-700", dot: "bg-sky-500" },
   };
   const cfg = map[status ?? ""] ?? map.inactive;
   return (

@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
+import { DojoPageHero } from "@/components/dojo/DojoPageHero";
 
 type DojoPageShellProps = {
   /**
@@ -7,8 +8,12 @@ type DojoPageShellProps = {
   description?: ReactNode;
   /** Ações no canto direito (botões primários da página). */
   actions?: ReactNode;
-  /** Título opcional exibido dentro da página. Só use quando o header sticky não cobrir. */
+  /** Título da página. Com `title`, o topo vira o card de título padrão (DojoPageHero). */
   title?: ReactNode;
+  /** Ícone do módulo no card de título. */
+  icon?: ComponentType<{ className?: string }>;
+  /** Rótulo curto acima do título no card. */
+  eyebrow?: ReactNode;
   children: ReactNode;
   /** Largura máxima menor para páginas de formulário. */
   narrow?: boolean;
@@ -17,8 +22,8 @@ type DojoPageShellProps = {
 /**
  * Container padrão do AMT Dojo Manager.
  *
- * O layout `/dojo/app` já renderiza um header sticky com título/subtítulo por rota,
- * então este shell foca em padronizar container, gap e ações — sem duplicar o H1.
+ * Com `title` (e de preferência `icon`), o topo vira o card de título padrão das
+ * páginas; sem título, mostra só descrição e ações numa barra simples.
  *
  * Uso:
  *   <DojoPageShell description="Detalhe" actions={<Button>Novo</Button>}>
@@ -27,29 +32,28 @@ type DojoPageShellProps = {
  */
 export function DojoPageShell({
   title,
+  icon,
+  eyebrow,
   description,
   actions,
   children,
   narrow,
 }: DojoPageShellProps) {
   const maxW = narrow ? "max-w-4xl" : "max-w-7xl";
-  const showBar = Boolean(title || description || actions);
+  const showBar = Boolean(description || actions);
   return (
     <div className={`mx-auto flex w-full ${maxW} flex-col gap-6 md:gap-7`}>
-      {showBar && (
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="min-w-0">
-            {title && (
-              <h2 className="font-display break-words text-xl font-bold tracking-tight text-foreground md:text-2xl">
-                {title}
-              </h2>
-            )}
+      {title ? (
+        <DojoPageHero icon={icon} eyebrow={eyebrow} title={title} description={description} actions={actions} />
+      ) : (
+        showBar && (
+          <div className="flex flex-wrap items-end justify-between gap-3">
             {description && (
-              <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">{description}</p>
+              <p className="min-w-0 max-w-2xl text-sm leading-relaxed text-muted-foreground">{description}</p>
             )}
+            {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
           </div>
-          {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
-        </div>
+        )
       )}
       {children}
     </div>

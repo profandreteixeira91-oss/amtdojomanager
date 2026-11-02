@@ -464,6 +464,9 @@ function DojoLayoutInner({
     .filter((group) => group.items.length > 0);
 
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const sectionLabel =
+    nav.find((g) => g.items.some((item) => isActive(item.to, item.exact)))?.label ??
+    (pathname.startsWith("/dojo/app/account") || pathname.startsWith("/dojo/app/subscription") ? "Minha conta" : null);
 
   return (
     <>
@@ -473,13 +476,17 @@ function DojoLayoutInner({
       <DojoCommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} groups={visibleNav} />
       <Sidebar
         collapsible="icon"
-        className="border-r border-[color:var(--dojo-border)]"
+        className="border-r-0 shadow-[4px_0_24px_-12px_rgb(127_29_29_/_0.45)]"
         onMouseEnter={onSidebarEnter}
         onMouseLeave={onSidebarLeave}
       >
-        <SidebarHeader className="h-14 justify-center border-b border-[color:var(--dojo-border)] bg-white md:h-16">
-          <Link to="/dojo" className="no-red-underline flex items-center justify-center px-2">
-            <DojoLogo className="h-10 w-auto shrink-0 group-data-[collapsible=icon]:h-7" />
+        <SidebarHeader className="h-[4.5rem] justify-center border-b border-white/15 px-3 py-2.5 group-data-[collapsible=icon]:h-14 group-data-[collapsible=icon]:px-1.5 md:h-[4.75rem]">
+          {/* O logo tem partes vermelhas: fica numa placa branca para não sumir no fundo da sidebar. */}
+          <Link
+            to="/dojo"
+            className="no-red-underline flex h-full items-center justify-center rounded-xl bg-white px-3 shadow-[0_6px_16px_-8px_rgb(60_0_0_/_0.6)] ring-1 ring-black/5 transition-transform hover:scale-[1.01] group-data-[collapsible=icon]:px-1"
+          >
+            <DojoLogo className="h-11 w-auto max-w-full shrink-0 group-data-[collapsible=icon]:h-6" />
             <span className="sr-only">AMT Dojo Manager</span>
           </Link>
         </SidebarHeader>
@@ -510,15 +517,15 @@ function DojoLayoutInner({
           ))}
         </SidebarContent>
 
-        <SidebarFooter className="border-t border-[color:var(--dojo-border)] p-2">
-          <div className="flex items-center gap-2.5 rounded-lg px-1.5 py-1.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-neutral-900 text-xs font-semibold text-white ring-2 ring-white">
+        <SidebarFooter className="border-t border-white/15 p-2">
+          <div className="flex items-center gap-2.5 rounded-xl bg-black/15 px-2 py-2 ring-1 ring-white/10 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:ring-0">
+            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-xs font-bold text-red-700 shadow-sm">
               {initial}
             </div>
             <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-              <div className="truncate text-xs font-medium text-neutral-900">{email ?? "Instrutor"}</div>
-              <div className="flex items-center gap-1 text-[10px] text-neutral-500">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              <div className="truncate text-xs font-semibold text-white">{email ?? "Instrutor"}</div>
+              <div className="flex items-center gap-1 text-[10px] text-white/70">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
                 Conta ativa
               </div>
             </div>
@@ -526,7 +533,7 @@ function DojoLayoutInner({
               onClick={onLogout}
               title="Sair"
               aria-label="Sair"
-              className="grid h-8 w-8 place-items-center rounded-md text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 group-data-[collapsible=icon]:hidden"
+              className="grid h-8 w-8 place-items-center rounded-lg text-white/75 transition-colors hover:bg-white/15 hover:text-white group-data-[collapsible=icon]:hidden"
             >
               <LogOut className="h-4 w-4" />
             </button>
@@ -539,15 +546,16 @@ function DojoLayoutInner({
           <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-red-700 via-red-600 to-red-500" />
           <SidebarTrigger className="-ml-0.5 h-8 w-8 shrink-0 rounded-lg text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900" />
           <span aria-hidden className="hidden h-6 w-px bg-[color:var(--dojo-border)] md:block" />
+          {/* Localização no sistema; o título grande fica no card de cada página. */}
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-sm font-semibold leading-tight tracking-tight text-neutral-950 sm:text-base md:text-[17px]">
-              {header.title}
-            </h1>
-            {header.subtitle && (
-              <p className="hidden truncate text-xs leading-tight text-neutral-500 sm:block md:mt-0.5">
-                {header.subtitle}
-              </p>
+            {sectionLabel && (
+              <div className="hidden truncate text-[10px] font-bold uppercase leading-tight tracking-[0.14em] text-red-600 sm:block">
+                {sectionLabel}
+              </div>
             )}
+            <div className="truncate text-sm font-bold leading-tight tracking-tight text-neutral-950 sm:text-[15px] md:mt-0.5">
+              {header.title}
+            </div>
           </div>
 
           <TrialBadge />

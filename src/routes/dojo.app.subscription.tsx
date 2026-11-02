@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { CreditCard, CheckCircle2, XCircle, Clock, Zap, QrCode, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
+import { DojoPageHero } from "@/components/dojo/DojoPageHero";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -91,13 +92,13 @@ function SubscriptionPage() {
   if (isLoading) return <div className="p-8 text-center text-neutral-500">Carregando assinatura...</div>;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 p-4 sm:p-8 animate-in fade-in duration-500">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Assinatura</h1>
-        <p className="text-neutral-500">
-          Gerencie seu plano e formas de pagamento do AMT Dojo Manager.
-        </p>
-      </div>
+    <div className="mx-auto max-w-4xl space-y-8 animate-in fade-in duration-500">
+      <DojoPageHero
+        icon={CreditCard}
+        eyebrow="Minha conta"
+        title="Assinatura"
+        description="Gerencie seu plano e formas de pagamento do AMT Dojo Manager."
+      />
 
       <div className="grid gap-8 lg:grid-cols-12">
         {/* Lado Esquerdo: Detalhes do Plano */}

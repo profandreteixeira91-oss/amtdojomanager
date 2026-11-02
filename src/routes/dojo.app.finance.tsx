@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   Users,
@@ -26,6 +25,7 @@ import {
   FinanceSettings,
 } from "@/components/dojo/finance/Config";
 import { PinGate } from "@/components/dojo/PinGate";
+import { DojoPageHero, SUBNAV_CLS, SUBNAV_ROW_CLS, subnavItemClass } from "@/components/dojo/DojoPageHero";
 
 export const Route = createFileRoute("/dojo/app/finance")({
   head: () => ({ meta: [{ title: "Financeiro — AMT Dojo Manager" }] }),
@@ -103,56 +103,34 @@ function FinancePage() {
   const current = sections.find((s) => s.id === active)!;
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 min-w-0 overflow-x-hidden p-4 md:gap-7 md:p-6">
-      {/* ============ HERO — ============ */}
-      <div className="relative overflow-hidden rounded-2xl border border-red-500/20 bg-gradient-to-br from-neutral-950 via-neutral-900 to-red-950/50 p-5 text-white shadow-[0_20px_60px_-30px_rgba(220,38,38,0.55)] md:p-7">
-        <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-red-500/20 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-amber-500/10 blur-3xl" />
-        <div className="relative flex flex-wrap items-center gap-4">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-amber-400 via-red-500 to-red-700 text-white ring-1 ring-white/20 shadow-[0_8px_24px_-8px_rgba(220,38,38,0.9)]">
-            <Landmark className="h-6 w-6" />
+    <div className="mx-auto flex w-full max-w-7xl min-w-0 flex-col gap-6 overflow-x-hidden md:gap-7">
+      <DojoPageHero
+        icon={Landmark}
+        eyebrow="Financeiro"
+        title="Financeiro"
+        description="Motor financeiro completo do dojo: fluxo de caixa, cobranças, mensalidades, relatórios e conciliação."
+        footer={
+          <div className={SUBNAV_CLS}>
+            <div className={SUBNAV_ROW_CLS}>
+              {sections.map((s) => {
+                const Icon = s.icon;
+                return (
+                  <button key={s.id} type="button" onClick={() => setActive(s.id)} className={subnavItemClass(s.id === active)}>
+                    <Icon />
+                    {s.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-xl font-semibold tracking-tight md:text-2xl">Financeiro</h1>
-            <p className="mt-1 max-w-2xl text-sm text-neutral-300">
-              Motor financeiro completo do dojo: fluxo de caixa, cobranças, mensalidades, relatórios e conciliação.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Sub-navegação horizontal — Ruby ribbon */}
-      <div className="overflow-x-auto rounded-xl border border-red-500/15 bg-neutral-950/60 p-1 shadow-[0_10px_30px_-20px_rgba(220,38,38,0.6)]">
-        <div className="flex w-max min-w-full flex-nowrap gap-1">
-          {sections.map((s) => {
-            const Icon = s.icon;
-            const isActive = s.id === active;
-            return (
-              <button
-                key={s.id}
-                onClick={() => setActive(s.id)}
-                className={cn(
-                  "shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all whitespace-nowrap",
-                  isActive
-                    ? "bg-gradient-to-br from-red-600 to-red-800 text-white shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)]"
-                    : "text-neutral-300 hover:bg-white/5 hover:text-white",
-                )}
-              >
-                <Icon className="h-3.5 w-3.5 shrink-0" />
-                {s.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+        }
+      />
 
       {/* Conteúdo */}
       <div className="min-w-0">
         <div className="mb-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/5 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-red-400">
-            {current.group}
-          </div>
-          <h2 className="mt-2 font-display text-2xl font-bold tracking-tight md:text-3xl">{current.label}</h2>
+          <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-red-600">{current.group}</div>
+          <h2 className="mt-1 text-xl font-bold tracking-tight text-neutral-950 md:text-2xl">{current.label}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {current.group === "Visão geral"
               ? "Indicadores executivos em tempo real"

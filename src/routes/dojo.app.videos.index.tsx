@@ -61,43 +61,42 @@ function VideosLibrary() {
   );
 
   return (
-    <div className="space-y-5 p-4 md:p-6">
+    <div className="mx-auto w-full max-w-7xl space-y-6">
       {/* ===== HERO ===== */}
-      <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-neutral-950 text-white shadow-[0_30px_80px_-40px_rgba(220,38,38,0.65)]">
-        <div aria-hidden className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-red-600/25 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -right-16 top-8 h-64 w-64 rounded-full bg-amber-500/15 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(255,255,255,0.06),transparent_45%)]" />
+      <section className="dojo-hero relative overflow-hidden">
+        <div aria-hidden className="dojo-hero-pattern pointer-events-none absolute inset-0" />
+        <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-red-500 via-red-600 to-red-800" />
         <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6 p-5 sm:p-7">
           <div className="flex items-start gap-4 min-w-0">
-            <div className="grid h-12 w-12 sm:h-14 sm:w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-amber-400 via-red-500 to-red-700 text-white shadow-[0_10px_25px_-10px_rgba(220,38,38,0.9)] ring-1 ring-white/20">
+            <div className="dojo-hero-icon grid h-12 w-12 sm:h-14 sm:w-14 shrink-0 place-items-center rounded-2xl text-white">
               <PlayCircle className="h-6 w-6" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-red-200 backdrop-blur">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-red-600">
                 <Flame className="h-3 w-3" /> Biblioteca
               </div>
-              <h1 className="mt-2 font-display text-xl font-black leading-tight tracking-tight sm:text-2xl md:text-3xl lg:text-4xl break-words">
+              <h1 className="mt-2 break-words text-[22px] font-bold leading-tight tracking-tight text-neutral-950 sm:text-2xl md:text-[28px]">
                 Cada aula gravada, um legado técnico.
               </h1>
-              <p className="mt-1 max-w-xl text-xs sm:text-sm text-neutral-300 break-words">
+              <p className="mt-1 max-w-xl text-xs sm:text-sm text-neutral-600 break-words">
                 Publique, organize e acompanhe o consumo dos conteúdos da sua academia.
               </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            <Button asChild variant="outline" className="flex-1 md:flex-none h-9 text-xs border-white/15 bg-white/5 text-white hover:bg-white/10 px-3">
+            <Button asChild variant="outline" className="flex-1 md:flex-none h-9 text-xs border-neutral-200 bg-white text-neutral-800 shadow-xs hover:bg-neutral-50 px-3">
               <Link to="/dojo/app/videos/favoritos">
                 <StarIcon className="mr-2 h-3.5 w-3.5" />
                 <span className="truncate">Favoritos</span>
               </Link>
             </Button>
-            <Button asChild variant="outline" className="flex-1 md:flex-none h-9 text-xs border-white/15 bg-white/5 text-white hover:bg-white/10 px-3">
+            <Button asChild variant="outline" className="flex-1 md:flex-none h-9 text-xs border-neutral-200 bg-white text-neutral-800 shadow-xs hover:bg-neutral-50 px-3">
               <Link to="/dojo/app/videos/categorias">
                 <FolderTree className="mr-2 h-3.5 w-3.5" />
                 <span className="truncate">Categorias</span>
               </Link>
             </Button>
-            <Button asChild className="flex-1 md:flex-none h-9 text-xs bg-gradient-to-r from-red-600 to-red-500 text-white shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)] hover:from-red-500 hover:to-red-400 px-3">
+            <Button asChild className="flex-1 md:flex-none h-9 text-xs bg-gradient-to-r from-red-600 to-red-500 text-white shadow-xs hover:from-red-500 hover:to-red-400 px-3">
               <Link to="/dojo/app/videos/novo" search={{ step: 1, id: undefined }}>
                 <Plus className="mr-2 h-3.5 w-3.5" />
                 <span className="truncate">Novo Vídeo</span>
@@ -119,14 +118,14 @@ function VideosLibrary() {
 
       {/* Top watched */}
       {(dashboard.data?.topWatched?.length ?? 0) > 0 && (
-        <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-neutral-950/70 p-5 text-white shadow-[0_20px_50px_-30px_rgba(220,38,38,0.5)] backdrop-blur">
+        <div className="relative overflow-hidden rounded-2xl border border-neutral-200 bg-white p-5 text-neutral-950 shadow-xs">
           <div aria-hidden className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-red-600/15 blur-3xl" />
           <div className="relative mb-4 flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-amber-400 via-red-500 to-red-700 text-white ring-1 ring-white/20 shadow-[0_10px_25px_-12px_rgba(220,38,38,0.9)]">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-amber-400 via-red-500 to-red-700 text-white ring-1 ring-neutral-200 shadow-xs">
               <TrendingUp className="h-5 w-5" />
             </div>
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-red-300">Em destaque</div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-red-600">Em destaque</div>
               <div className="text-base font-semibold">Mais assistidos</div>
             </div>
           </div>
@@ -152,19 +151,19 @@ function VideosLibrary() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-neutral-950/60 p-3 text-white backdrop-blur lg:flex-row lg:items-center">
+      <div className="flex flex-col gap-2 rounded-2xl border border-neutral-200 bg-white p-3 text-neutral-950 lg:flex-row lg:items-center">
         <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar vídeos..."
-            className="h-9 border-white/10 bg-white/5 pl-9 text-xs sm:text-sm text-white placeholder:text-neutral-500 focus-visible:ring-red-500/40"
+            className="h-9 border-neutral-200 bg-neutral-50 pl-9 text-xs sm:text-sm text-neutral-950 placeholder:text-neutral-500 focus-visible:ring-red-500/40"
           />
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <Select value={categoryId} onValueChange={setCategoryId}>
-            <SelectTrigger className="h-9 w-full border-white/10 bg-white/5 text-xs text-white sm:w-40">
+            <SelectTrigger className="h-9 w-full border-neutral-200 bg-neutral-50 text-xs text-neutral-950 sm:w-40">
               <SelectValue placeholder="Categoria" />
             </SelectTrigger>
             <SelectContent>
@@ -175,7 +174,7 @@ function VideosLibrary() {
             </SelectContent>
           </Select>
           <Select value={status} onValueChange={(v) => setStatus(v as any)}>
-            <SelectTrigger className="h-9 w-full border-white/10 bg-white/5 text-xs text-white sm:w-36">
+            <SelectTrigger className="h-9 w-full border-neutral-200 bg-neutral-50 text-xs text-neutral-950 sm:w-36">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -187,7 +186,7 @@ function VideosLibrary() {
             </SelectContent>
           </Select>
           <Select value={sort} onValueChange={(v) => setSort(v as any)}>
-            <SelectTrigger className="h-9 w-full border-white/10 bg-white/5 text-xs text-white sm:w-40 col-span-2 sm:col-span-1">
+            <SelectTrigger className="h-9 w-full border-neutral-200 bg-neutral-50 text-xs text-neutral-950 sm:w-40 col-span-2 sm:col-span-1">
               <div className="flex items-center gap-2 truncate">
                 <Filter className="h-3.5 w-3.5 shrink-0" />
                 <SelectValue />
@@ -208,14 +207,14 @@ function VideosLibrary() {
           {Array.from({ length: 8 }).map((_, i) => <VideoCardSkeleton key={i} />)}
         </div>
       ) : (videos.data?.length ?? 0) === 0 ? (
-        <div className="relative overflow-hidden rounded-2xl border border-dashed border-white/15 bg-neutral-950/60 p-12 text-center text-white backdrop-blur">
+        <div className="relative overflow-hidden rounded-2xl border border-dashed border-neutral-200 bg-white p-12 text-center text-neutral-950">
           <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full bg-red-600/15 blur-3xl" />
-          <div className="relative mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-amber-400 via-red-500 to-red-700 text-white ring-1 ring-white/20 shadow-[0_10px_25px_-12px_rgba(220,38,38,0.9)]">
+          <div className="relative mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-amber-400 via-red-500 to-red-700 text-white ring-1 ring-neutral-200 shadow-xs">
             <Film className="h-7 w-7" />
           </div>
           <h3 className="relative mt-4 font-display text-xl font-black tracking-tight">Sua biblioteca está vazia</h3>
-          <p className="relative mt-1 text-sm text-neutral-300">Publique seu primeiro vídeo para os alunos da academia.</p>
-          <Button asChild className="relative mt-5 bg-gradient-to-r from-red-600 to-red-500 text-white shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)] hover:from-red-500 hover:to-red-400">
+          <p className="relative mt-1 text-sm text-neutral-600">Publique seu primeiro vídeo para os alunos da academia.</p>
+          <Button asChild className="relative mt-5 bg-gradient-to-r from-red-600 to-red-500 text-white shadow-xs hover:from-red-500 hover:to-red-400">
             <Link to="/dojo/app/videos/novo" search={{ step: 1, id: undefined }}>
               <Plus className="mr-2 h-4 w-4" /> Novo Vídeo
             </Link>

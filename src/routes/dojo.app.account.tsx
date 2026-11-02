@@ -216,8 +216,8 @@ function AccountPage() {
       />
 
       <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-5">
-        <nav className="md:sticky md:top-4 self-start">
-          <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-neutral-900/80 to-neutral-950/80 p-2 shadow-[0_10px_40px_-20px_rgba(220,38,38,0.35)] backdrop-blur-xl">
+        <nav className="self-start md:sticky md:top-20">
+          <div className="rounded-2xl border border-neutral-200 bg-white p-2 shadow-xs">
             <div className="flex md:flex-col gap-1 overflow-x-auto">
               {TABS.map((t) => {
                 const Icon = t.icon;
@@ -230,7 +230,7 @@ function AccountPage() {
                       "group flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-left transition-all whitespace-nowrap md:whitespace-normal relative",
                       active
                         ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg shadow-red-900/40"
-                        : "text-neutral-300 hover:bg-white/5 hover:text-white"
+                        : "text-neutral-600 hover:bg-neutral-50 hover:text-neutral-950"
                     )}
                   >
                     <Icon className={cn("h-4 w-4 shrink-0 transition-transform", active ? "" : "group-hover:scale-110")} />
@@ -305,37 +305,33 @@ function AccountHeader({ user, profile, academy, subscription, onEditProfile, on
 
   const status = subscription?.status ?? "trial";
   const statusChip: Record<string, { label: string; cls: string; dot: string }> = {
-    active:    { label: "Assinatura ativa",   cls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30", dot: "bg-emerald-400" },
-    trial:     { label: "Período de teste",   cls: "bg-sky-500/15 text-sky-300 border-sky-500/30",             dot: "bg-sky-400" },
-    trialing:  { label: "Período de teste",   cls: "bg-sky-500/15 text-sky-300 border-sky-500/30",             dot: "bg-sky-400" },
-    pending:   { label: "Aguardando",         cls: "bg-amber-500/15 text-amber-300 border-amber-500/30",       dot: "bg-amber-400" },
-    cancelled: { label: "Cancelada",          cls: "bg-red-500/15 text-red-300 border-red-500/30",             dot: "bg-red-400" },
-    past_due:  { label: "Vencida",            cls: "bg-amber-500/15 text-amber-300 border-amber-500/30",       dot: "bg-amber-400" },
+    active:    { label: "Assinatura ativa",   cls: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
+    trial:     { label: "Período de teste",   cls: "bg-sky-50 text-sky-700 border-sky-200",             dot: "bg-sky-500" },
+    trialing:  { label: "Período de teste",   cls: "bg-sky-50 text-sky-700 border-sky-200",             dot: "bg-sky-500" },
+    pending:   { label: "Aguardando",         cls: "bg-amber-50 text-amber-800 border-amber-200",       dot: "bg-amber-500" },
+    cancelled: { label: "Cancelada",          cls: "bg-red-50 text-red-700 border-red-200",             dot: "bg-red-500" },
+    past_due:  { label: "Vencida",            cls: "bg-amber-50 text-amber-800 border-amber-200",       dot: "bg-amber-500" },
   };
-  const chip = statusChip[status] ?? { label: status, cls: "bg-white/10 text-white/70 border-white/10", dot: "bg-white/50" };
+  const chip = statusChip[status] ?? { label: status, cls: "bg-neutral-100 text-neutral-700 border-neutral-200", dot: "bg-neutral-400" };
   const initials = (profile?.full_name || user?.email || "U").slice(0, 1).toUpperCase();
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-neutral-950 via-neutral-900 to-black shadow-[0_20px_60px_-20px_rgba(220,38,38,0.45)]">
-      {/* Glow ornaments */}
-      <div aria-hidden className="pointer-events-none absolute -top-32 -right-24 h-80 w-80 rounded-full bg-red-600/25 blur-3xl" />
-      <div aria-hidden className="pointer-events-none absolute -bottom-40 -left-24 h-80 w-80 rounded-full bg-red-900/40 blur-3xl" />
-      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(1200px_400px_at_50%_-10%,rgba(255,255,255,0.06),transparent)]" />
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-500/60 to-transparent" />
+    <div className="dojo-hero relative overflow-hidden">
+      <div aria-hidden className="dojo-hero-pattern pointer-events-none absolute inset-0" />
+      <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-red-500 via-red-600 to-red-800" />
 
       <div className="relative p-6 md:p-8">
         <div className="flex flex-col md:flex-row md:items-center gap-6">
           {/* Avatar */}
           <div className="relative shrink-0">
-            <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-red-600 via-red-500 to-red-800 opacity-70 blur-md" />
-            <div className="relative h-24 w-24 rounded-full overflow-hidden ring-2 ring-white/20 bg-neutral-800">
+            <div className="relative h-24 w-24 overflow-hidden rounded-full bg-white shadow-md ring-4 ring-white outline outline-1 outline-neutral-200">
               {profile?.avatar_url
                 ? <img src={profile.avatar_url} alt="avatar" className="h-full w-full object-cover" />
-                : <div className="flex items-center justify-center h-full text-3xl font-serif text-white/80">{initials}</div>}
+                : <div className="dojo-hero-icon flex h-full items-center justify-center text-3xl font-bold text-white">{initials}</div>}
             </div>
             <button
               onClick={() => fileRef.current?.click()}
-              className="absolute -bottom-1 -right-1 rounded-full p-2 bg-gradient-to-br from-red-600 to-red-800 text-white shadow-lg shadow-red-900/50 ring-2 ring-neutral-950 hover:scale-105 transition-transform"
+              className="absolute -bottom-1 -right-1 rounded-full p-2 bg-gradient-to-br from-red-600 to-red-800 text-white shadow-lg shadow-red-900/50 ring-2 ring-white hover:scale-105 transition-transform"
               title="Trocar foto"
             >
               <Upload className="h-3.5 w-3.5" />
@@ -347,17 +343,17 @@ function AccountHeader({ user, profile, academy, subscription, onEditProfile, on
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div className="min-w-0">
-                <div className="text-[10px] uppercase tracking-[0.24em] text-red-400/80 mb-1">Minha Conta</div>
-                <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-white truncate">
+                <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-red-600">Minha Conta</div>
+                <h1 className="truncate text-[22px] font-bold tracking-tight text-neutral-950 sm:text-2xl md:text-[28px]">
                   {profile?.full_name || "Sem nome cadastrado"}
                 </h1>
-                <div className="mt-1 text-sm text-neutral-400 truncate">{user?.email}</div>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-neutral-400">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1">
+                <div className="mt-1 text-sm text-neutral-500 truncate">{user?.email}</div>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1">
                     {profile?.job_title || "Administrador"}
                   </span>
                   {academy?.trade_name && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1">
                       <Building2 className="h-3 w-3" />{academy.trade_name}
                     </span>
                   )}
@@ -382,14 +378,16 @@ function AccountHeader({ user, profile, academy, subscription, onEditProfile, on
               <Button
                 size="sm"
                 onClick={onEditProfile}
-                className="bg-white/5 border border-white/10 text-white hover:bg-white/10 backdrop-blur"
+                variant="outline"
+                className="border-neutral-200 bg-white text-neutral-800 shadow-xs hover:bg-neutral-50"
               >
                 <UserIcon className="h-3.5 w-3.5 mr-1.5" /> Editar perfil
               </Button>
               <Button
                 size="sm"
                 onClick={onChangePassword}
-                className="bg-white/5 border border-white/10 text-white hover:bg-white/10 backdrop-blur"
+                variant="outline"
+                className="border-neutral-200 bg-white text-neutral-800 shadow-xs hover:bg-neutral-50"
               >
                 <KeyRound className="h-3.5 w-3.5 mr-1.5" /> Alterar senha
               </Button>
@@ -819,7 +817,7 @@ function SubscriptionTab({ subscription, payments = { paid: [], pending: [] } }:
           </p>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" asChild className="bg-red-600 hover:bg-red-700 text-white">
-              <a href="/dojo/app/subscription" className="text-white">
+              <a href="/dojo/app/subscription" className="text-neutral-950">
                 {status === "active" ? "Gerenciar assinatura" : status === "cancelled" ? "Reativar assinatura" : "Ativar assinatura"}
               </a>
             </Button>

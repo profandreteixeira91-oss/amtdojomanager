@@ -39,6 +39,7 @@ import { listUnitQrTokens, regenerateUnitQrToken } from "@/lib/dojo/unit-qr.func
 import { Camera } from "lucide-react";
 import { PhotoCheckinFlow } from "@/components/dojo/checkin/PhotoCheckinFlow";
 import { addDaysISO, dayISO, todayISO } from "@/lib/dates";
+import { DojoPageHero, SUBNAV_CLS, SUBNAV_TABSLIST_CLS, SUBNAV_TRIGGER_CLS } from "@/components/dojo/DojoPageHero";
 
 export const Route = createFileRoute("/dojo/app/checkin")({
   head: () => ({ meta: [{ title: "Check-in — AMT Dojo Manager" }] }),
@@ -81,86 +82,52 @@ function DojoCheckinModule() {
   }, [qc]);
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6">
-      {/* HERO PREMIUM */}
-      <section className="relative overflow-hidden rounded-3xl border border-red-500/20 bg-gradient-to-br from-neutral-950 via-neutral-900 to-black text-white shadow-[0_30px_80px_-30px_rgba(220,38,38,0.45)]">
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-[0.08]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
-            backgroundSize: "44px 44px",
-          }}
-        />
-        <div
-          aria-hidden
-          className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-red-600/40 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="absolute -bottom-24 left-1/4 h-64 w-64 rounded-full bg-red-500/20 blur-3xl"
-        />
-
-        <div className="relative flex flex-col gap-5 p-5 sm:p-7 md:flex-row md:items-center md:justify-between md:p-9">
-          <div className="min-w-0 space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-red-200">
-              <ScanLine className="h-3 w-3" />
-              Central de Presença
-            </div>
-            <h1 className="font-display text-2xl font-black leading-tight tracking-tight sm:text-3xl md:text-4xl">
-              Check-in <span className="text-red-400">inteligente</span> do seu dojo
-            </h1>
-            <p className="max-w-2xl text-sm leading-relaxed text-neutral-300 md:text-base">
-              Presença em tempo real, kiosk fullscreen, PIN, QR Code e integração com Gympass e TotalPass — tudo em um só painel premium.
-            </p>
-          </div>
-
-          <div className="grid shrink-0 grid-cols-3 gap-2 md:gap-3">
+    <Tabs value={tab} onValueChange={setTab} className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+      <DojoPageHero
+        icon={ScanLine}
+        eyebrow="Central de Presença"
+        title={<>Check-in <span className="text-red-600">inteligente</span> do seu dojo</>}
+        description="Presença em tempo real, kiosk fullscreen, PIN, QR Code e integração com Gympass e TotalPass — tudo em um só painel."
+        actions={
+          <div className="grid grid-cols-3 gap-2">
             <HeroStat icon={ScanLine} label="Kiosk" />
             <HeroStat icon={Fingerprint} label="PIN/QR" />
             <HeroStat icon={Shield} label="Passes" />
           </div>
-        </div>
-      </section>
+        }
+        footer={
+          <div className={SUBNAV_CLS}>
+            <TabsList className={SUBNAV_TABSLIST_CLS}>
+                <TabsTrigger value="dashboard" className={SUBNAV_TRIGGER_CLS}><Activity />Dashboard</TabsTrigger>
+                <TabsTrigger value="kiosk" className={SUBNAV_TRIGGER_CLS}><ScanLine />Check-in</TabsTrigger>
+                <TabsTrigger value="present" className={SUBNAV_TRIGGER_CLS}><Users />Presentes</TabsTrigger>
+                <TabsTrigger value="history" className={SUBNAV_TRIGGER_CLS}><History />Histórico</TabsTrigger>
+                <TabsTrigger value="gympass" className={SUBNAV_TRIGGER_CLS}><Shield />Gympass</TabsTrigger>
+                <TabsTrigger value="totalpass" className={SUBNAV_TRIGGER_CLS}><Shield />TotalPass</TabsTrigger>
+                <TabsTrigger value="reports" className={SUBNAV_TRIGGER_CLS}><FileBarChart2 />Relatórios</TabsTrigger>
+                <TabsTrigger value="settings" className={SUBNAV_TRIGGER_CLS}><Settings2 />Configurações</TabsTrigger>
+            </TabsList>
+          </div>
+        }
+      />
 
-      {/* SUB-COPY */}
-      <p className="max-w-2xl text-sm text-muted-foreground">
-        Controle de acesso, presença e integrações Gympass/TotalPass.
-      </p>
-
-      <Tabs value={tab} onValueChange={setTab} className="space-y-6">
-        <div className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <TabsList className="flex w-max min-w-full justify-start gap-1 rounded-2xl border border-neutral-200 bg-white/70 p-1.5 shadow-sm backdrop-blur">
-            <TabsTrigger value="dashboard" className="gap-2 rounded-xl px-3 py-2 text-xs font-semibold data-[state=active]:bg-red-600 data-[state=active]:text-white data-[state=active]:shadow-[0_10px_25px_-12px_rgba(220,38,38,0.7)]"><Activity className="h-4 w-4" />Dashboard</TabsTrigger>
-            <TabsTrigger value="kiosk" className="gap-2 rounded-xl px-3 py-2 text-xs font-semibold data-[state=active]:bg-red-600 data-[state=active]:text-white data-[state=active]:shadow-[0_10px_25px_-12px_rgba(220,38,38,0.7)]"><ScanLine className="h-4 w-4" />Check-in</TabsTrigger>
-            <TabsTrigger value="present" className="gap-2 rounded-xl px-3 py-2 text-xs font-semibold data-[state=active]:bg-red-600 data-[state=active]:text-white data-[state=active]:shadow-[0_10px_25px_-12px_rgba(220,38,38,0.7)]"><Users className="h-4 w-4" />Presentes</TabsTrigger>
-            <TabsTrigger value="history" className="gap-2 rounded-xl px-3 py-2 text-xs font-semibold data-[state=active]:bg-red-600 data-[state=active]:text-white data-[state=active]:shadow-[0_10px_25px_-12px_rgba(220,38,38,0.7)]"><History className="h-4 w-4" />Histórico</TabsTrigger>
-            <TabsTrigger value="gympass" className="gap-2 rounded-xl px-3 py-2 text-xs font-semibold data-[state=active]:bg-red-600 data-[state=active]:text-white data-[state=active]:shadow-[0_10px_25px_-12px_rgba(220,38,38,0.7)]"><Shield className="h-4 w-4" />Gympass</TabsTrigger>
-            <TabsTrigger value="totalpass" className="gap-2 rounded-xl px-3 py-2 text-xs font-semibold data-[state=active]:bg-red-600 data-[state=active]:text-white data-[state=active]:shadow-[0_10px_25px_-12px_rgba(220,38,38,0.7)]"><Shield className="h-4 w-4" />TotalPass</TabsTrigger>
-            <TabsTrigger value="reports" className="gap-2 rounded-xl px-3 py-2 text-xs font-semibold data-[state=active]:bg-red-600 data-[state=active]:text-white data-[state=active]:shadow-[0_10px_25px_-12px_rgba(220,38,38,0.7)]"><FileBarChart2 className="h-4 w-4" />Relatórios</TabsTrigger>
-            <TabsTrigger value="settings" className="gap-2 rounded-xl px-3 py-2 text-xs font-semibold data-[state=active]:bg-red-600 data-[state=active]:text-white data-[state=active]:shadow-[0_10px_25px_-12px_rgba(220,38,38,0.7)]"><Settings2 className="h-4 w-4" />Configurações</TabsTrigger>
-          </TabsList>
-        </div>
-
-          <TabsContent value="dashboard"><DashboardPanel /></TabsContent>
-          <TabsContent value="kiosk"><KioskPanel /></TabsContent>
-          <TabsContent value="present"><PresentPanel /></TabsContent>
-          <TabsContent value="history"><HistoryPanel /></TabsContent>
-          <TabsContent value="gympass"><PartnerPanel provider="gympass" /></TabsContent>
-          <TabsContent value="totalpass"><PartnerPanel provider="totalpass" /></TabsContent>
-          <TabsContent value="reports"><ReportsPanel /></TabsContent>
-          <TabsContent value="settings"><SettingsPanel /></TabsContent>
-        </Tabs>
-    </div>
+      <TabsContent value="dashboard" className="mt-0"><DashboardPanel /></TabsContent>
+      <TabsContent value="kiosk" className="mt-0"><KioskPanel /></TabsContent>
+      <TabsContent value="present" className="mt-0"><PresentPanel /></TabsContent>
+      <TabsContent value="history" className="mt-0"><HistoryPanel /></TabsContent>
+      <TabsContent value="gympass" className="mt-0"><PartnerPanel provider="gympass" /></TabsContent>
+      <TabsContent value="totalpass" className="mt-0"><PartnerPanel provider="totalpass" /></TabsContent>
+      <TabsContent value="reports" className="mt-0"><ReportsPanel /></TabsContent>
+      <TabsContent value="settings" className="mt-0"><SettingsPanel /></TabsContent>
+    </Tabs>
   );
 }
 
 function HeroStat({ icon: Icon, label }: { icon: any; label: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-1 rounded-xl border border-white/10 bg-white/[0.04] px-2 py-2.5 backdrop-blur">
-      <Icon className="h-4 w-4 text-red-300" />
-      <span className="text-[10px] font-semibold uppercase tracking-widest text-white/60">{label}</span>
+    <div className="flex min-w-[72px] flex-col items-center justify-center gap-1 rounded-xl border border-neutral-200 bg-white px-3 py-2.5 shadow-xs">
+      <Icon className="h-4 w-4 text-red-600" />
+      <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-600">{label}</span>
     </div>
   );
 }

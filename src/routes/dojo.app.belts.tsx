@@ -32,6 +32,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { DojoPageHero } from "@/components/dojo/DojoPageHero";
 
 export const Route = createFileRoute("/dojo/app/belts")({
   head: () => ({ meta: [{ title: "Modalidades e Faixas — AMT Dojo Manager" }] }),
@@ -212,32 +213,26 @@ export function BeltsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 pb-10">
-      {/* Hero */}
-      <section className="relative overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-br from-neutral-950 via-neutral-900 to-[#3a0a0a] text-white shadow-[0_20px_60px_-30px_rgba(220,38,38,0.55)]">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-primary/25 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 -left-16 h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
-        <div className="relative grid gap-6 p-6 sm:p-8 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-          <div className="min-w-0">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/80 backdrop-blur">
-              <Shield className="h-3.5 w-3.5" /> Graduações
-            </div>
-            <h1 className="mt-3 text-3xl font-black leading-tight tracking-tight sm:text-4xl">
-              Modalidades <span className="text-primary">&</span> Faixas
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/70">
-              Gerencie as graduações de cada modalidade. Arraste pelo <GripVertical className="inline h-3.5 w-3.5 align-text-bottom" /> para reordenar.
-              {isAmtAdmin
-                ? " Como administrador AMT, suas alterações em faixas globais propagam para todos os usuários do sistema."
-                : " Faixas globais AMT são somente leitura; as faixas que você criar ficam salvas apenas no seu login."}
-            </p>
-          </div>
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 md:min-w-[280px]">
+      <DojoPageHero
+        icon={Shield}
+        eyebrow="Graduações"
+        title={<>Modalidades <span className="text-red-600">&</span> Faixas</>}
+        description={
+          <>
+            Gerencie as graduações de cada modalidade. Arraste pelo <GripVertical className="inline h-3.5 w-3.5 align-text-bottom" /> para reordenar.
+            {isAmtAdmin
+              ? " Como administrador AMT, suas alterações em faixas globais propagam para todos os usuários do sistema."
+              : " Faixas globais AMT são somente leitura; as faixas que você criar ficam salvas apenas no seu login."}
+          </>
+        }
+        actions={
+          <div className="grid w-full grid-cols-3 gap-2 sm:gap-3 lg:w-auto lg:min-w-[300px]">
             <StatChip label="Modalidades" value={modalities.length} />
             <StatChip label="Faixas" value={allBelts.length} />
             <StatChip label="Nesta aba" value={localBelts.length} highlight />
           </div>
-        </div>
-      </section>
+        }
+      />
 
       {/* Modalidade */}
       <Card className="rounded-2xl border-border/60 shadow-sm">
@@ -582,13 +577,13 @@ function StatChip({ label, value, highlight = false }: { label: string; value: n
   return (
     <div
       className={
-        "rounded-2xl border px-3 py-2 backdrop-blur transition-colors " +
+        "rounded-xl border px-3 py-2 shadow-xs transition-colors " +
         (highlight
-          ? "border-primary/40 bg-primary/15 text-white"
-          : "border-white/10 bg-white/5 text-white/85")
+          ? "border-red-200 bg-red-50 text-red-700"
+          : "border-neutral-200 bg-white text-neutral-950")
       }
     >
-      <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60">{label}</div>
+      <div className={"text-[10px] font-bold uppercase tracking-[0.12em] " + (highlight ? "text-red-600" : "text-neutral-500")}>{label}</div>
       <div className="mt-0.5 text-2xl font-black tabular-nums leading-none">{value}</div>
     </div>
   );

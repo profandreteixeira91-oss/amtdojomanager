@@ -17,6 +17,7 @@ import {
   type NotificationCategoryKey,
   type NotificationExtras,
 } from "@/lib/student-app/notification-prefs.functions";
+import { DojoPageHero } from "@/components/dojo/DojoPageHero";
 
 export const Route = createFileRoute("/dojo/app/student-notifications-config")({
   head: () => ({
@@ -154,57 +155,47 @@ function StudentNotificationsConfigPage() {
   }
 
   return (
-    <div className="dojo-theme min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-red-950/40">
-      <div className="mx-auto max-w-4xl px-4 pt-5 md:pt-7 pb-24">
-        {/* Hero */}
-        <div className="relative overflow-hidden rounded-2xl border border-red-500/20 bg-gradient-to-br from-neutral-950 via-neutral-900 to-red-950/50 p-5 text-white shadow-[0_20px_60px_-30px_rgba(220,38,38,0.55)] md:p-7">
-          <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-red-500/20 blur-3xl" />
-          <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex min-w-0 items-center gap-4">
-              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-amber-400 via-red-500 to-red-700 text-white ring-1 ring-white/20 shadow-[0_8px_24px_-8px_rgba(220,38,38,0.9)]">
-                <Bell className="h-6 w-6" />
-              </div>
-              <div className="min-w-0">
-                <Link to="/dojo/app/student-app-qr" className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-red-300/80 hover:text-red-200">
-                  <ArrowLeft className="h-3 w-3" /> App do Aluno
-                </Link>
-                <h1 className="mt-1 truncate text-xl font-semibold tracking-tight md:text-2xl">
-                  Notificações do App do Aluno
-                </h1>
-                <p className="mt-1 max-w-2xl text-sm text-neutral-300">
-                  Escolha quais avisos push serão enviados para o celular dos seus alunos e o momento exato de cada disparo.
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setAll(true)} className="h-9 border-red-500/30 bg-white/5 text-white hover:bg-white/10 hover:text-white text-xs">
+    <div>
+      <div className="mx-auto max-w-4xl pb-24">
+        <DojoPageHero
+          icon={Bell}
+          eyebrow={
+            <Link to="/dojo/app/student-app-qr" className="inline-flex items-center gap-1 hover:text-red-700">
+              <ArrowLeft className="h-3 w-3" /> App do Aluno
+            </Link>
+          }
+          title="Notificações do App do Aluno"
+          description="Escolha quais avisos push serão enviados para o celular dos seus alunos e o momento exato de cada disparo."
+          actions={
+            <>
+              <Button variant="outline" onClick={() => setAll(true)} className="h-9 text-xs">
                 Ativar tudo
               </Button>
-              <Button variant="outline" onClick={() => setAll(false)} className="h-9 border-red-500/30 bg-white/5 text-white hover:bg-white/10 hover:text-white text-xs">
+              <Button variant="outline" onClick={() => setAll(false)} className="h-9 text-xs">
                 Desativar tudo
               </Button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         {/* Fine-grained timing */}
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
           {/* Class reminders */}
-          <section className="rounded-2xl border border-red-500/15 bg-neutral-950/60 p-4 md:p-5 text-white shadow-[0_10px_30px_-20px_rgba(220,38,38,0.6)]">
+          <section className="rounded-2xl border border-[color:var(--dojo-border)] bg-white p-4 md:p-5 text-neutral-950 shadow-xs">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-red-300" />
-                <h2 className="text-sm font-semibold text-neutral-100">Lembretes de aula</h2>
+                <Clock className="h-4 w-4 text-red-600" />
+                <h2 className="text-sm font-semibold text-neutral-900">Lembretes de aula</h2>
               </div>
               <Switch checked={!!state.class_reminder} onCheckedChange={(v) => toggle("class_reminder", !!v)} />
             </div>
-            <p className="mt-1 text-xs text-neutral-400">Minutos antes do início da aula. Pode configurar vários disparos.</p>
+            <p className="mt-1 text-xs text-neutral-500">Minutos antes do início da aula. Pode configurar vários disparos.</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {extras.class_reminder_offsets_min.length === 0 && (
                 <span className="text-xs text-neutral-500">Nenhum disparo configurado.</span>
               )}
               {extras.class_reminder_offsets_min.map((m) => (
-                <span key={m} className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs text-red-100">
+                <span key={m} className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs text--700">
                   {m === 0 ? "no horário" : `${m} min antes`}
                   <button type="button" onClick={() => removeClassOffset(m)} className="ml-1 rounded hover:bg-red-500/20 p-0.5">
                     <X className="h-3 w-3" />
@@ -221,7 +212,7 @@ function StudentNotificationsConfigPage() {
                 placeholder="Ex: 30"
                 value={newClassOffset}
                 onChange={(e) => setNewClassOffset(e.target.value)}
-                className="h-9 bg-neutral-900/80 border-red-500/20 text-white placeholder:text-neutral-500"
+                className="h-9 bg-white border-[color:var(--dojo-border)] text-neutral-950 placeholder:text-neutral-500"
               />
               <Button type="button" onClick={addClassOffset} className="h-9 shrink-0 bg-red-600 hover:bg-red-500 text-white">
                 <Plus className="h-4 w-4 mr-1" /> Add
@@ -230,21 +221,21 @@ function StudentNotificationsConfigPage() {
           </section>
 
           {/* Invoice due soon */}
-          <section className="rounded-2xl border border-red-500/15 bg-neutral-950/60 p-4 md:p-5 text-white shadow-[0_10px_30px_-20px_rgba(220,38,38,0.6)]">
+          <section className="rounded-2xl border border-[color:var(--dojo-border)] bg-white p-4 md:p-5 text-neutral-950 shadow-xs">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-red-300" />
-                <h2 className="text-sm font-semibold text-neutral-100">Cobrança a vencer</h2>
+                <Calendar className="h-4 w-4 text-red-600" />
+                <h2 className="text-sm font-semibold text-neutral-900">Cobrança a vencer</h2>
               </div>
               <Switch checked={!!state.invoice_due_soon} onCheckedChange={(v) => toggle("invoice_due_soon", !!v)} />
             </div>
-            <p className="mt-1 text-xs text-neutral-400">Dias antes do vencimento. Pode configurar vários disparos (0 = no dia do vencimento).</p>
+            <p className="mt-1 text-xs text-neutral-500">Dias antes do vencimento. Pode configurar vários disparos (0 = no dia do vencimento).</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {extras.invoice_due_soon_offsets_days.length === 0 && (
                 <span className="text-xs text-neutral-500">Nenhum disparo configurado.</span>
               )}
               {extras.invoice_due_soon_offsets_days.map((d) => (
-                <span key={d} className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs text-red-100">
+                <span key={d} className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs text--700">
                   {d === 0 ? "no vencimento" : `${d} dia${d > 1 ? "s" : ""} antes`}
                   <button type="button" onClick={() => removeDueOffset(d)} className="ml-1 rounded hover:bg-red-500/20 p-0.5">
                     <X className="h-3 w-3" />
@@ -261,7 +252,7 @@ function StudentNotificationsConfigPage() {
                 placeholder="Ex: 3"
                 value={newDueOffset}
                 onChange={(e) => setNewDueOffset(e.target.value)}
-                className="h-9 bg-neutral-900/80 border-red-500/20 text-white placeholder:text-neutral-500"
+                className="h-9 bg-white border-[color:var(--dojo-border)] text-neutral-950 placeholder:text-neutral-500"
               />
               <Button type="button" onClick={addDueOffset} className="h-9 shrink-0 bg-red-600 hover:bg-red-500 text-white">
                 <Plus className="h-4 w-4 mr-1" /> Add
@@ -270,21 +261,21 @@ function StudentNotificationsConfigPage() {
           </section>
 
           {/* Invoice overdue (multi-offset) */}
-          <section className="rounded-2xl border border-red-500/15 bg-neutral-950/60 p-4 md:p-5 text-white shadow-[0_10px_30px_-20px_rgba(220,38,38,0.6)]">
+          <section className="rounded-2xl border border-[color:var(--dojo-border)] bg-white p-4 md:p-5 text-neutral-950 shadow-xs">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-red-300" />
-                <h2 className="text-sm font-semibold text-neutral-100">Cobrança vencida</h2>
+                <AlertTriangle className="h-4 w-4 text-red-600" />
+                <h2 className="text-sm font-semibold text-neutral-900">Cobrança vencida</h2>
               </div>
               <Switch checked={!!state.invoice_overdue} onCheckedChange={(v) => toggle("invoice_overdue", !!v)} />
             </div>
-            <p className="mt-1 text-xs text-neutral-400">Dias após o vencimento. Pode configurar vários disparos.</p>
+            <p className="mt-1 text-xs text-neutral-500">Dias após o vencimento. Pode configurar vários disparos.</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {extras.invoice_overdue_offsets_days.length === 0 && (
                 <span className="text-xs text-neutral-500">Nenhum disparo configurado.</span>
               )}
               {extras.invoice_overdue_offsets_days.map((d) => (
-                <span key={d} className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs text-red-100">
+                <span key={d} className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs text--700">
                   {d} dia{d > 1 ? "s" : ""} após
                   <button type="button" onClick={() => removeOverdueOffset(d)} className="ml-1 rounded hover:bg-red-500/20 p-0.5">
                     <X className="h-3 w-3" />
@@ -301,7 +292,7 @@ function StudentNotificationsConfigPage() {
                 placeholder="Ex: 5"
                 value={newOverdueOffset}
                 onChange={(e) => setNewOverdueOffset(e.target.value)}
-                className="h-9 bg-neutral-900/80 border-red-500/20 text-white placeholder:text-neutral-500"
+                className="h-9 bg-white border-[color:var(--dojo-border)] text-neutral-950 placeholder:text-neutral-500"
               />
               <Button type="button" onClick={addOverdueOffset} className="h-9 shrink-0 bg-red-600 hover:bg-red-500 text-white">
                 <Plus className="h-4 w-4 mr-1" /> Add
@@ -318,15 +309,15 @@ function StudentNotificationsConfigPage() {
             return (
               <section
                 key={group}
-                className="rounded-2xl border border-red-500/15 bg-neutral-950/60 p-4 md:p-5 text-white shadow-[0_10px_30px_-20px_rgba(220,38,38,0.6)]"
+                className="rounded-2xl border border-[color:var(--dojo-border)] bg-white p-4 md:p-5 text-neutral-950 shadow-xs"
               >
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-red-300/80">{group}</h2>
-                <ul className="mt-3 divide-y divide-white/5">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-red-600">{group}</h2>
+                <ul className="mt-3 divide-y divide-neutral-100">
                   {items.map((item) => (
                     <li key={item.key} className="flex items-start justify-between gap-4 py-3">
                       <div className="min-w-0">
-                        <div className="text-sm font-semibold text-neutral-100">{item.label}</div>
-                        <div className="mt-0.5 text-xs text-neutral-400">{item.description}</div>
+                        <div className="text-sm font-semibold text-neutral-900">{item.label}</div>
+                        <div className="mt-0.5 text-xs text-neutral-500">{item.description}</div>
                       </div>
                       <Switch
                         checked={!!state[item.key]}
@@ -345,7 +336,7 @@ function StudentNotificationsConfigPage() {
           <Button
             onClick={save}
             disabled={saving || isLoading}
-            className="h-11 bg-gradient-to-br from-red-600 to-red-800 text-white shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)] hover:from-red-500 hover:to-red-700"
+            className="h-11 bg-gradient-to-br from-red-600 to-red-800 text-white shadow-xs hover:from-red-500 hover:to-red-700"
           >
             <Save className="mr-2 h-4 w-4" />
             {saving ? "Salvando…" : "Salvar preferências"}

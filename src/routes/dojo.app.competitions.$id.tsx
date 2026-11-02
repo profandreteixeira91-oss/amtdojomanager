@@ -3,7 +3,8 @@ import { useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Plus, ExternalLink, Pencil, FileCheck2, FileX2 } from "lucide-react";
+import { ArrowLeft, Trophy, Trash2, Plus, ExternalLink, Pencil, FileCheck2, FileX2 } from "lucide-react";
+import { DojoPageHero, HeroChip } from "@/components/dojo/DojoPageHero";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -76,20 +77,29 @@ function ManagePage() {
   const comp = row.competition;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5 px-4 py-6">
-      <div className="flex items-center gap-2">
-        <Button asChild size="sm" variant="ghost"><Link to="/dojo/app/competitions"><ArrowLeft className="h-4 w-4" /></Link></Button>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-xl font-bold">{comp?.name}</h1>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <Badge variant="outline">{scopeLabel(comp?.scope)}</Badge>
-            {comp?.tier && comp.tier !== "other" && <Badge variant="outline">{tierLabel(comp?.tier)}</Badge>}
-            {comp?.start_at && <span>{new Date(comp.start_at).toLocaleDateString("pt-BR")}</span>}
-            {(comp?.city || comp?.state) && <span>{comp?.city}{comp?.state && `/${comp.state}`}</span>}
-            {comp?.official_url && <a href={comp.official_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-500 hover:underline"><ExternalLink className="h-3 w-3" />site oficial</a>}
-          </div>
-        </div>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-6">
+      <DojoPageHero
+        icon={Trophy}
+        eyebrow={
+          <Link to="/dojo/app/competitions" className="inline-flex items-center gap-1 hover:text-red-700">
+            <ArrowLeft className="h-3 w-3" /> Competições
+          </Link>
+        }
+        title={comp?.name}
+        meta={
+          <>
+            <HeroChip>{scopeLabel(comp?.scope)}</HeroChip>
+            {comp?.tier && comp.tier !== "other" && <HeroChip>{tierLabel(comp?.tier)}</HeroChip>}
+            {comp?.start_at && <HeroChip>{new Date(comp.start_at).toLocaleDateString("pt-BR")}</HeroChip>}
+            {(comp?.city || comp?.state) && <HeroChip>{comp?.city}{comp?.state && `/${comp.state}`}</HeroChip>}
+            {comp?.official_url && (
+              <a href={comp.official_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-red-700 hover:underline">
+                <ExternalLink className="h-3 w-3" />site oficial
+              </a>
+            )}
+          </>
+        }
+      />
 
       <Tabs defaultValue="athletes" className="space-y-4">
         <TabsList className="flex flex-wrap">

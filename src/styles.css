@@ -311,9 +311,12 @@
 /* body:has(...) leva os mesmos tokens aos diálogos e menus portados para fora do painel. */
 .dojo-theme,
 body:has(.dojo-theme) {
-  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+  /* Arial em todo o painel; Arimo (mesmas métricas) cobre Android/Linux sem Arial. */
+  --dojo-font: Arial, "Helvetica Neue", Helvetica, Arimo, "Liberation Sans", ui-sans-serif, sans-serif;
+  font-family: var(--dojo-font);
+  font-feature-settings: normal;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 
   /* Neutros puros, sem tinta de cor */
@@ -368,30 +371,31 @@ body:has(.dojo-theme) {
   --ring: oklch(0.577 0.215 27.33);
   --radius: 0.625rem;
 
-  /* Sidebar — branca, borda sutil */
-  --sidebar: #ffffff;
-  --sidebar-foreground: var(--dojo-fg-2);
-  --sidebar-primary: var(--dojo-accent);
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: var(--dojo-surface-3);
-  --sidebar-accent-foreground: var(--dojo-fg);
-  --sidebar-border: var(--dojo-border);
-  --sidebar-ring: var(--dojo-accent);
+  /* Sidebar — vermelho da marca, textos brancos */
+  --dojo-sidebar-bg: linear-gradient(180deg, #dc2626 0%, #c81f1f 42%, #a11818 100%);
+  --sidebar: #c81f1f;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #b91c1c;
+  --sidebar-accent: rgb(255 255 255 / 0.12);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgb(255 255 255 / 0.16);
+  --sidebar-ring: #ffffff;
 }
 
-/* Mobile sidebar Sheet portals outside .dojo-theme — force light Dojo tokens on the portalled element */
+/* A sidebar do celular é portada para fora do .dojo-theme: repete os tokens vermelhos */
 body:has(.dojo-theme) [data-sidebar="sidebar"][data-mobile="true"],
 body:has(.dojo-theme) [data-slot="sheet-content"][data-sidebar="sidebar"] {
-  --sidebar: #ffffff;
-  --sidebar-foreground: #262626;
-  --sidebar-primary: #dc2626;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f4f4f5;
-  --sidebar-accent-foreground: #0a0a0a;
-  --sidebar-border: #e8e8e8;
-  --sidebar-ring: #dc2626;
-  background-color: #ffffff;
-  color: #0a0a0a;
+  --sidebar: #c81f1f;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #b91c1c;
+  --sidebar-accent: rgb(255 255 255 / 0.12);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgb(255 255 255 / 0.16);
+  --sidebar-ring: #ffffff;
+  background: linear-gradient(180deg, #dc2626 0%, #c81f1f 42%, #a11818 100%);
+  color: #ffffff;
 }
 
 /* Admin shell — force light sidebar tokens (scoped to /admin) */
@@ -436,8 +440,8 @@ body:has(.dojo-theme) [data-slot="sheet-content"][data-sidebar="sidebar"] {
   :where(.dojo-theme) h2,
   :where(.dojo-theme) h3,
   :where(.dojo-theme) h4 {
-    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
-    letter-spacing: -0.02em;
+    font-family: var(--dojo-font);
+    letter-spacing: -0.015em;
     font-weight: 700;
   }
 
@@ -579,42 +583,74 @@ body:has(.dojo-theme) [data-slot="sheet-content"][data-sidebar="sidebar"] {
   border: 1px solid #fee2e2;
 }
 
-/* Sidebar */
-.dojo-theme [data-sidebar="sidebar"] {
-  background: var(--dojo-surface);
+/* Arial não tem pesos 800/900 (o Windows troca por Arial Black, larga e datada):
+   o painel usa no máximo o negrito 700. */
+.dojo-theme :is(.font-black, .font-extrabold),
+body:has(.dojo-theme) [role="dialog"] :is(.font-black, .font-extrabold) {
+  font-weight: 700;
 }
-.dojo-theme [data-sidebar="group-label"] {
+
+/* Cards do shadcn — mesma linguagem do .dojo-card */
+.dojo-theme [data-slot="card"] {
+  border-color: var(--dojo-border);
+  border-radius: 14px;
+}
+.dojo-theme [data-slot="card-title"] {
+  color: var(--dojo-fg);
+  letter-spacing: -0.012em;
+  font-weight: 700;
+}
+.dojo-theme [data-slot="card-description"] {
+  color: var(--dojo-muted-fg);
+  line-height: 1.5;
+}
+
+/* Sidebar — vermelha, textos brancos */
+.dojo-theme [data-sidebar="sidebar"],
+body:has(.dojo-theme) [data-sidebar="sidebar"][data-mobile="true"] {
+  background: var(--dojo-sidebar-bg, linear-gradient(180deg, #dc2626 0%, #c81f1f 42%, #a11818 100%));
+  color: #ffffff;
+}
+:is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="group-label"] {
   font-size: 0.625rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #a3a3a3;
+  color: rgb(255 255 255 / 0.62);
 }
-.dojo-theme [data-sidebar="menu-button"] {
-  border-radius: 8px;
+:is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="menu-button"] {
+  border-radius: 9px;
   font-weight: 500;
-  color: var(--dojo-fg-2);
-  transition: background-color 150ms ease, color 150ms ease;
+  color: rgb(255 255 255 / 0.92);
+  transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
 }
-.dojo-theme [data-sidebar="menu-button"] svg {
-  color: #8a8a8a;
+:is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="menu-button"] svg {
+  color: rgb(255 255 255 / 0.78);
   transition: color 150ms ease;
 }
-.dojo-theme [data-sidebar="menu-button"]:hover {
-  background: var(--dojo-surface-3);
-  color: var(--dojo-fg);
+:is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="menu-button"]:hover {
+  background: rgb(255 255 255 / 0.12);
+  color: #ffffff;
 }
-.dojo-theme [data-sidebar="menu-button"]:hover svg {
-  color: var(--dojo-fg);
+:is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="menu-button"]:hover svg {
+  color: #ffffff;
 }
-.dojo-theme [data-sidebar="menu-button"][data-active="true"],
-.dojo-theme [data-sidebar="menu-button"][data-active="true"]:hover {
-  background: var(--dojo-accent-soft);
-  color: var(--dojo-accent-strong);
-  font-weight: 600;
+:is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="menu-button"][data-active="true"],
+:is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="menu-button"][data-active="true"]:hover {
+  background: rgb(255 255 255 / 0.2);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 #ffffff, 0 1px 2px rgb(80 0 0 / 0.25);
 }
-.dojo-theme [data-sidebar="menu-button"][data-active="true"] svg {
-  color: var(--dojo-accent);
+:is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="menu-button"][data-active="true"] svg {
+  color: #ffffff;
+}
+:is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="sidebar"] :focus-visible {
+  outline-color: #ffffff;
+}
+:is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="content"]::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 0.28);
+  background-clip: padding-box;
 }
 
 /* Área de conteúdo do painel */
@@ -624,9 +660,33 @@ body:has(.dojo-theme) [data-slot="sheet-content"][data-sidebar="sidebar"] {
 
 /* Topbar translúcida */
 .dojo-theme .dojo-topbar {
-  background: rgb(255 255 255 / 0.82);
+  background: rgb(255 255 255 / 0.86);
   backdrop-filter: saturate(180%) blur(14px);
   -webkit-backdrop-filter: saturate(180%) blur(14px);
+}
+
+/* Card de título das páginas (DojoPageHero) */
+.dojo-theme .dojo-hero {
+  background-color: #ffffff;
+  background-image:
+    radial-gradient(560px 220px at 100% 0%, rgb(220 38 38 / 0.075), transparent 70%),
+    radial-gradient(420px 180px at 0% 100%, rgb(10 10 10 / 0.025), transparent 70%);
+  border: 1px solid var(--dojo-border);
+  border-radius: 18px;
+  box-shadow: 0 1px 2px rgb(10 10 10 / 0.04), 0 10px 28px -18px rgb(10 10 10 / 0.18);
+}
+.dojo-theme .dojo-hero-pattern {
+  background-image: radial-gradient(rgb(220 38 38 / 0.16) 1px, transparent 1px);
+  background-size: 14px 14px;
+  -webkit-mask-image: linear-gradient(225deg, #000 0%, transparent 55%);
+  mask-image: linear-gradient(225deg, #000 0%, transparent 55%);
+}
+.dojo-theme .dojo-hero-icon {
+  background: linear-gradient(145deg, #ef4444 0%, #dc2626 45%, #991b1b 100%);
+  box-shadow: 0 8px 18px -8px rgb(220 38 38 / 0.65), inset 0 1px 0 rgb(255 255 255 / 0.25);
+}
+.dojo-theme .dojo-hero [data-slot="button"] {
+  border-radius: 10px;
 }
 
 /* Scrollbar refinement (webkit) */

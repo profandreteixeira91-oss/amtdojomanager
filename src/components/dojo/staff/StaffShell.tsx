@@ -26,6 +26,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { DojoLogo } from "@/components/dojo/DojoLogo";
+import { DojoPageHero } from "@/components/dojo/DojoPageHero";
 import { visibleStaffModules, type StaffModule } from "@/lib/dojo/staff-modules";
 import { useStaff } from "@/components/dojo/staff/staff-context";
 
@@ -63,7 +64,7 @@ export function StaffShell({ children }: { children: ReactNode }) {
   const isActive = (to: string) => (to === "/dojo/staff" ? pathname === to : pathname.startsWith(to));
 
   return (
-    <div className="min-h-screen bg-neutral-50 text-foreground">
+    <div className="dojo-theme min-h-screen bg-[color:var(--dojo-canvas)] text-foreground">
       <header className="sticky top-0 z-30 border-b border-border bg-white/85 backdrop-blur-md supports-[backdrop-filter]:bg-white/75">
         <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-red-700 via-red-600 to-red-500" />
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-3 md:h-16 md:px-4">
@@ -105,8 +106,11 @@ export function StaffShell({ children }: { children: ReactNode }) {
 
       <div className="mx-auto flex max-w-6xl gap-6 px-3 py-5 pb-28 md:px-4 md:py-6 md:pb-8">
         <nav className="hidden w-56 shrink-0 md:block" aria-label="Navegação do professor">
-          <div className="sticky top-24 rounded-xl border border-border bg-white p-2 shadow-xs">
-            <div className="px-2 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
+          <div
+            className="sticky top-24 rounded-2xl p-2 text-white shadow-[0_12px_28px_-14px_rgb(127_29_29_/_0.7)]"
+            style={{ background: "var(--dojo-sidebar-bg)" }}
+          >
+            <div className="px-2 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/60">
               Módulos
             </div>
             <ul className="space-y-0.5">
@@ -120,11 +124,11 @@ export function StaffShell({ children }: { children: ReactNode }) {
                       className={cn(
                         "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors",
                         active
-                          ? "bg-red-50 font-semibold text-red-800"
-                          : "font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-950",
+                          ? "bg-white/20 font-bold text-white shadow-[inset_3px_0_0_#fff]"
+                          : "font-medium text-white/90 hover:bg-white/12 hover:text-white",
                       )}
                     >
-                      <Icon className={cn("h-4 w-4 shrink-0", active ? "text-primary" : "text-neutral-400")} />
+                      <Icon className={cn("h-4 w-4 shrink-0", active ? "text-white" : "text-white/75")} />
                       <span className="truncate">{m.label}</span>
                     </Link>
                   </li>
@@ -187,20 +191,24 @@ export function StaffPageHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-      <div className="min-w-0">
-        <h1 className="text-xl font-bold tracking-tight text-neutral-950 md:text-2xl">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
-      </div>
-      <div className="flex items-center gap-2">
-        {readOnly && (
-          <Badge variant="secondary" className="gap-1">
-            <Eye className="h-3 w-3" /> Somente leitura
-          </Badge>
-        )}
-        {action}
-      </div>
-    </div>
+    <DojoPageHero
+      className="mb-5"
+      eyebrow="Portal da Equipe"
+      title={title}
+      description={subtitle}
+      actions={
+        readOnly || action ? (
+          <>
+            {readOnly && (
+              <Badge variant="secondary" className="gap-1">
+                <Eye className="h-3 w-3" /> Somente leitura
+              </Badge>
+            )}
+            {action}
+          </>
+        ) : undefined
+      }
+    />
   );
 }
 

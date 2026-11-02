@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DojoPageHero, SUBNAV_TABSLIST_CLS, SUBNAV_TRIGGER_CLS } from "@/components/dojo/DojoPageHero";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
@@ -89,38 +90,27 @@ function CorporateBenefitsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 min-w-0 overflow-x-hidden md:gap-7">
-      {/* ============ HERO — ============ */}
-      <div className="relative overflow-hidden rounded-2xl border border-red-500/20 bg-gradient-to-br from-neutral-950 via-neutral-900 to-red-950/50 p-5 text-white shadow-[0_20px_60px_-30px_rgba(220,38,38,0.55)] md:p-7">
-        <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-red-500/20 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-amber-500/10 blur-3xl" />
-        <div className="relative flex flex-wrap items-center gap-4">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-amber-400 via-red-500 to-red-700 text-white ring-1 ring-white/20 shadow-[0_8px_24px_-8px_rgba(220,38,38,0.9)]">
-            <ShieldCheck className="h-6 w-6" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-xl font-semibold tracking-tight md:text-2xl">Benefícios Corporativos</h1>
-            <p className="mt-1 max-w-2xl text-sm text-neutral-300">
-              Conecte sua academia às principais plataformas (Gympass, TotalPass) e habilite check-ins via convênio.
-            </p>
-          </div>
-        </div>
-      </div>
+      <DojoPageHero
+        icon={ShieldCheck}
+        eyebrow="Estrutura"
+        title="Benefícios Corporativos"
+        description="Conecte sua academia às principais plataformas (Gympass, TotalPass) e habilite check-ins via convênio."
+      />
 
       {/* Empty state: nenhuma integração */}
       {!overview.isLoading && !hasAnyConnected && (
-        <div className="relative overflow-hidden rounded-2xl border border-red-500/15 bg-gradient-to-br from-neutral-950 via-neutral-900 to-red-950/40 p-8 text-center text-white shadow-[0_16px_50px_-30px_rgba(220,38,38,0.6)]">
-          <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(220,38,38,0.18),transparent_60%)]" />
+        <div className="relative overflow-hidden rounded-2xl border border-dashed border-red-200 bg-white p-8 text-center shadow-xs">
+          <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(220,38,38,0.08),transparent_60%)]" />
           <div className="relative">
-            <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-amber-400 via-red-500 to-red-700 ring-1 ring-white/20 shadow-[0_10px_30px_-10px_rgba(220,38,38,0.9)]">
+            <div className="dojo-hero-icon mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl text-white">
               <ShieldCheck className="h-7 w-7" />
             </div>
-            <h2 className="text-xl font-semibold tracking-tight">Ative sua primeira plataforma</h2>
-            <p className="mx-auto mt-2 mb-5 max-w-md text-sm text-neutral-300">
+            <h2 className="text-xl font-bold tracking-tight text-neutral-950">Ative sua primeira plataforma</h2>
+            <p className="mx-auto mt-2 mb-5 max-w-md text-sm text-neutral-600">
               Permita que alunos realizem check-ins utilizando seus planos corporativos. Configuração em poucos minutos.
             </p>
             <Button
               size="lg"
-              className="bg-gradient-to-br from-red-600 to-red-800 text-white hover:from-red-500 hover:to-red-700 shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)]"
               onClick={() => document.getElementById("providers-list")?.scrollIntoView({ behavior: "smooth" })}
             >
               <Plus className="h-4 w-4 mr-2" /> Conectar Plataforma
@@ -148,8 +138,8 @@ function CorporateBenefitsPage() {
       </div>
 
       <Tabs defaultValue="platforms" className="w-full">
-        <div className="overflow-x-auto rounded-xl border border-red-500/15 bg-neutral-950/60 p-1 shadow-[0_10px_30px_-20px_rgba(220,38,38,0.6)]">
-          <TabsList className="flex w-max min-w-full flex-nowrap gap-1 bg-transparent p-0">
+        <div className="overflow-x-auto rounded-xl border border-[color:var(--dojo-border)] bg-neutral-100/80 p-1">
+          <TabsList className={SUBNAV_TABSLIST_CLS}>
             {[
               { v: "platforms", label: "Plataformas" },
               { v: "beneficiaries", label: "Beneficiários" },
@@ -159,7 +149,7 @@ function CorporateBenefitsPage() {
               <TabsTrigger
                 key={t.v}
                 value={t.v}
-                className="shrink-0 rounded-lg px-3 py-2 text-xs font-medium text-neutral-300 hover:bg-white/5 hover:text-white data-[state=active]:bg-gradient-to-br data-[state=active]:from-red-600 data-[state=active]:to-red-800 data-[state=active]:text-white data-[state=active]:shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)]"
+                className={SUBNAV_TRIGGER_CLS}
               >
                 {t.label}
               </TabsTrigger>
@@ -466,24 +456,23 @@ function KpiCard({
   isText?: boolean;
 }) {
   const toneMap: Record<string, string> = {
-    orange: "bg-orange-500/15 text-orange-300 ring-orange-500/30",
-    blue: "bg-blue-500/15 text-blue-300 ring-blue-500/30",
-    emerald: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
-    violet: "bg-violet-500/15 text-violet-300 ring-violet-500/30",
-    red: "bg-red-500/15 text-red-300 ring-red-500/30",
-    amber: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
-    slate: "bg-slate-500/15 text-slate-300 ring-slate-500/30",
+    orange: "bg-orange-50 text-orange-600 ring-orange-200",
+    blue: "bg-blue-50 text-blue-600 ring-blue-200",
+    emerald: "bg-emerald-50 text-emerald-600 ring-emerald-200",
+    violet: "bg-violet-50 text-violet-600 ring-violet-200",
+    red: "bg-red-50 text-red-600 ring-red-200",
+    amber: "bg-amber-50 text-amber-600 ring-amber-200",
+    slate: "bg-slate-100 text-slate-600 ring-slate-200",
   };
   return (
-    <div className="relative overflow-hidden rounded-xl border border-red-500/10 bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 p-3 text-white shadow-[0_10px_30px_-20px_rgba(220,38,38,0.5)]">
-      <div aria-hidden className="pointer-events-none absolute -right-8 -top-8 h-20 w-20 rounded-full bg-red-500/10 blur-2xl" />
-      <div className="relative flex items-center gap-2 mb-1">
+    <div className="dojo-card relative overflow-hidden p-3">
+      <div className="relative mb-1 flex items-center gap-2">
         <div className={cn("h-7 w-7 rounded-lg ring-1 flex items-center justify-center", toneMap[tone])}>
           <Icon className="h-3.5 w-3.5" />
         </div>
-        <div className="text-[11px] text-neutral-400 truncate">{label}</div>
+        <div className="truncate text-[11px] font-medium text-neutral-500">{label}</div>
       </div>
-      <div className={cn("font-semibold text-white", isText ? "text-sm" : "text-2xl")}>{value}</div>
+      <div className={cn("font-bold tabular-nums text-neutral-950", isText ? "text-sm" : "text-2xl")}>{value}</div>
     </div>
   );
 }

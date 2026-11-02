@@ -206,72 +206,59 @@ function HeroHeader({
       .slice(0, 2)
       .join("")
       .toUpperCase();
+  const stats = [
+    { label: "Alunos ativos", value: String(activeCount), hint: `de ${studentsCount}`, tone: "text-neutral-950" },
+    { label: "AMT Pay", value: brl(balance), hint: "saldo total", tone: "text-neutral-950" },
+    { label: "Atrasos", value: String(overdueCount), hint: overdueCount === 1 ? "fatura" : "faturas", tone: overdueCount > 0 ? "text-red-600" : "text-neutral-950" },
+  ];
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-[color:var(--dojo-border)] bg-gradient-to-br from-neutral-950 via-neutral-900 to-red-950 text-white shadow-lg">
-      <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-red-600/40 blur-3xl" />
-      <div className="absolute -left-16 -bottom-24 h-72 w-72 rounded-full bg-white/5 blur-3xl" />
-      <div className="relative px-4 py-5 sm:px-5 sm:py-6 md:px-7 md:py-8 grid gap-6 md:grid-cols-[minmax(0,1fr)_auto] items-end">
-        <div className="min-w-0">
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur px-3 py-1 text-[11px] uppercase tracking-widest">
-            <Sparkles className="h-3 w-3" /> Painel executivo
-          </div>
-          <p className="mt-3 text-sm md:text-base text-white/85 font-medium">
-            {greeting}
-            {fullName ? <>, <span className="text-white">{fullName}</span></> : null}
-          </p>
-          <div className="mt-2 flex items-center gap-3 md:gap-4">
-            <Link
-              to="/dojo/app/account"
-              search={{ tab: "profile", onboarding: undefined }}
-              className="relative shrink-0 group"
-              aria-label="Editar logotipo em Minha conta"
-              title={academyName ?? "Minha conta"}
-            >
-              <div className="h-14 w-14 md:h-16 md:w-16 rounded-2xl bg-white/95 ring-2 ring-white/40 shadow-xl overflow-hidden flex items-center justify-center transition group-hover:ring-white/70">
-                {logoUrl ? (
-                  <img
-                    src={logoUrl}
-                    alt={academyName ?? "Logotipo da academia"}
-                    className="h-full w-full object-contain p-1"
-                  />
-                ) : (
-                  <span className="font-display font-black text-neutral-900 text-lg md:text-xl">
-                    {initials}
-                  </span>
-                )}
-              </div>
-            </Link>
-            <div className="min-w-0">
-              <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-black leading-tight truncate">
-                Bom te ver por aqui.
-              </h1>
-              <p className="mt-1 text-sm text-white/70 capitalize">{today}</p>
+    <section className="dojo-hero relative overflow-hidden">
+      <div aria-hidden className="dojo-hero-pattern pointer-events-none absolute inset-0" />
+      <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-red-500 via-red-600 to-red-800" />
+      <div className="relative grid items-center gap-5 px-5 py-5 sm:px-6 sm:py-6 md:px-7 lg:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="flex min-w-0 items-center gap-4">
+          <Link
+            to="/dojo/app/account"
+            search={{ tab: "profile", onboarding: undefined }}
+            className="group relative shrink-0"
+            aria-label="Editar logotipo em Minha conta"
+            title={academyName ?? "Minha conta"}
+          >
+            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-neutral-200 transition group-hover:ring-red-300 md:h-16 md:w-16">
+              {logoUrl ? (
+                <img src={logoUrl} alt={academyName ?? "Logotipo da academia"} className="h-full w-full object-contain p-1" />
+              ) : (
+                <span className="dojo-hero-icon grid h-full w-full place-items-center text-lg font-bold text-white md:text-xl">
+                  {initials}
+                </span>
+              )}
             </div>
+          </Link>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-red-600">
+              <Sparkles className="h-3 w-3" /> Painel executivo
+            </div>
+            <h1 className="mt-1 truncate text-[22px] font-bold leading-tight tracking-tight text-neutral-950 sm:text-2xl md:text-[28px]">
+              {greeting}
+              {fullName ? `, ${fullName.split(/\s+/)[0]}` : ""}!
+            </h1>
+            <p className="mt-1 truncate text-sm capitalize text-neutral-500">
+              {academyName ? <><span className="normal-case font-medium text-neutral-700">{academyName}</span> · </> : null}
+              {today}
+            </p>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 min-w-0">
-          <div className="min-w-0 rounded-xl bg-white/8 backdrop-blur border border-white/10 px-2.5 py-2 sm:px-3 sm:py-2.5">
-            <div className="text-[9px] sm:text-[10px] uppercase tracking-widest text-white/60">Alunos</div>
-            <div className="font-display text-lg sm:text-xl font-bold">{activeCount}</div>
-            <div className="text-[10px] text-white/60">de {studentsCount}</div>
-          </div>
-          <div className="min-w-0 rounded-xl bg-white/8 backdrop-blur border border-white/10 px-2.5 py-2 sm:px-3 sm:py-2.5">
-            <div className="text-[9px] sm:text-[10px] uppercase tracking-widest text-white/60">AMT Pay</div>
-            <div className="font-display text-base sm:text-xl font-bold tabular-nums truncate">
-              {brl(balance)}
+        <div className="grid min-w-0 grid-cols-3 gap-2 sm:gap-3">
+          {stats.map((s) => (
+            <div key={s.label} className="min-w-0 rounded-xl border border-neutral-200 bg-white/90 px-3 py-2.5 shadow-xs sm:min-w-[132px] sm:px-4 sm:py-3">
+              <div className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-500">{s.label}</div>
+              <div className={`mt-0.5 truncate text-lg font-bold tabular-nums sm:text-xl ${s.tone}`}>{s.value}</div>
+              <div className="truncate text-[11px] text-neutral-500">{s.hint}</div>
             </div>
-            <div className="text-[10px] text-white/60">saldo total</div>
-          </div>
-          <div className="min-w-0 rounded-xl bg-white/8 backdrop-blur border border-white/10 px-2.5 py-2 sm:px-3 sm:py-2.5">
-            <div className="text-[9px] sm:text-[10px] uppercase tracking-widest text-white/60">Atrasos</div>
-            <div className="font-display text-lg sm:text-xl font-bold">
-              {overdueCount}
-            </div>
-            <div className="text-[10px] text-white/60">faturas</div>
-          </div>
+          ))}
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 

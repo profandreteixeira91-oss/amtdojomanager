@@ -18,6 +18,7 @@ import {
   setTicketStatus,
   type SupportTicket,
 } from "@/lib/dojo/support.functions";
+import { DojoPageHero } from "@/components/dojo/DojoPageHero";
 
 export const Route = createFileRoute("/dojo/app/support")({
   head: () => ({
@@ -40,9 +41,9 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const STATUS_META: Record<string, { label: string; className: string; icon: React.ComponentType<{ className?: string }> }> = {
   aberto: { label: "Aberto", className: "bg-blue-500/15 text-blue-300 border-blue-500/30", icon: AlertCircle },
-  em_atendimento: { label: "Em atendimento", className: "bg-amber-500/15 text-amber-300 border-amber-500/30", icon: Clock },
-  resolvido: { label: "Resolvido", className: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30", icon: CheckCircle2 },
-  fechado: { label: "Fechado", className: "bg-neutral-500/15 text-neutral-300 border-neutral-500/30", icon: CheckCircle2 },
+  em_atendimento: { label: "Em atendimento", className: "bg-amber-500/15 text-amber-700 border-amber-500/30", icon: Clock },
+  resolvido: { label: "Resolvido", className: "bg-emerald-500/15 text-emerald-700 border-emerald-500/30", icon: CheckCircle2 },
+  fechado: { label: "Fechado", className: "bg-neutral-500/15 text-neutral-600 border-neutral-500/30", icon: CheckCircle2 },
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -70,36 +71,19 @@ function SupportPage() {
   const activeTicket = useMemo(() => tickets.find((t) => t.id === activeId) ?? null, [tickets, activeId]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-black to-neutral-950 text-neutral-100">
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Hero */}
-        <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-neutral-900/80 via-neutral-950 to-black p-6 shadow-2xl sm:p-8">
-          <div className="pointer-events-none absolute -top-24 -right-16 h-72 w-72 rounded-full bg-red-600/20 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-amber-500/10 blur-3xl" />
-          <div className="relative grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 sm:flex sm:flex-wrap sm:justify-between sm:gap-4">
-            <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-              <div className="relative shrink-0">
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-red-500 to-amber-500 blur-lg opacity-60" />
-                <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-red-600 to-red-800 shadow-lg ring-1 ring-white/10 sm:h-14 sm:w-14">
-                  <LifeBuoy className="h-6 w-6 text-white sm:h-7 sm:w-7" />
-                </div>
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-xl font-bold tracking-tight text-white sm:text-3xl">Central de Suporte</h1>
-                <p className="mt-1 max-w-xl text-xs text-neutral-400 sm:text-sm">
-                  Fale direto com o time AMT. Dúvidas, sugestões, novos módulos e solicitações — tudo por aqui, com histórico completo.
-                </p>
-              </div>
-            </div>
-            <Button
-              onClick={() => setOpenNew(true)}
-              size="sm"
-              className="shrink-0 gap-2 bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg shadow-red-900/40 ring-1 ring-white/10 hover:from-red-500 hover:to-red-600 sm:size-default"
-            >
-              <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Novo chamado</span><span className="sm:hidden">Novo</span>
+    <div className="text-neutral-900">
+      <div className="mx-auto max-w-6xl">
+        <DojoPageHero
+          icon={LifeBuoy}
+          eyebrow="Ajuda"
+          title="Central de Suporte"
+          description="Fale direto com o time AMT. Dúvidas, sugestões, novos módulos e solicitações — tudo por aqui, com histórico completo."
+          actions={
+            <Button onClick={() => setOpenNew(true)} className="gap-2 font-semibold">
+              <Plus className="h-4 w-4" /> Novo chamado
             </Button>
-          </div>
-        </div>
+          }
+        />
 
         <div className="mt-6">
           {activeTicket ? (
@@ -109,29 +93,29 @@ function SupportPage() {
               onChanged={() => qc.invalidateQueries({ queryKey: ["dojo-support"] })}
             />
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-white/10 bg-neutral-900/60 shadow-xl backdrop-blur">
+            <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
               {isLoading ? (
-                <div className="p-8 text-center text-sm text-neutral-400">Carregando...</div>
+                <div className="p-8 text-center text-sm text-neutral-500">Carregando...</div>
               ) : tickets.length === 0 ? (
                 <div className="p-12 text-center">
-                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-red-600/20 to-amber-500/10 ring-1 ring-white/10">
-                    <MessageCircle className="h-8 w-8 text-red-400" />
+                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-red-600/20 to-amber-500/10 ring-1 ring-neutral-200">
+                    <MessageCircle className="h-8 w-8 text-red-600" />
                   </div>
-                  <p className="text-base font-semibold text-white">Nenhum chamado ainda</p>
-                  <p className="mt-1 text-sm text-neutral-400">Abra o primeiro clicando em "Novo chamado".</p>
+                  <p className="text-base font-semibold text-neutral-950">Nenhum chamado ainda</p>
+                  <p className="mt-1 text-sm text-neutral-500">Abra o primeiro clicando em "Novo chamado".</p>
                 </div>
               ) : (
-                <ul className="divide-y divide-white/5">
+                <ul className="divide-y divide-neutral-100">
                   {tickets.map((t) => (
                     <li key={t.id}>
                       <button
                         onClick={() => setActiveId(t.id)}
-                        className="group flex w-full items-start justify-between gap-4 px-5 py-4 text-left transition-colors hover:bg-white/5"
+                        className="group flex w-full items-start justify-between gap-4 px-5 py-4 text-left transition-colors hover:bg-neutral-50"
                       >
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-semibold text-white group-hover:text-red-300 transition-colors">{t.subject}</span>
-                            <Badge variant="outline" className="border-white/15 bg-white/5 text-[10px] text-neutral-300">
+                            <span className="font-semibold text-neutral-950 group-hover:text-red-600 transition-colors">{t.subject}</span>
+                            <Badge variant="outline" className="border-neutral-200 bg-neutral-50 text-[10px] text-neutral-600">
                               {CATEGORY_LABELS[t.category] ?? t.category}
                             </Badge>
                             <StatusBadge status={t.status} />
@@ -284,15 +268,15 @@ function TicketConversation({
   });
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-neutral-900/60 shadow-xl backdrop-blur">
-      <div className="flex items-center gap-2 border-b border-white/10 bg-gradient-to-r from-neutral-900 to-neutral-950 px-3 py-3 sm:gap-3 sm:px-4">
-        <Button variant="ghost" size="sm" onClick={onBack} className="shrink-0 gap-1 px-2 text-neutral-300 hover:bg-white/5 hover:text-white">
+    <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+      <div className="flex items-center gap-2 border-b border-neutral-200 bg-white px-3 py-3 sm:gap-3 sm:px-4">
+        <Button variant="ghost" size="sm" onClick={onBack} className="shrink-0 gap-1 px-2 text-neutral-600 hover:bg-neutral-50 hover:text-neutral-950">
           <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Voltar</span>
         </Button>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-            <span className="truncate text-sm font-semibold text-white sm:text-base">{ticket.subject}</span>
-            <Badge variant="outline" className="border-white/15 bg-white/5 text-[10px] text-neutral-300">
+            <span className="truncate text-sm font-semibold text-neutral-950 sm:text-base">{ticket.subject}</span>
+            <Badge variant="outline" className="border-neutral-200 bg-neutral-50 text-[10px] text-neutral-600">
               {CATEGORY_LABELS[ticket.category] ?? ticket.category}
             </Badge>
             <StatusBadge status={data?.ticket.status ?? ticket.status} />
@@ -303,7 +287,7 @@ function TicketConversation({
             variant="outline"
             size="sm"
             onClick={() => closeTicket.mutate()}
-            className="shrink-0 border-white/15 bg-white/5 px-2 text-xs text-neutral-200 hover:bg-white/10 hover:text-white sm:px-3 sm:text-sm"
+            className="shrink-0 border-neutral-200 bg-neutral-50 px-2 text-xs text-neutral-800 hover:bg-neutral-50 hover:text-neutral-950 sm:px-3 sm:text-sm"
           >
             <span className="hidden sm:inline">Fechar chamado</span>
             <span className="sm:hidden">Fechar</span>
@@ -311,7 +295,7 @@ function TicketConversation({
         )}
       </div>
 
-      <div className="flex h-[60vh] flex-col bg-gradient-to-b from-neutral-950/50 to-black/40">
+      <div className="flex h-[60vh] flex-col bg-neutral-50/70">
         <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
           {(data?.messages ?? []).map((m) => {
             const mine = m.author_role === "client";
@@ -321,7 +305,7 @@ function TicketConversation({
                   className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm shadow-lg ring-1 ${
                     mine
                       ? "bg-gradient-to-br from-red-600 to-red-700 text-white ring-red-400/30 rounded-br-sm shadow-red-900/40"
-                      : "bg-white/5 text-neutral-100 ring-white/10 rounded-bl-sm backdrop-blur"
+                      : "bg-white text-neutral-900 ring-neutral-200 rounded-bl-sm"
                   }`}
                 >
                   <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide opacity-70">
@@ -339,12 +323,12 @@ function TicketConversation({
         </div>
 
         {ticket.status === "fechado" ? (
-          <div className="border-t border-white/10 bg-neutral-950/60 px-4 py-3 text-center text-sm text-neutral-400">
+          <div className="border-t border-neutral-200 bg-white px-4 py-3 text-center text-sm text-neutral-500">
             Este chamado está fechado. Abra um novo se precisar de mais ajuda.
           </div>
         ) : (
           <form
-            className="flex items-end gap-2 border-t border-white/10 bg-neutral-950/60 px-3 py-3"
+            className="flex items-end gap-2 border-t border-neutral-200 bg-white px-3 py-3"
             onSubmit={(e) => { e.preventDefault(); if (text.trim()) send.mutate(); }}
           >
             <Textarea
@@ -352,7 +336,7 @@ function TicketConversation({
               onChange={(e) => setText(e.target.value)}
               placeholder="Escreva sua mensagem..."
               rows={2}
-              className="flex-1 resize-none border-white/10 bg-white/5 text-neutral-100 placeholder:text-neutral-500 focus-visible:ring-red-500/50"
+              className="flex-1 resize-none border-neutral-200 bg-neutral-50 text-neutral-900 placeholder:text-neutral-500 focus-visible:ring-red-500/50"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -363,7 +347,7 @@ function TicketConversation({
             <Button
               type="submit"
               disabled={!text.trim() || send.isPending}
-              className="gap-1 bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg shadow-red-900/40 ring-1 ring-white/10 hover:from-red-500 hover:to-red-600"
+              className="gap-1 bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg shadow-red-900/40 ring-1 ring-neutral-200 hover:from-red-500 hover:to-red-600"
             >
               <Send className="h-4 w-4" /> Enviar
             </Button>

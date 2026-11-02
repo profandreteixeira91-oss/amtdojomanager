@@ -30,6 +30,7 @@ import {
   removeAcademyCompetition, getCompetitionsDashboard,
 } from "@/lib/dojo/competitions/academy.functions";
 import { scopeLabel, tierLabel } from "@/lib/dojo/competitions/classifier";
+import { DojoPageHero, SUBNAV_CLS, SUBNAV_TABSLIST_CLS, SUBNAV_TRIGGER_CLS } from "@/components/dojo/DojoPageHero";
 
 export const Route = createFileRoute("/dojo/app/competitions/")({
   head: () => ({ meta: [{ title: "Competições — AMT Dojo Manager" }] }),
@@ -43,41 +44,32 @@ function CompetitionsPage() {
   const canManageSources = access.data?.allowed === true;
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 md:gap-7">
-      {/* ============ HERO — ============ */}
-      <div className="relative overflow-hidden rounded-2xl border border-red-500/20 bg-gradient-to-br from-neutral-950 via-neutral-900 to-red-950/50 p-5 text-white shadow-[0_20px_60px_-30px_rgba(220,38,38,0.55)] md:p-7">
-        <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-red-500/20 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-amber-500/10 blur-3xl" />
-        <div className="relative flex flex-wrap items-center gap-4">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-amber-400 via-red-500 to-red-700 text-white ring-1 ring-white/20 shadow-[0_8px_24px_-8px_rgba(220,38,38,0.9)]">
-            <Trophy className="h-6 w-6" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-xl font-semibold tracking-tight md:text-2xl">Competições</h1>
-            <p className="mt-1 max-w-2xl text-sm text-neutral-300">
-              Agregador ao vivo das fontes que você cadastrou + gestão completa da sua academia: calendário, atletas, medalhas e finanças.
-            </p>
-          </div>
-        </div>
-      </div>
+      <Tabs defaultValue="dashboard" className="flex flex-col gap-6 md:gap-7">
+        <DojoPageHero
+          icon={Trophy}
+          eyebrow="Competitivo"
+          title="Competições"
+          description="Agregador ao vivo das fontes que você cadastrou + gestão completa da sua academia: calendário, atletas, medalhas e finanças."
+          footer={
+            <div className={SUBNAV_CLS}>
+              <TabsList className={SUBNAV_TABSLIST_CLS}>
+                <TabsTrigger value="dashboard" className={SUBNAV_TRIGGER_CLS}><BarChart3 /> Dashboard</TabsTrigger>
+                <TabsTrigger value="library" className={SUBNAV_TRIGGER_CLS}><Search /> Biblioteca</TabsTrigger>
+                <TabsTrigger value="calendar" className={SUBNAV_TRIGGER_CLS}><CalendarDays /> Meu Calendário</TabsTrigger>
+                <TabsTrigger value="ranking" className={SUBNAV_TRIGGER_CLS}><Medal /> Ranking</TabsTrigger>
+                <TabsTrigger value="stats" className={SUBNAV_TRIGGER_CLS}><PieIcon /> Estatísticas</TabsTrigger>
+                {canManageSources && <TabsTrigger value="sources" className={SUBNAV_TRIGGER_CLS}><Settings2 /> Fontes</TabsTrigger>}
+              </TabsList>
+            </div>
+          }
+        />
 
-      <Tabs defaultValue="dashboard" className="space-y-4">
-        <div className="overflow-x-auto rounded-xl border border-red-500/15 bg-neutral-950/60 p-1 shadow-[0_10px_30px_-20px_rgba(220,38,38,0.6)]">
-          <TabsList className="flex w-max min-w-full flex-nowrap gap-1 bg-transparent p-0">
-            <TabsTrigger value="dashboard" className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-red-600 data-[state=active]:to-red-800 data-[state=active]:text-white data-[state=active]:shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)] text-neutral-300 hover:text-white"><BarChart3 className="mr-2 h-4 w-4" /> Dashboard</TabsTrigger>
-            <TabsTrigger value="library" className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-red-600 data-[state=active]:to-red-800 data-[state=active]:text-white data-[state=active]:shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)] text-neutral-300 hover:text-white"><Search className="mr-2 h-4 w-4" /> Biblioteca</TabsTrigger>
-            <TabsTrigger value="calendar" className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-red-600 data-[state=active]:to-red-800 data-[state=active]:text-white data-[state=active]:shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)] text-neutral-300 hover:text-white"><CalendarDays className="mr-2 h-4 w-4" /> Meu Calendário</TabsTrigger>
-            <TabsTrigger value="ranking" className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-red-600 data-[state=active]:to-red-800 data-[state=active]:text-white data-[state=active]:shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)] text-neutral-300 hover:text-white"><Medal className="mr-2 h-4 w-4" /> Ranking</TabsTrigger>
-            <TabsTrigger value="stats" className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-red-600 data-[state=active]:to-red-800 data-[state=active]:text-white data-[state=active]:shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)] text-neutral-300 hover:text-white"><PieIcon className="mr-2 h-4 w-4" /> Estatísticas</TabsTrigger>
-            {canManageSources && <TabsTrigger value="sources" className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-red-600 data-[state=active]:to-red-800 data-[state=active]:text-white data-[state=active]:shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)] text-neutral-300 hover:text-white"><Settings2 className="mr-2 h-4 w-4" /> Fontes</TabsTrigger>}
-          </TabsList>
-        </div>
-
-        <TabsContent value="dashboard"><DashboardTab /></TabsContent>
-        <TabsContent value="library"><LibraryTab /></TabsContent>
-        <TabsContent value="calendar"><CalendarTab /></TabsContent>
-        <TabsContent value="ranking"><RankingPanel /></TabsContent>
-        <TabsContent value="stats"><StatsPanel /></TabsContent>
-        {canManageSources && <TabsContent value="sources"><SourcesTab /></TabsContent>}
+        <TabsContent value="dashboard" className="mt-0"><DashboardTab /></TabsContent>
+        <TabsContent value="library" className="mt-0"><LibraryTab /></TabsContent>
+        <TabsContent value="calendar" className="mt-0"><CalendarTab /></TabsContent>
+        <TabsContent value="ranking" className="mt-0"><RankingPanel /></TabsContent>
+        <TabsContent value="stats" className="mt-0"><StatsPanel /></TabsContent>
+        {canManageSources && <TabsContent value="sources" className="mt-0"><SourcesTab /></TabsContent>}
       </Tabs>
     </div>
   );
@@ -105,19 +97,19 @@ function DashboardTab() {
         {stats.map((s) => (
           <Card
             key={s.label}
-            className="group relative overflow-hidden border-red-500/15 bg-gradient-to-br from-neutral-950 via-neutral-950/95 to-red-950/30 text-white shadow-[0_10px_30px_-20px_rgba(220,38,38,0.6)] transition hover:border-red-500/30"
+            className="group relative overflow-hidden border-[color:var(--dojo-border)] bg-white text-neutral-950 shadow-xs transition hover:border-red-500/30"
           >
             <div aria-hidden className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-red-500/10 blur-2xl transition group-hover:bg-red-500/20" />
             <CardContent className="relative p-4">
-              <div className="text-[11px] uppercase tracking-wide text-neutral-400">{s.label}</div>
-              <div className="mt-1 text-2xl font-bold text-white">{s.value}</div>
+              <div className="text-[11px] uppercase tracking-wide text-neutral-500">{s.label}</div>
+              <div className="mt-1 text-2xl font-bold text-neutral-950">{s.value}</div>
             </CardContent>
           </Card>
         ))}
       </div>
-      <Card className="border-red-500/15 bg-gradient-to-br from-neutral-950 via-neutral-900 to-red-950/40 text-white shadow-[0_10px_30px_-20px_rgba(220,38,38,0.6)]">
+      <Card className="border-[color:var(--dojo-border)] bg-white text-neutral-950 shadow-xs">
         <CardContent className="p-4">
-          <div className="mb-2 text-sm font-semibold text-white">Medalhas conquistadas</div>
+          <div className="mb-2 text-sm font-semibold text-neutral-950">Medalhas conquistadas</div>
           <div className="flex flex-wrap gap-3 text-sm">
             <Badge className="bg-amber-500 text-black">🥇 {d?.medals?.gold ?? 0}</Badge>
             <Badge className="bg-slate-300 text-black">🥈 {d?.medals?.silver ?? 0}</Badge>
@@ -207,20 +199,20 @@ function LibraryTab() {
 
   return (
     <div className="space-y-4">
-      <Card className="border-red-500/15 bg-gradient-to-br from-neutral-950/80 via-neutral-950/60 to-red-950/20 text-white shadow-[0_10px_30px_-20px_rgba(220,38,38,0.7)]">
+      <Card className="border-[color:var(--dojo-border)] bg-white text-neutral-950 shadow-xs">
         <CardContent className="space-y-3 p-4">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
             <div className="relative sm:col-span-2 lg:col-span-2">
-              <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-red-300/80" />
+              <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-red-600" />
               <Input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder='Busca livre: "sao paulo master", cbjj, ibjjf, kimono...'
-                className="border-red-500/20 bg-neutral-950/60 pl-8 text-white placeholder:text-neutral-500 focus-visible:ring-red-500/40"
+                className="border-[color:var(--dojo-border)] bg-white pl-8 text-neutral-950 placeholder:text-neutral-500 focus-visible:ring-red-500/40"
               />
             </div>
             <Select value={when} onValueChange={setWhen}>
-              <SelectTrigger className="border-red-500/20 bg-neutral-950/60 text-white"><SelectValue placeholder="Quando" /></SelectTrigger>
+              <SelectTrigger className="border-[color:var(--dojo-border)] bg-white text-neutral-950"><SelectValue placeholder="Quando" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="upcoming">Próximas</SelectItem>
                 <SelectItem value="30">Próximos 30 dias</SelectItem>
@@ -230,7 +222,7 @@ function LibraryTab() {
               </SelectContent>
             </Select>
             <Select value={scope} onValueChange={setScope}>
-              <SelectTrigger className="border-red-500/20 bg-neutral-950/60 text-white"><SelectValue placeholder="Escopo" /></SelectTrigger>
+              <SelectTrigger className="border-[color:var(--dojo-border)] bg-white text-neutral-950"><SelectValue placeholder="Escopo" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os escopos</SelectItem>
                 <SelectItem value="international">Internacional</SelectItem>
@@ -241,14 +233,14 @@ function LibraryTab() {
               </SelectContent>
             </Select>
             <Select value={country} onValueChange={setCountry}>
-              <SelectTrigger className="border-red-500/20 bg-neutral-950/60 text-white"><SelectValue placeholder="País" /></SelectTrigger>
+              <SelectTrigger className="border-[color:var(--dojo-border)] bg-white text-neutral-950"><SelectValue placeholder="País" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os países</SelectItem>
                 {(filters.data?.countries ?? []).map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={state} onValueChange={setState}>
-              <SelectTrigger className="border-red-500/20 bg-neutral-950/60 text-white"><SelectValue placeholder="Estado" /></SelectTrigger>
+              <SelectTrigger className="border-[color:var(--dojo-border)] bg-white text-neutral-950"><SelectValue placeholder="Estado" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os estados</SelectItem>
                 {(filters.data?.states ?? []).map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -256,9 +248,9 @@ function LibraryTab() {
             </Select>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-            <span className="text-neutral-300">
+            <span className="text-neutral-600">
               {list.isLoading ? "Buscando em todas as fontes..." : `${list.data?.total ?? 0} competições encontradas`}
-              <span className="ml-2 hidden text-neutral-500 md:inline">· dica: use aspas para frase exata, ex: <code className="rounded bg-white/10 px-1">"copa brasil"</code></span>
+              <span className="ml-2 hidden text-neutral-500 md:inline">· dica: use aspas para frase exata, ex: <code className="rounded bg-neutral-50 px-1">"copa brasil"</code></span>
             </span>
             <div className="flex flex-wrap items-center gap-2">
               <NewCompetitionDialog onCreated={() => {
@@ -266,14 +258,14 @@ function LibraryTab() {
                 qc.invalidateQueries({ queryKey: ["comp-filters"] });
               }} />
               <Button size="sm" variant="outline" onClick={toggleAll} disabled={rows.length === 0}
-                className="border-red-500/30 bg-transparent text-white hover:bg-red-500/10">
+                className="border-red-500/30 bg-transparent text-neutral-950 hover:bg-red-500/10">
                 {allSelected ? "Limpar seleção" : "Selecionar todas"}
               </Button>
               <Button
                 size="sm"
                 disabled={selected.size === 0 || bulkMut.isPending}
                 onClick={() => bulkMut.mutate(Array.from(selected))}
-                className="bg-gradient-to-br from-red-600 to-red-800 text-white shadow-[0_8px_20px_-10px_rgba(220,38,38,0.9)] hover:from-red-500 hover:to-red-700"
+                className="bg-gradient-to-br from-red-600 to-red-800 text-white shadow-xs hover:from-red-500 hover:to-red-700"
               >
                 <Plus className="mr-1 h-3 w-3" />
                 {bulkMut.isPending ? "Adicionando..." : `Adicionar ${selected.size || ""} ao calendário`}
