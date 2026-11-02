@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { motion } from "framer-motion";
 import { Loader2, User as UserIcon } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
