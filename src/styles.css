@@ -377,8 +377,8 @@ body:has(.dojo-theme) {
   --sidebar-foreground: #ffffff;
   --sidebar-primary: #ffffff;
   --sidebar-primary-foreground: #b91c1c;
-  --sidebar-accent: rgb(255 255 255 / 0.12);
-  --sidebar-accent-foreground: #ffffff;
+  --sidebar-accent: #ffffff;
+  --sidebar-accent-foreground: #dc2626;
   --sidebar-border: rgb(255 255 255 / 0.16);
   --sidebar-ring: #ffffff;
 }
@@ -390,8 +390,8 @@ body:has(.dojo-theme) [data-slot="sheet-content"][data-sidebar="sidebar"] {
   --sidebar-foreground: #ffffff;
   --sidebar-primary: #ffffff;
   --sidebar-primary-foreground: #b91c1c;
-  --sidebar-accent: rgb(255 255 255 / 0.12);
-  --sidebar-accent-foreground: #ffffff;
+  --sidebar-accent: #ffffff;
+  --sidebar-accent-foreground: #dc2626;
   --sidebar-border: rgb(255 255 255 / 0.16);
   --sidebar-ring: #ffffff;
   background: linear-gradient(180deg, #dc2626 0%, #c81f1f 42%, #a11818 100%);
@@ -620,30 +620,26 @@ body:has(.dojo-theme) [data-sidebar="sidebar"][data-mobile="true"] {
 }
 :is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="menu-button"] {
   border-radius: 9px;
-  font-weight: 500;
-  color: rgb(255 255 255 / 0.92);
+  font-weight: 700;
+  color: #ffffff;
   transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
 }
 :is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="menu-button"] svg {
-  color: rgb(255 255 255 / 0.78);
+  color: #ffffff;
   transition: color 150ms ease;
 }
-:is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="menu-button"]:hover {
-  background: rgb(255 255 255 / 0.12);
-  color: #ffffff;
+/* Passar o mouse e item ativo: botão branco sólido com texto vermelho */
+:is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="menu-button"]:hover,
+:is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="menu-button"][data-active="true"] {
+  background: #ffffff;
+  color: #dc2626;
 }
-:is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="menu-button"]:hover svg {
-  color: #ffffff;
-}
-:is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="menu-button"][data-active="true"],
-:is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="menu-button"][data-active="true"]:hover {
-  background: rgb(255 255 255 / 0.2);
-  color: #ffffff;
-  font-weight: 700;
-  box-shadow: inset 3px 0 0 #ffffff, 0 1px 2px rgb(80 0 0 / 0.25);
-}
+:is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="menu-button"]:hover svg,
 :is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="menu-button"][data-active="true"] svg {
-  color: #ffffff;
+  color: #dc2626;
+}
+:is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="menu-button"][data-active="true"] {
+  box-shadow: 0 4px 12px -4px rgb(60 0 0 / 0.45);
 }
 :is(.dojo-theme, body:has(.dojo-theme)) [data-sidebar="sidebar"] :focus-visible {
   outline-color: #ffffff;

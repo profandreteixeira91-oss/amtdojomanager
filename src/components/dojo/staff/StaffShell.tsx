@@ -122,13 +122,13 @@ export function StaffShell({ children }: { children: ReactNode }) {
                     <Link
                       to={m.to}
                       className={cn(
-                        "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors",
+                        "group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-bold transition-colors",
                         active
-                          ? "bg-white/20 font-bold text-white shadow-[inset_3px_0_0_#fff]"
-                          : "font-medium text-white/90 hover:bg-white/12 hover:text-white",
+                          ? "bg-white text-red-600 shadow-[0_4px_12px_-4px_rgb(60_0_0_/_0.45)]"
+                          : "text-white hover:bg-white hover:text-red-600",
                       )}
                     >
-                      <Icon className={cn("h-4 w-4 shrink-0", active ? "text-white" : "text-white/75")} />
+                      <Icon className={cn("h-4 w-4 shrink-0", active ? "text-red-600" : "text-white group-hover:text-red-600")} />
                       <span className="truncate">{m.label}</span>
                     </Link>
                   </li>
