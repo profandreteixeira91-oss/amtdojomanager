@@ -16,8 +16,12 @@ export const Route = createFileRoute("/api/public/hooks/asaas")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const token = request.headers.get("asaas-access-token") ?? "";
-        const expected = process.env.ASAAS_WEBHOOK_TOKEN ?? "";
+        // Segredo colado no painel da hospedagem às vezes vem com espaço, tab ou
+        // aspas em volta: compara o token limpo dos dois lados.
+        const clean = (v: string | null | undefined) =>
+          (v ?? "").trim().replace(/^(["'])(.*)\1$/, "$2").trim();
+        const token = clean(request.headers.get("asaas-access-token"));
+        const expected = clean(process.env.ASAAS_WEBHOOK_TOKEN);
         if (!expected || token !== expected) {
           return new Response("Invalid token", { status: 401 });
         }

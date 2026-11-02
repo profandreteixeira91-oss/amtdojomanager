@@ -173,7 +173,7 @@ const WEBHOOK_EVENTS = [
 export async function ensureDojoAsaasWebhook(
   apiKey: string,
 ): Promise<{ ok: true; action: "created" | "updated" } | { ok: false; error: string }> {
-  const authToken = process.env.ASAAS_WEBHOOK_TOKEN?.trim();
+  const authToken = (process.env.ASAAS_WEBHOOK_TOKEN ?? "").trim().replace(/^(["'])(.*)\1$/, "$2").trim();
   if (!authToken) return { ok: false, error: "ASAAS_WEBHOOK_TOKEN não configurado" };
   const input = {
     name: WEBHOOK_NAME,
