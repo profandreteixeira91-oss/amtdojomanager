@@ -32,7 +32,9 @@ import {
   Wallet, CalendarCheck, GraduationCap, Trophy, FileText, ShieldCheck,
   Activity, Heart, User as UserIcon, MapPin, Phone, ClipboardList, Upload,
   QrCode, RefreshCw, TrendingUp, ExternalLink, Sparkles, AlertTriangle, Camera, Users, Clock, MapPin as PinIcon,
+  KeyRound,
 } from "lucide-react";
+import { generateStudentPasswordResetCode } from "@/lib/student-auth/password-reset.functions";
 import { BeltAuto } from "@/components/dojo/BeltSpecVisual";
 import { CertificatePreviewDialog, openCertificatePrint, type CertificateTemplate } from "@/components/dojo/CertificatePreview";
 import { openBrandedPrintDocument, escapeHtml, kvTable } from "@/lib/dojo/print-document";
@@ -621,6 +623,9 @@ function StudentDetail() {
 
           {/* Códigos de check-in */}
           <CheckinCodesCard student={s} onUpdated={() => q.refetch()} />
+
+          {/* Senha do app do aluno (recuperação pelo site, sem e-mail) */}
+          <AppPasswordResetCard student={s} />
         </aside>
 
         {/* ============ ÁREA PRINCIPAL ============ */}
@@ -1921,6 +1926,52 @@ function CheckinCodesCard({ student, onUpdated }: { student: any; onUpdated: () 
           </Button>
           <Button size="sm" disabled={busy} onClick={() => run("both")}>Gerar ambos</Button>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============ SENHA DO APP ============
+function AppPasswordResetCard({ student }: { student: any }) {
+  const generate = useServerFn(generateStudentPasswordResetCode);
+  const [busy, setBusy] = useState(false);
+  const [issued, setIssued] = useState<{ code: string; expiresAt: string } | null>(null);
+  async function run() {
+    setBusy(true);
+    try {
+      setIssued(await generate({ data: { studentId: student.id } }));
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusy(false); }
+  }
+  const expiresAt = issued
+    ? new Date(issued.expiresAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+    : null;
+  return (
+    <Card className="dojo-card">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-sm">
+          <KeyRound className="h-4 w-4 text-primary" /> Senha do app
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 text-xs">
+        {!student.user_id ? (
+          <p className="text-muted-foreground">O aluno ainda não ativou o app. No primeiro acesso ele mesmo cria a senha.</p>
+        ) : (
+          <>
+            <p className="text-muted-foreground">
+              Esqueceu a senha? Gere um código e passe ao aluno. Ele digita o código no app, em “Esqueci minha senha”, e cria uma nova.
+            </p>
+            {issued && (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-center">
+                <div className="font-mono text-2xl font-bold tracking-[0.3em]">{issued.code}</div>
+                <div className="mt-1 text-[11px] text-muted-foreground">Vale até {expiresAt} · uso único</div>
+              </div>
+            )}
+            <Button size="sm" variant={issued ? "outline" : "default"} disabled={busy} onClick={run}>
+              <KeyRound className="h-3 w-3 mr-1" /> {issued ? "Gerar novo código" : "Gerar código"}
+            </Button>
+          </>
+        )}
       </CardContent>
     </Card>
   );

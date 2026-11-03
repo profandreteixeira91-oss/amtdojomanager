@@ -3,9 +3,10 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { studentSupabase as supabase } from "@/lib/student-auth/student-client";
 import { toast } from "sonner";
-import { translateRecoveryError } from "@/lib/student-auth/recovery";
 import { Loader2, ArrowLeft, Eye, EyeOff, ShieldCheck, Sparkles } from "lucide-react";
 import { checkStudentAccess, activateStudentAccount } from "@/lib/student/activation.functions";
+import { redeemStudentPasswordReset, requestStudentPasswordReset } from "@/lib/student-auth/password-reset.functions";
+import { RESET_CODE_TTL_MINUTES } from "@/lib/student-auth/password-reset";
 import logoAsset from "@/assets/amt-dojo-manager-logo.png.asset.json";
 
 export const Route = createFileRoute("/app/login")({
@@ -13,17 +14,21 @@ export const Route = createFileRoute("/app/login")({
   component: LoginPage,
 });
 
-type Step = "email" | "password" | "activate";
+type Step = "email" | "password" | "activate" | "reset";
 
 function LoginPage() {
   const navigate = useNavigate();
   const check = useServerFn(checkStudentAccess);
   const activate = useServerFn(activateStudentAccount);
+  const requestReset = useServerFn(requestStudentPasswordReset);
+  const redeemReset = useServerFn(redeemStudentPasswordReset);
 
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [resetCode, setResetCode] = useState("");
+  const [requesting, setRequesting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [showPw2, setShowPw2] = useState(false);
@@ -95,16 +100,46 @@ function LoginPage() {
     }
   }
 
-  async function onForgot() {
-    if (!email.trim() || !/^\S+@\S+\.\S+$/.test(email)) {
-      return toast.error("Informe seu e-mail", { description: "Digite o e-mail no campo acima." });
-    }
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/app/reset-password`,
-    });
+  // Recuperação pelo site: a academia gera um código no painel e o aluno o
+  // digita aqui junto com a nova senha (sem e-mail).
+  function onForgot() {
+    setPassword("");
+    setPasswordConfirm("");
+    setResetCode("");
+    setStep("reset");
+  }
 
-    if (error) toast.error("Não foi possível enviar o e-mail", { description: translateRecoveryError(error.message) });
-    else toast.success("Verifique seu e-mail para redefinir a senha.");
+  async function onRequestCode() {
+    setRequesting(true);
+    try {
+      await requestReset({ data: { email: email.trim() } });
+      toast.success("Avisamos sua academia", {
+        description: "Peça o código na recepção ou pelo WhatsApp da academia.",
+      });
+    } catch (err: any) {
+      toast.error("Não foi possível avisar a academia", { description: err?.message ?? String(err) });
+    } finally {
+      setRequesting(false);
+    }
+  }
+
+  async function onReset(e: React.FormEvent) {
+    e.preventDefault();
+    if (resetCode.replace(/\D/g, "").length !== 6) return toast.error("Digite o código de 6 dígitos");
+    if (password.length < 8) return toast.error("A senha precisa ter ao menos 8 caracteres");
+    if (password !== passwordConfirm) return toast.error("As senhas não conferem");
+    setLoading(true);
+    try {
+      await redeemReset({ data: { email: email.trim(), code: resetCode, password } });
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      if (error) throw error;
+      toast.success("Senha redefinida com sucesso!");
+      navigate({ to: "/app/home", replace: true });
+    } catch (err: any) {
+      toast.error("Não foi possível redefinir a senha", { description: err?.message ?? String(err) });
+    } finally {
+      setLoading(false);
+    }
   }
 
   if (checking) {
@@ -161,6 +196,7 @@ function LoginPage() {
               {step === "email" && "Acesse com o e-mail cadastrado na sua academia"}
               {step === "password" && "Informe sua senha para continuar"}
               {step === "activate" && "Primeiro acesso — crie sua senha"}
+              {step === "reset" && "Redefina sua senha com o código da academia"}
             </p>
           </div>
         </div>
@@ -307,6 +343,93 @@ function LoginPage() {
                   className="inline-flex items-center gap-1 text-sm text-white/50 hover:text-white"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" /> Trocar e-mail
+                </button>
+              </form>
+            )}
+
+            {step === "reset" && (
+              <form onSubmit={onReset} className="space-y-4">
+                <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2.5 text-xs text-red-100">
+                  Peça à sua academia o código para redefinir a senha. Ele vale {RESET_CODE_TTL_MINUTES} minutos e só
+                  pode ser usado uma vez.
+                  <button
+                    type="button"
+                    onClick={onRequestCode}
+                    disabled={requesting}
+                    className="mt-2 block font-semibold text-red-200 underline underline-offset-4 hover:text-white disabled:opacity-60"
+                  >
+                    {requesting ? "Avisando…" : "Avisar minha academia"}
+                  </button>
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm">
+                  <span className="min-w-0 truncate text-white/80"><span className="text-white/40">E-mail: </span>{email}</span>
+                  <button type="button" onClick={() => setStep("email")} className="shrink-0 text-[11px] font-semibold text-red-300 hover:text-red-200">Trocar</button>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-white/60">Código da academia</label>
+                  <input
+                    type="text"
+                    required
+                    autoFocus
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={7}
+                    value={resetCode}
+                    onChange={(e) => setResetCode(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3.5 text-center font-mono text-xl tracking-[0.4em] text-white placeholder:text-white/30 outline-none transition focus:border-red-400/60 focus:ring-2 focus:ring-red-500/30"
+                    placeholder="000000"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-white/60">Nova senha</label>
+                  <div className="relative">
+                    <input
+                      type={showPw ? "text" : "password"}
+                      required
+                      minLength={8}
+                      autoComplete="new-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3.5 pr-11 text-base text-white placeholder:text-white/30 outline-none transition focus:border-red-400/60 focus:ring-2 focus:ring-red-500/30"
+                      placeholder="Mínimo 8 caracteres"
+                    />
+                    <button type="button" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? "Ocultar senha" : "Mostrar senha"} className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-md text-white/50 hover:text-white">
+                      {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-white/60">Confirme a senha</label>
+                  <div className="relative">
+                    <input
+                      type={showPw2 ? "text" : "password"}
+                      required
+                      minLength={8}
+                      autoComplete="new-password"
+                      value={passwordConfirm}
+                      onChange={(e) => setPasswordConfirm(e.target.value)}
+                      className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3.5 pr-11 text-base text-white placeholder:text-white/30 outline-none transition focus:border-red-400/60 focus:ring-2 focus:ring-red-500/30"
+                      placeholder="Repita a senha"
+                    />
+                    <button type="button" onClick={() => setShowPw2((v) => !v)} aria-label={showPw2 ? "Ocultar senha" : "Mostrar senha"} className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-md text-white/50 hover:text-white">
+                      {showPw2 ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-red-600 to-red-500 py-3.5 text-base font-bold text-white shadow-[0_15px_40px_-15px_rgba(239,68,68,0.75)] transition hover:from-red-500 hover:to-red-400 active:scale-[0.99] disabled:opacity-60"
+                >
+                  <span aria-hidden className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                  <span className="relative">{loading ? "Redefinindo…" : "Redefinir senha e entrar"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStep("password")}
+                  className="inline-flex items-center gap-1 text-sm text-white/50 hover:text-white"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar para a senha
                 </button>
               </form>
             )}
