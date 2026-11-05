@@ -230,13 +230,40 @@ export async function dispatchInvoicePushReminder(
 
   try {
     const { sendPushToStudent } = await import("@/lib/push/push.server");
-    await sendPushToStudent(studentId, {
+    const delivery = await sendPushToStudent(studentId, {
       title,
       body,
       url: `/app/invoice/${invoice.id}`,
       tag: `invoice-${invoice.id}`,
       data: { invoiceId: invoice.id, offsetDays },
     }, offsetDays > 0 ? "invoice_overdue" : "invoice_due_soon");
+
+    if (delivery.sent === 0) {
+      const reason = delivery.failed > 0
+        ? `push_delivery_failed:${delivery.failed}`
+        : "no_push_delivery";
+      const status = delivery.failed > 0 ? "failed" : "skipped";
+      await saveReminderLog(supabase, {
+        owner_id: invoice.owner_id,
+        invoice_id: invoice.id,
+        offset_days: offsetDays,
+        channel,
+        status,
+        error_message: reason,
+      }, retryId);
+      return { status, reason };
+    }
+
+    await saveReminderLog(supabase, {
+      owner_id: invoice.owner_id,
+      invoice_id: invoice.id,
+      offset_days: offsetDays,
+      channel,
+      status: "sent",
+      error_message: delivery.failed > 0 ? `partial_delivery_failed:${delivery.failed}` : null,
+      sent_at: new Date().toISOString(),
+    }, retryId);
+    return { status: "sent", reason: delivery.failed > 0 ? `partial_delivery_failed:${delivery.failed}` : undefined };
   } catch (err: any) {
     await saveReminderLog(supabase, {
       owner_id: invoice.owner_id,
@@ -249,14 +276,5 @@ export async function dispatchInvoicePushReminder(
     return { status: "failed", reason: String(err?.message ?? err) };
   }
 
-  await saveReminderLog(supabase, {
-    owner_id: invoice.owner_id,
-    invoice_id: invoice.id,
-    offset_days: offsetDays,
-    channel,
-    status: "sent",
-    error_message: null,
-    sent_at: new Date().toISOString(),
-  }, retryId);
-  return { status: "sent" };
+  return { status: "failed", reason: "unexpected_push_dispatch_state" };
 }
