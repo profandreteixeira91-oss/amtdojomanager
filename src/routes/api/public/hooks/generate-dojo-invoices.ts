@@ -117,16 +117,9 @@ export const Route = createFileRoute("/api/public/hooks/generate-dojo-invoices")
           const cycleAmount = Number(e.custom_amount ?? plan.amount ?? 0);
           const amount = planChargeAmount(cycleAmount, installments);
 
-          // Bolsista: mensalidade zerada não gera fatura, cobrança no gateway
-          // nem notificação. Avança o ciclo para não reprocessar diariamente.
-          if (amount <= 0) {
-            await supabaseAdmin
-              .from("dojo_enrollments")
-              .update({
-                last_run_at: dueDate,
-                next_run_at: addMonthsISO(dueDate, intervalMonths),
-              } as never)
-              .eq("id", e.id);
+          // Valores negativos são inválidos; mensalidade zero é isenta,
+          // mas deve ser registrada para controle financeiro e notificações.
+          if (amount < 0) {
             skipped++;
             continue;
           }
@@ -141,13 +134,16 @@ export const Route = createFileRoute("/api/public/hooks/generate-dojo-invoices")
             amount,
             due_date: dueDate,
             status: "pending",
+            ...(amount === 0 ? { method: "scholarship" } : {}),
           };
-          try {
-            const { syncInvoiceWithAsaas } = await import("@/lib/asaas/enrollment.server");
-            const asaasData = await syncInvoiceWithAsaas(supabaseAdmin as any, invPayload);
-            Object.assign(invPayload, asaasData);
-          } catch (err) {
-            console.warn("[recurring] AMT Pay sync falhou", err);
+          if (amount > 0) {
+            try {
+              const { syncInvoiceWithAsaas } = await import("@/lib/asaas/enrollment.server");
+              const asaasData = await syncInvoiceWithAsaas(supabaseAdmin as any, invPayload);
+              Object.assign(invPayload, asaasData);
+            } catch (err) {
+              console.warn("[recurring] AMT Pay sync falhou", err);
+            }
           }
           const { error: insErr } = await supabaseAdmin.from("dojo_invoices").insert(invPayload);
           if (insErr) {
