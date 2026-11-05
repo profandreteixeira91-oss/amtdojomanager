@@ -276,5 +276,4 @@ export async function dispatchInvoicePushReminder(
     return { status: "failed", reason: String(err?.message ?? err) };
   }
 
-  return { status: "failed", reason: "unexpected_push_dispatch_state" };
 }
