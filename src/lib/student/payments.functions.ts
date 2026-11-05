@@ -44,6 +44,7 @@ export const payMyInvoicePix = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     if (!invoice) throw new Error("Cobrança não encontrada");
     if (invoice.status === "paid") throw new Error("Esta cobrança já foi paga");
+    if (Number(invoice.amount) === 0) throw new Error("Esta mensalidade é isenta e não exige pagamento");
     if (!invoice.student_id) throw new Error("Cobrança sem aluno vinculado");
 
     // Token do MP do dono do dojo (não o da AMT).

@@ -32,6 +32,7 @@ const STATUS_LABEL: Record<string, string> = {
   due_soon: "Próxima ao vencimento",
   overdue: "Vencida",
   cancelled: "Cancelado",
+  exempt: "Isento · bolsista",
 };
 
 const DUE_SOON_DAYS = 5;
@@ -42,9 +43,10 @@ function daysUntilDue(dueDate: string) {
   return Math.ceil((due.getTime() - today.getTime()) / 86_400_000);
 }
 
-function effectiveKey(r: InvoiceRow): "paid" | "overdue" | "due_soon" | "pending" | "cancelled" {
+function effectiveKey(r: InvoiceRow): "paid" | "overdue" | "due_soon" | "pending" | "cancelled" | "exempt" {
   if (r.status === "paid") return "paid";
   if (r.status === "cancelled") return "cancelled";
+  if (Number(r.amount) === 0) return "exempt";
   const d = daysUntilDue(r.due_date);
   if (d < 0) return "overdue";
   if (d <= DUE_SOON_DAYS) return "due_soon";
@@ -61,6 +63,8 @@ function statusClasses(key: string) {
       return "bg-amber-50 text-amber-800 border-amber-200";
     case "pending":
       return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    case "exempt":
+      return "bg-sky-50 text-sky-700 border-sky-200";
     case "cancelled":
     default:
       return "bg-muted text-muted-foreground";
@@ -102,6 +106,7 @@ export function FinanceReceivables() {
   const dueSoon = items.filter((i) => effectiveKey(i) === "due_soon");
   const overdue = items.filter((i) => effectiveKey(i) === "overdue");
   const cancelled = items.filter((i) => effectiveKey(i) === "cancelled");
+  const exempt = items.filter((i) => effectiveKey(i) === "exempt");
 
   const openPay = (row: InvoiceRow) => {
     setPayTarget(row);
@@ -185,6 +190,7 @@ export function FinanceReceivables() {
               Pagas · {paid.length}
             </TabsTrigger>
             <TabsTrigger value="cancelled" className="whitespace-nowrap">Canceladas · {cancelled.length}</TabsTrigger>
+            <TabsTrigger value="exempt" className="whitespace-nowrap">Isentas · {exempt.length}</TabsTrigger>
           </TabsList>
         </div>
 
@@ -205,6 +211,9 @@ export function FinanceReceivables() {
         </TabsContent>
         <TabsContent value="cancelled">
           <InvoiceList rows={cancelled} loading={invs.isLoading} onOpen={setSelected} onPay={openPay} onDelete={handleDelete} />
+        </TabsContent>
+        <TabsContent value="exempt">
+          <InvoiceList rows={exempt} loading={invs.isLoading} onOpen={setSelected} onPay={openPay} onDelete={handleDelete} />
         </TabsContent>
       </Tabs>
 
@@ -329,7 +338,7 @@ function InvoiceList({
           </div>
           <div className="divide-y divide-[color:var(--dojo-border)]">
             {rows.map((r) => {
-              const overdueDays = r.status !== "paid" && r.status !== "cancelled" ? Math.max(0, diffDaysISO(todayISO(), r.due_date) * -1) : 0;
+              const overdueDays = Number(r.amount) > 0 && r.status !== "paid" && r.status !== "cancelled" ? Math.max(0, diffDaysISO(todayISO(), r.due_date) * -1) : 0;
               return (
                 <div
                   key={r.id}
@@ -358,7 +367,7 @@ function InvoiceList({
                     <Button size="icon" variant="ghost" title="Detalhes" onClick={() => onOpen(r)} className="shrink-0 h-8 w-8">
                       <Eye className="h-4 w-4" />
                     </Button>
-                    {r.status !== "paid" && (
+                    {r.status !== "paid" && Number(r.amount) > 0 && (
                       <>
                         <Button
                           size="sm"

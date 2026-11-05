@@ -117,16 +117,9 @@ export const Route = createFileRoute("/api/public/hooks/generate-dojo-invoices")
           const cycleAmount = Number(e.custom_amount ?? plan.amount ?? 0);
           const amount = planChargeAmount(cycleAmount, installments);
 
-          // Bolsista: mensalidade zerada não gera fatura, cobrança no gateway
-          // nem notificação. Avança o ciclo para não reprocessar diariamente.
-          if (amount <= 0) {
-            await supabaseAdmin
-              .from("dojo_enrollments")
-              .update({
-                last_run_at: dueDate,
-                next_run_at: addMonthsISO(dueDate, intervalMonths),
-              } as never)
-              .eq("id", e.id);
+          // Valores negativos são inválidos; mensalidade zero é isenta,
+          // mas deve ser registrada para controle financeiro e notificações.
+          if (amount < 0) {
             skipped++;
             continue;
           }
@@ -141,13 +134,16 @@ export const Route = createFileRoute("/api/public/hooks/generate-dojo-invoices")
             amount,
             due_date: dueDate,
             status: "pending",
+            ...(amount === 0 ? { method: "scholarship" } : {}),
           };
-          try {
-            const { syncInvoiceWithAsaas } = await import("@/lib/asaas/enrollment.server");
-            const asaasData = await syncInvoiceWithAsaas(supabaseAdmin as any, invPayload);
-            Object.assign(invPayload, asaasData);
-          } catch (err) {
-            console.warn("[recurring] AMT Pay sync falhou", err);
+          if (amount > 0) {
+            try {
+              const { syncInvoiceWithAsaas } = await import("@/lib/asaas/enrollment.server");
+              const asaasData = await syncInvoiceWithAsaas(supabaseAdmin as any, invPayload);
+              Object.assign(invPayload, asaasData);
+            } catch (err) {
+              console.warn("[recurring] AMT Pay sync falhou", err);
+            }
           }
           const { error: insErr } = await supabaseAdmin.from("dojo_invoices").insert(invPayload);
           if (insErr) {
@@ -172,12 +168,16 @@ export const Route = createFileRoute("/api/public/hooks/generate-dojo-invoices")
               style: "currency",
               currency: "BRL",
             }).format(Number(amount ?? 0));
-            const body = `${invPayload.description} — ${amountFmt} · vence em ${dd}/${dm}/${dy}`;
+            const isExempt = Number(amount) === 0;
+            const body = isExempt
+              ? `${invPayload.description} — ${amountFmt} · registro para controle, sem pagamento necessário`
+              : `${invPayload.description} — ${amountFmt} · vence em ${dd}/${dm}/${dy}`;
+            const notificationTitle = isExempt ? "Mensalidade isenta registrada" : "Nova mensalidade disponível";
             await supabaseAdmin.from("dojo_student_notifications").insert({
               owner_id: e.owner_id,
               student_id: e.student_id,
               type: "invoice_created",
-              title: "Nova mensalidade disponível",
+              title: notificationTitle,
               message: body,
               link: "/app/financeiro",
             } as never);
@@ -185,7 +185,7 @@ export const Route = createFileRoute("/api/public/hooks/generate-dojo-invoices")
             await sendPushToStudent(
               e.student_id,
               {
-                title: "Nova mensalidade disponível",
+                title: notificationTitle,
                 body,
                 url: "/app/financeiro",
                 tag: `invoice-${invPayload.id}`,

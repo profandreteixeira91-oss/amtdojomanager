@@ -122,6 +122,7 @@ export function PayPageView({ invoiceId }: { invoiceId: string }) {
 
   const { invoice, identity } = state.data;
   const isCanceled = invoice.status === "canceled";
+  const isExempt = Number(invoice.amount) === 0;
   const isPaid = paid || invoice.status === "paid" || !!invoice.paid_at;
 
   return (
@@ -161,6 +162,8 @@ export function PayPageView({ invoiceId }: { invoiceId: string }) {
                 <Badge className="bg-green-600 hover:bg-green-600">
                   <CheckCircle2 className="h-3 w-3 mr-1" /> Pago
                 </Badge>
+              ) : isExempt ? (
+                <Badge className="bg-sky-600 hover:bg-sky-600">Isenta</Badge>
               ) : isCanceled ? (
                 <Badge variant="destructive">Cancelada</Badge>
               ) : (
@@ -188,6 +191,10 @@ export function PayPageView({ invoiceId }: { invoiceId: string }) {
                 <p className="text-xs text-muted-foreground">
                   Obrigado! Você já pode fechar esta página.
                 </p>
+              </div>
+            ) : isExempt ? (
+              <div className="rounded-lg border border-sky-200 bg-sky-50 p-4 text-center text-sm text-sky-800">
+                Esta mensalidade está registrada apenas para controle financeiro. Não é necessário realizar pagamento.
               </div>
             ) : isCanceled ? (
               <div className="text-sm text-muted-foreground text-center py-4">

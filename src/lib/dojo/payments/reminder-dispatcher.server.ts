@@ -71,6 +71,7 @@ export async function dispatchInvoiceReminder(
       invoice.payment_link ?? invoice.asaas_invoice_url ?? undefined,
     pixCopyPaste: invoice.asaas_pix_copypaste ?? undefined,
     invoiceDescription: invoice.description ?? "Mensalidade",
+    isExempt: Number(invoice.amount) === 0,
   };
 
   const idempotencyKey = `dojo-reminder-${invoice.id}-${offsetDays}-${channel}`;
@@ -181,7 +182,10 @@ export async function dispatchInvoicePushReminder(
   const due = formatDateBR(invoice.due_date);
   let title = "Lembrete de mensalidade";
   let body = "";
-  if (offsetDays < 0) {
+  if (Number(invoice.amount) === 0) {
+    title = "Mensalidade isenta registrada";
+    body = `${invoice.description ?? "Mensalidade"} — ${amount} · controle financeiro, sem pagamento necessário${due ? ` · vencimento ${due}` : ""}`;
+  } else if (offsetDays < 0) {
     const d = Math.abs(offsetDays);
     title = `Sua mensalidade vence em ${d} dia${d > 1 ? "s" : ""}`;
     body = `${invoice.description ?? "Mensalidade"} — ${amount} · vencimento ${due}`;
