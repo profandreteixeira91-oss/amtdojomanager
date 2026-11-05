@@ -44,9 +44,9 @@ function daysUntilDue(dueDate: string) {
 }
 
 function effectiveKey(r: InvoiceRow): "paid" | "overdue" | "due_soon" | "pending" | "cancelled" | "exempt" {
-  if (Number(r.amount) === 0) return "exempt";
   if (r.status === "paid") return "paid";
   if (r.status === "cancelled") return "cancelled";
+  if (Number(r.amount) === 0) return "exempt";
   const d = daysUntilDue(r.due_date);
   if (d < 0) return "overdue";
   if (d <= DUE_SOON_DAYS) return "due_soon";
