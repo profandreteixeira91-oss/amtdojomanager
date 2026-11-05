@@ -181,12 +181,15 @@ export async function dispatchInvoicePushReminder(
   // Idempotência
   const { data: existing } = await supabase
     .from("dojo_invoice_reminders")
-    .select("id")
+    .select("id, status")
     .eq("invoice_id", invoice.id)
     .eq("offset_days", offsetDays)
     .eq("channel", channel)
     .maybeSingle();
-  if (existing) return { status: "skipped", reason: "already_sent" };
+  if (existing && existing.status !== "failed") {
+    return { status: "skipped", reason: "already_sent" };
+  }
+  const retryId = existing?.id as string | undefined;
 
   // Verifica se o aluno tem alguma inscrição push ativa
   const { data: subs } = await supabase
