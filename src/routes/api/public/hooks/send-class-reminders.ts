@@ -94,6 +94,8 @@ export const Route = createFileRoute("/api/public/hooks/send-class-reminders")({
         const now = new Date();
         let scanned = 0;
         let sent = 0;
+        let pushSent = 0;
+        let pushFailed = 0;
         let skipped = 0;
 
         for (const { ownerId, offsets } of ownersToProcess) {
@@ -209,6 +211,8 @@ export const Route = createFileRoute("/api/public/hooks/send-class-reminders")({
                     },
                     "class_reminder",
                   );
+                  pushSent += delivery.sent;
+                  pushFailed += delivery.failed;
                   if (delivery.failed > 0) {
                     console.warn("[send-class-reminders] push com falhas", {
                       ownerId, student: st.id, failed: delivery.failed,
@@ -239,7 +243,7 @@ export const Route = createFileRoute("/api/public/hooks/send-class-reminders")({
           }
         }
 
-        return Response.json({ ok: true, scanned, sent, skipped });
+        return Response.json({ ok: true, scanned, sent, pushSent, pushFailed, skipped });
       },
     },
   },
