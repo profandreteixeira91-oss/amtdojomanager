@@ -39,6 +39,6 @@ O job do pg_cron apenas agenda a chamada; um status `succeeded` em `cron.job_run
 
 ## Configuração de e-mail
 
-Os lembretes por e-mail dependem de `RESEND_API_KEY` na hospedagem da aplicação. Sem essa variável, o endpoint responde normalmente, mas as tentativas de e-mail são registradas como falhas. Depois de cadastrar a chave, as tentativas registradas como `failed` podem ser repetidas pelo fluxo de reenvio; não é necessário apagar o histórico.
+Os lembretes por e-mail dependem de `RESEND_API_KEY` na hospedagem da aplicação. Sem essa variável, o endpoint responde normalmente, mas as tentativas de e-mail são registradas como falhas. Depois de cadastrar a chave, o operador pode reenviar manualmente a cobrança pelo painel. O código também permite repetir uma tentativa falha para a mesma fatura, canal e offset, atualizando o registro existente em vez de ficar bloqueado pela falha anterior.
 
 Nunca colocar o valor de `CRON_SECRET` ou `RESEND_API_KEY` no repositório ou em documentação.
