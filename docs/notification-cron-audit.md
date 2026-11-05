@@ -15,9 +15,19 @@ Os horários abaixo usam o fuso UTC do pg_cron. Para Maceió/São Paulo (UTC-3),
 | Publicar avisos agendados | `/api/public/hooks/publish-scheduled-announcements` | `* * * * *` | A cada minuto |
 | Despachar fila de WhatsApp | `/api/public/hooks/whatsapp-dispatch` | `* * * * *` | A cada minuto |
 
-## Importante sobre deploy
+## Cadastrar o novo job após o deploy
 
-O cron de avisos agendados só deve ser cadastrado depois que a versão que contém a rota `publish-scheduled-announcements` estiver publicada na hospedagem. O job do pg_cron apenas agenda a chamada; um status `succeeded` em `cron.job_run_details` confirma que o SQL de agendamento executou, não que a requisição HTTP terminou com sucesso.
+O cron de avisos agendados só deve ser cadastrado depois que a versão que contém a rota `publish-scheduled-announcements` estiver publicada na hospedagem. Depois do deploy, confirme que ainda não existe um job com esse nome e execute no SQL Editor do Supabase:
+
+```sql
+select cron.schedule(
+  'dojo-publish-scheduled-announcements',
+  '* * * * *',
+  $select public.dojo_hook_post('publish-scheduled-announcements');$
+);
+```
+
+O job do pg_cron apenas agenda a chamada; um status `succeeded` em `cron.job_run_details` confirma que o SQL de agendamento executou, não que a requisição HTTP terminou com sucesso. A resposta HTTP deve ser conferida em `net._http_response`.
 
 ## Verificação operacional
 
@@ -27,4 +37,8 @@ O cron de avisos agendados só deve ser cadastrado depois que a versão que cont
 4. Conferir os logs da hospedagem para o JSON de retorno de cada endpoint (`created`, `sent`, `failed`, `skipped`).
 5. Não considerar uma rotina entregue apenas porque o job SQL aparece como `succeeded`; confirmar também resposta HTTP 200 e o resultado da rotina.
 
-Nunca colocar o valor de `CRON_SECRET` no repositório ou em documentação.
+## Configuração de e-mail
+
+Os lembretes por e-mail dependem de `RESEND_API_KEY` na hospedagem da aplicação. Sem essa variável, o endpoint responde normalmente, mas as tentativas de e-mail são registradas como falhas. Depois de cadastrar a chave, as tentativas registradas como `failed` podem ser repetidas pelo fluxo de reenvio; não é necessário apagar o histórico.
+
+Nunca colocar o valor de `CRON_SECRET` ou `RESEND_API_KEY` no repositório ou em documentação.
