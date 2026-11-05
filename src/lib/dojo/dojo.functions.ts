@@ -835,16 +835,21 @@ export const saveDojoEnrollment = createServerFn({ method: "POST" })
       if (currentError) throw new Error(currentError.message);
 
       const patch: any = { ...rest };
-      // Ao tornar a matrícula isenta, encerra a recorrência no Asaas.
-      // Assim, o gateway não continua emitindo cobranças fora do cron local.
-      if (Number(data.custom_amount) === 0 && current?.asaas_subscription_id) {
+      // Ao tornar a matrícula isenta, encerra recorrências e cobranças futuras.
+      if (Number(data.custom_amount) === 0) {
         const { getDojoAsaasCredentials } = await import("@/lib/asaas/dojo-credentials.server");
-        const { apiKey } = await getDojoAsaasCredentials(ownerId(context));
         const { asaasCancelSubscription, asaasCancelCharge } = await import("@/lib/asaas/client.server");
-        await asaasCancelSubscription(current.asaas_subscription_id, apiKey);
-        patch.asaas_subscription_id = null;
+        let apiKey: string | undefined;
 
-        // Faturas futuras já emitidas pelo Asaas também passam a ser registros isentos.
+        if (current?.asaas_subscription_id) {
+          const credentials = await getDojoAsaasCredentials(ownerId(context));
+          apiKey = credentials.apiKey;
+          const canceled = await asaasCancelSubscription(current.asaas_subscription_id, apiKey);
+          if (!canceled.deleted) throw new Error("Não foi possível cancelar a recorrência no Asaas");
+          patch.asaas_subscription_id = null;
+        }
+
+        // Faturas futuras já emitidas também viram registros isentos de pagamento.
         const today = todayISO();
         const { data: futureInvoices, error: futureError } = await context.supabase
           .from("dojo_invoices")
@@ -853,6 +858,13 @@ export const saveDojoEnrollment = createServerFn({ method: "POST" })
           .in("status", ["pending", "overdue"])
           .gte("due_date", today);
         if (futureError) throw new Error(futureError.message);
+
+        const invoicesWithGatewayCharge = (futureInvoices ?? []).filter((invoice) => invoice.asaas_charge_id);
+        if (invoicesWithGatewayCharge.length > 0 && !apiKey) {
+          const credentials = await getDojoAsaasCredentials(ownerId(context));
+          apiKey = credentials.apiKey;
+        }
+
         for (const invoice of futureInvoices ?? []) {
           if (invoice.asaas_charge_id) {
             await asaasCancelCharge(invoice.asaas_charge_id, apiKey);
