@@ -101,6 +101,7 @@ import { Route as ApiPublicHooksDojoWalletReconcileRouteImport } from './routes/
 import { Route as ApiPublicHooksEvolutionRouteImport } from './routes/api/public/hooks/evolution'
 import { Route as ApiPublicHooksGenerateDojoInvoicesRouteImport } from './routes/api/public/hooks/generate-dojo-invoices'
 import { Route as ApiPublicHooksMercadopagoRouteImport } from './routes/api/public/hooks/mercadopago'
+import { Route as ApiPublicHooksPublishScheduledAnnouncementsRouteImport } from './routes/api/public/hooks/publish-scheduled-announcements'
 import { Route as ApiPublicHooksSendClassRemindersRouteImport } from './routes/api/public/hooks/send-class-reminders'
 import { Route as ApiPublicHooksSendDojoRemindersRouteImport } from './routes/api/public/hooks/send-dojo-reminders'
 import { Route as ApiPublicHooksWhatsappDispatchRouteImport } from './routes/api/public/hooks/whatsapp-dispatch'
@@ -640,6 +641,12 @@ const ApiPublicHooksMercadopagoRoute =
     path: '/api/public/hooks/mercadopago',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksPublishScheduledAnnouncementsRoute =
+  ApiPublicHooksPublishScheduledAnnouncementsRouteImport.update({
+    id: '/api/public/hooks/publish-scheduled-announcements',
+    path: '/api/public/hooks/publish-scheduled-announcements',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksSendClassRemindersRoute =
   ApiPublicHooksSendClassRemindersRouteImport.update({
     id: '/api/public/hooks/send-class-reminders',
@@ -1109,6 +1116,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/evolution': typeof ApiPublicHooksEvolutionRoute
   '/api/public/hooks/generate-dojo-invoices': typeof ApiPublicHooksGenerateDojoInvoicesRoute
   '/api/public/hooks/mercadopago': typeof ApiPublicHooksMercadopagoRoute
+  '/api/public/hooks/publish-scheduled-announcements': typeof ApiPublicHooksPublishScheduledAnnouncementsRoute
   '/api/public/hooks/send-class-reminders': typeof ApiPublicHooksSendClassRemindersRoute
   '/api/public/hooks/send-dojo-reminders': typeof ApiPublicHooksSendDojoRemindersRoute
   '/api/public/hooks/whatsapp-dispatch': typeof ApiPublicHooksWhatsappDispatchRoute
@@ -1258,6 +1266,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/evolution': typeof ApiPublicHooksEvolutionRoute
   '/api/public/hooks/generate-dojo-invoices': typeof ApiPublicHooksGenerateDojoInvoicesRoute
   '/api/public/hooks/mercadopago': typeof ApiPublicHooksMercadopagoRoute
+  '/api/public/hooks/publish-scheduled-announcements': typeof ApiPublicHooksPublishScheduledAnnouncementsRoute
   '/api/public/hooks/send-class-reminders': typeof ApiPublicHooksSendClassRemindersRoute
   '/api/public/hooks/send-dojo-reminders': typeof ApiPublicHooksSendDojoRemindersRoute
   '/api/public/hooks/whatsapp-dispatch': typeof ApiPublicHooksWhatsappDispatchRoute
@@ -1419,6 +1428,7 @@ export interface FileRoutesById {
   '/api/public/hooks/evolution': typeof ApiPublicHooksEvolutionRoute
   '/api/public/hooks/generate-dojo-invoices': typeof ApiPublicHooksGenerateDojoInvoicesRoute
   '/api/public/hooks/mercadopago': typeof ApiPublicHooksMercadopagoRoute
+  '/api/public/hooks/publish-scheduled-announcements': typeof ApiPublicHooksPublishScheduledAnnouncementsRoute
   '/api/public/hooks/send-class-reminders': typeof ApiPublicHooksSendClassRemindersRoute
   '/api/public/hooks/send-dojo-reminders': typeof ApiPublicHooksSendDojoRemindersRoute
   '/api/public/hooks/whatsapp-dispatch': typeof ApiPublicHooksWhatsappDispatchRoute
@@ -1582,6 +1592,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/evolution'
     | '/api/public/hooks/generate-dojo-invoices'
     | '/api/public/hooks/mercadopago'
+    | '/api/public/hooks/publish-scheduled-announcements'
     | '/api/public/hooks/send-class-reminders'
     | '/api/public/hooks/send-dojo-reminders'
     | '/api/public/hooks/whatsapp-dispatch'
@@ -1731,6 +1742,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/evolution'
     | '/api/public/hooks/generate-dojo-invoices'
     | '/api/public/hooks/mercadopago'
+    | '/api/public/hooks/publish-scheduled-announcements'
     | '/api/public/hooks/send-class-reminders'
     | '/api/public/hooks/send-dojo-reminders'
     | '/api/public/hooks/whatsapp-dispatch'
@@ -1891,6 +1903,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/evolution'
     | '/api/public/hooks/generate-dojo-invoices'
     | '/api/public/hooks/mercadopago'
+    | '/api/public/hooks/publish-scheduled-announcements'
     | '/api/public/hooks/send-class-reminders'
     | '/api/public/hooks/send-dojo-reminders'
     | '/api/public/hooks/whatsapp-dispatch'
@@ -1984,6 +1997,7 @@ export interface RootRouteChildren {
   ApiPublicHooksEvolutionRoute: typeof ApiPublicHooksEvolutionRoute
   ApiPublicHooksGenerateDojoInvoicesRoute: typeof ApiPublicHooksGenerateDojoInvoicesRoute
   ApiPublicHooksMercadopagoRoute: typeof ApiPublicHooksMercadopagoRoute
+  ApiPublicHooksPublishScheduledAnnouncementsRoute: typeof ApiPublicHooksPublishScheduledAnnouncementsRoute
   ApiPublicHooksSendClassRemindersRoute: typeof ApiPublicHooksSendClassRemindersRoute
   ApiPublicHooksSendDojoRemindersRoute: typeof ApiPublicHooksSendDojoRemindersRoute
   ApiPublicHooksWhatsappDispatchRoute: typeof ApiPublicHooksWhatsappDispatchRoute
@@ -2635,6 +2649,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/hooks/mercadopago'
       fullPath: '/api/public/hooks/mercadopago'
       preLoaderRoute: typeof ApiPublicHooksMercadopagoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/publish-scheduled-announcements': {
+      id: '/api/public/hooks/publish-scheduled-announcements'
+      path: '/api/public/hooks/publish-scheduled-announcements'
+      fullPath: '/api/public/hooks/publish-scheduled-announcements'
+      preLoaderRoute: typeof ApiPublicHooksPublishScheduledAnnouncementsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/send-class-reminders': {
@@ -3611,6 +3632,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksGenerateDojoInvoicesRoute:
     ApiPublicHooksGenerateDojoInvoicesRoute,
   ApiPublicHooksMercadopagoRoute: ApiPublicHooksMercadopagoRoute,
+  ApiPublicHooksPublishScheduledAnnouncementsRoute: ApiPublicHooksPublishScheduledAnnouncementsRoute,
   ApiPublicHooksSendClassRemindersRoute: ApiPublicHooksSendClassRemindersRoute,
   ApiPublicHooksSendDojoRemindersRoute: ApiPublicHooksSendDojoRemindersRoute,
   ApiPublicHooksWhatsappDispatchRoute: ApiPublicHooksWhatsappDispatchRoute,
