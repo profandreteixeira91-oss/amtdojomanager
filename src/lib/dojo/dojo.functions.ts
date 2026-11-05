@@ -935,7 +935,7 @@ export const saveDojoInvoice = createServerFn({ method: "POST" })
     if (id) {
       const { data: current, error: currentError } = await context.supabase
         .from("dojo_invoices")
-        .select("asaas_charge_id")
+        .select("asaas_charge_id, status")
         .eq("id", id)
         .maybeSingle();
       if (currentError) throw new Error(currentError.message);
@@ -950,8 +950,28 @@ export const saveDojoInvoice = createServerFn({ method: "POST" })
       const { apiKey, split, mode } = creds;
       const patch: any = { ...rest };
 
+      if (Number(rest.amount) === 0) {
+        if ((current as any).status === "paid" && (current as any).asaas_charge_id) {
+          throw new Error("Não é possível tornar isenta uma mensalidade já paga");
+        }
+        if ((current as any).asaas_charge_id && (current as any).status !== "cancelled") {
+          const { asaasCancelCharge } = await import("@/lib/asaas/client.server");
+          await asaasCancelCharge((current as any).asaas_charge_id, apiKey);
+        }
+        Object.assign(patch, {
+          method: "scholarship",
+          asaas_charge_id: null,
+          asaas_subscription_id: null,
+          payment_id: null,
+          payment_link: null,
+          asaas_invoice_url: null,
+          asaas_pix_copypaste: null,
+          asaas_pix_qrcode: null,
+          payment_provider: null,
+          provider: null,
+        });
       // AMT Pay desativado → não toca no Asaas. Apenas atualiza a fatura local.
-      if (mode === "subaccount") {
+      } else if (mode === "subaccount") {
         assertAmtCommission(creds);
         if ((current as any).asaas_charge_id) {
           const { asaasUpdateCharge } = await import("@/lib/asaas/client.server");
