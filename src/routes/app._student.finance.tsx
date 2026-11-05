@@ -17,9 +17,11 @@ const statusLabel: Record<string, { label: string; className: string }> = {
   upcoming: { label: "A vencer", className: "bg-sky-100 text-sky-800" },
   overdue: { label: "Vencido", className: "bg-red-100 text-red-800" },
   canceled: { label: "Cancelado", className: "bg-neutral-100 text-neutral-600" },
+  exempt: { label: "Isento · sem pagamento", className: "bg-sky-100 text-sky-800" },
 };
 
-function derivedStatus(inv: { status: string; due_date: string }) {
+function derivedStatus(inv: { status: string; due_date: string; amount: number }) {
+  if (Number(inv.amount) === 0) return "exempt";
   if (inv.status === "pending" && inv.due_date > todayISO()) return "upcoming";
   return inv.status;
 }
@@ -42,7 +44,7 @@ function FinancePage() {
         {(data ?? []).map((inv) => {
           const effective = derivedStatus(inv);
           const s = statusLabel[effective] ?? { label: inv.status, className: "bg-neutral-100 text-neutral-600" };
-          const canPay = inv.status !== "paid" && inv.status !== "canceled";
+          const canPay = Number(inv.amount) > 0 && inv.status !== "paid" && inv.status !== "canceled";
           return (
             <li key={inv.id} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-100">
               <div className="flex items-start justify-between gap-3">
