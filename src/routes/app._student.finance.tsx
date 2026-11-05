@@ -21,6 +21,7 @@ const statusLabel: Record<string, { label: string; className: string }> = {
 };
 
 function derivedStatus(inv: { status: string; due_date: string; amount: number }) {
+  if (inv.status === "canceled") return "canceled";
   if (Number(inv.amount) === 0) return "exempt";
   if (inv.status === "pending" && inv.due_date > todayISO()) return "upcoming";
   return inv.status;
