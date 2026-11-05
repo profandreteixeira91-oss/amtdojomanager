@@ -62,7 +62,7 @@ const Email = ({
       <Preview>{title} — {dojoName}</Preview>
       <Body style={main}>
         <Container style={container}>
-          <Section style={badge(isOverdue ? '#dc2626' : isDueToday ? '#d97706' : '#0f766e')}>
+          <Section style={badge(isExempt ? '#0f766e' : isOverdue ? '#dc2626' : isDueToday ? '#d97706' : '#0f766e')}>
             <Text style={badgeText}>{dojoName}</Text>
           </Section>
 
