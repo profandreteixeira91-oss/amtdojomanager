@@ -955,8 +955,10 @@ export const saveDojoInvoice = createServerFn({ method: "POST" })
       const amountFmt = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" })
         .format(Number(payload.amount ?? 0));
       await sendPushToStudent(payload.student_id, {
-        title: "Nova cobrança disponível",
-        body: `${payload.description ?? "Mensalidade"} — ${amountFmt}${payload.due_date ? ` • vence em ${new Date(payload.due_date + "T12:00:00Z").toLocaleDateString("pt-BR", { timeZone: "UTC" })}` : ""}`,
+        title: Number(payload.amount) === 0 ? "Mensalidade isenta registrada" : "Nova cobrança disponível",
+        body: Number(payload.amount) === 0
+          ? `${payload.description ?? "Mensalidade"} — ${amountFmt} · controle financeiro, sem pagamento necessário`
+          : `${payload.description ?? "Mensalidade"} — ${amountFmt}${payload.due_date ? ` • vence em ${new Date(payload.due_date + "T12:00:00Z").toLocaleDateString("pt-BR", { timeZone: "UTC" })}` : ""}`,
         url: "/app/financeiro",
         tag: `invoice-${row.id}`,
       }, "invoice_due_soon");
@@ -1133,7 +1135,7 @@ export const enrollStudentWithPlan = createServerFn({ method: "POST" })
     if (enrErr) throw new Error(enrErr.message);
 
     // 4a) Fluxo GATEWAY (Asaas Subscription) — só quando AMT Pay ativo.
-    if (amtPayMode === "subaccount" && isGatewayPaymentMethod(methodCode)) {
+    if (baseAmount > 0 && amtPayMode === "subaccount" && isGatewayPaymentMethod(methodCode)) {
       assertAmtCommission(amtPay);
       const { apiKey, split } = amtPay;
       const { data: profile } = await context.supabase
@@ -1228,6 +1230,7 @@ export const enrollStudentWithPlan = createServerFn({ method: "POST" })
         due_date: firstDueDate,
         status: "pending",
         owner_id: ownerId(context),
+        ...(amount === 0 ? { method: "scholarship" } : {}),
       };
     const { syncInvoiceWithAsaas } = await import("@/lib/asaas/enrollment.server");
     const asaasData = await syncInvoiceWithAsaas(context.supabase as any, invPayload);
@@ -1454,6 +1457,7 @@ export const generateMonthlyInvoices = createServerFn({ method: "POST" })
         due_date: dueDate,
         status: "pending",
         owner_id: ownerId(context),
+        ...(Number(amount) === 0 ? { method: "scholarship" } : {}),
       };
       const { syncInvoiceWithAsaas } = await import("@/lib/asaas/enrollment.server");
       const asaasData = await syncInvoiceWithAsaas(context.supabase as any, invPayload);
