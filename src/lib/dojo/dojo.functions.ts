@@ -1719,15 +1719,32 @@ export const issueCertificate = createServerFn({ method: "POST" })
       owner_id: ownerId(context),
     }).select("*").single();
     if (error) throw new Error(error.message);
+    const notificationTitle = "Certificado disponível";
+    const notificationMessage = "Seu novo certificado foi emitido. Toque para visualizar e baixar.";
     try {
+      const { error: notificationError } = await context.supabase
+        .from("dojo_student_notifications")
+        .insert({
+          owner_id: ownerId(context),
+          student_id: data.student_id,
+          type: "contract",
+          title: notificationTitle,
+          message: notificationMessage,
+          link: "/app/certificados",
+        });
+      if (notificationError) {
+        console.warn("[certificate] notificação interna falhou", row.id, notificationError.message);
+      }
       const { safeNotifyStudent } = await import("@/lib/push/push.server");
       await safeNotifyStudent(data.student_id, {
-        title: "Certificado disponível 🎓",
-        body: "Seu novo certificado foi emitido. Toque para visualizar e baixar.",
+        title: `🎓 ${notificationTitle}`,
+        body: notificationMessage,
         url: "/app/certificados",
         tag: `certificate-${row.id}`,
       }, "contract");
-    } catch {}
+    } catch (err: any) {
+      console.warn("[certificate] notificação falhou", row.id, err?.message ?? err);
+    }
     return row;
   });
 
