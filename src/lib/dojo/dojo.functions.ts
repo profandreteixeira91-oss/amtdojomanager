@@ -840,9 +840,42 @@ export const saveDojoEnrollment = createServerFn({ method: "POST" })
       if (Number(data.custom_amount) === 0 && current?.asaas_subscription_id) {
         const { getDojoAsaasCredentials } = await import("@/lib/asaas/dojo-credentials.server");
         const { apiKey } = await getDojoAsaasCredentials(ownerId(context));
-        const { asaasCancelSubscription } = await import("@/lib/asaas/client.server");
+        const { asaasCancelSubscription, asaasCancelCharge } = await import("@/lib/asaas/client.server");
         await asaasCancelSubscription(current.asaas_subscription_id, apiKey);
         patch.asaas_subscription_id = null;
+
+        // Faturas futuras já emitidas pelo Asaas também passam a ser registros isentos.
+        const today = todayISO();
+        const { data: futureInvoices, error: futureError } = await context.supabase
+          .from("dojo_invoices")
+          .select("id, asaas_charge_id")
+          .eq("enrollment_id", id)
+          .in("status", ["pending", "overdue"])
+          .gte("due_date", today);
+        if (futureError) throw new Error(futureError.message);
+        for (const invoice of futureInvoices ?? []) {
+          if (invoice.asaas_charge_id) {
+            await asaasCancelCharge(invoice.asaas_charge_id, apiKey);
+          }
+          const { error: updateInvoiceError } = await context.supabase
+            .from("dojo_invoices")
+            .update({
+              amount: 0,
+              method: "scholarship",
+              status: "pending",
+              asaas_charge_id: null,
+              asaas_subscription_id: null,
+              payment_id: null,
+              payment_link: null,
+              asaas_invoice_url: null,
+              asaas_pix_copypaste: null,
+              asaas_pix_qrcode: null,
+              payment_provider: null,
+              provider: null,
+            } as never)
+            .eq("id", invoice.id);
+          if (updateInvoiceError) throw new Error(updateInvoiceError.message);
+        }
       }
 
       const { error } = await context.supabase.from("dojo_enrollments").update(patch).eq("id", id);
