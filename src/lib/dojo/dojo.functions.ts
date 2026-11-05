@@ -740,7 +740,7 @@ export const saveDojoPlan = createServerFn({ method: "POST" })
     id: z.string().regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/, "UUID inválido").optional(),
     name: z.string().min(1).max(120),
     description: z.string().max(500).optional().nullable(),
-    amount: z.number().positive(),
+    amount: z.number().min(0),
     enrollment_fee: z.number().min(0).optional(),
     duration_days: z.number().int().min(1).max(3650).optional(),
     frequency: z.enum(["monthly","bimonthly","quarterly","quadrimestral","semiannual","annual","custom"]).optional(),
@@ -942,6 +942,7 @@ export const saveDojoInvoice = createServerFn({ method: "POST" })
       ...rest,
       status: "pending",
       owner_id: ownerId(context),
+      ...(Number(rest.amount) === 0 ? { method: "scholarship" } : {}),
     };
     const { syncInvoiceWithAsaas } = await import("@/lib/asaas/enrollment.server");
     const asaasData = await syncInvoiceWithAsaas(context.supabase as any, payload);
@@ -980,6 +981,7 @@ export const markDojoInvoicePaid = createServerFn({ method: "POST" })
       .maybeSingle();
     if (invoiceError) throw new Error(invoiceError.message);
     if (!invoice) throw new Error("Cobrança não encontrada");
+    if (Number(invoice.amount) === 0) throw new Error("Mensalidade isenta não precisa de baixa de pagamento");
 
     // Cobrança vinculada ao AMT Pay (Asaas): dá baixa via API
     if ((invoice as any).asaas_charge_id) {
