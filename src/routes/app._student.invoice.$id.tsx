@@ -56,10 +56,11 @@ function InvoicePage() {
   const [nativeCopyPaste, setNativeCopyPaste] = useState<string | null>(null);
 
   const paid = invoice?.status === "paid";
+  const isExempt = Boolean(invoice && Number(invoice.amount) === 0);
 
-  const hasNativePix = Boolean(nb?.pix_enabled && nb?.pix_key);
-  const hasPaymentLink = Boolean(nb?.payment_link_enabled && nb?.payment_link_url);
-  const hasAmtPay = Boolean((invoice as any)?.payment_id) || (!hasNativePix && !hasPaymentLink && nb?.pix_enabled);
+  const hasNativePix = !isExempt && Boolean(nb?.pix_enabled && nb?.pix_key);
+  const hasPaymentLink = !isExempt && Boolean(nb?.payment_link_enabled && nb?.payment_link_url);
+  const hasAmtPay = !isExempt && (Boolean((invoice as any)?.payment_id) || (!hasNativePix && !hasPaymentLink && nb?.pix_enabled));
 
   // Gera QR PIX no padrão BR Code (EMV) para leitura por apps bancários
   useEffect(() => {
@@ -142,6 +143,7 @@ function InvoicePage() {
       <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-100">
         <div className="text-xs text-neutral-500">{invoice.description ?? "Mensalidade"}</div>
         <div className="mt-1 text-2xl font-black">R$ {Number(invoice.amount).toFixed(2)}</div>
+        {isExempt && <p className="mt-2 text-sm font-medium text-sky-700">Mensalidade isenta. Este registro é apenas para controle; não é necessário pagar.</p>}
         <div className="mt-1 text-xs text-neutral-500">
           Vencimento: {brDate(invoice.due_date)}
         </div>

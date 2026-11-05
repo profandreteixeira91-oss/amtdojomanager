@@ -140,7 +140,7 @@ export const getAnnouncement = createServerFn({ method: "GET" })
     return row;
   });
 
-async function notifyStudentsForAnnouncement(supabase: any, ownerId: string, row: any) {
+export async function notifyStudentsForAnnouncement(supabase: any, ownerId: string, row: any) {
   if (!row || row.status !== "published" || !row.send_notification) return;
   try {
     const { data: students } = await supabase

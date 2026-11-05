@@ -53,24 +53,38 @@ export const Route = createFileRoute("/api/public/hooks/send-class-reminders")({
         );
         const { sendPushToStudent } = await import("@/lib/push/push.server");
 
-        // Carrega prefs de todos os donos com class_reminder ativado.
-        const { data: prefsRows } = await (supabaseAdmin as any)
-          .from("dojo_student_notification_prefs")
-          .select("owner_id, categories, extras");
+        // Busca todos os donos com aulas cadastradas. Quem ainda não salvou
+        // preferências recebe os offsets padrão (60 e 15 minutos).
+        const [{ data: scheduleOwners, error: ownersError }, { data: prefsRows, error: prefsError }] =
+          await Promise.all([
+            (supabaseAdmin as any).from("dojo_class_schedules").select("owner_id"),
+            (supabaseAdmin as any)
+              .from("dojo_student_notification_prefs")
+              .select("owner_id, categories, extras"),
+          ]);
+        if (ownersError) return Response.json({ error: ownersError.message }, { status: 500 });
+        if (prefsError) return Response.json({ error: prefsError.message }, { status: 500 });
 
+        const prefsByOwner = new Map<string, any>(
+          (prefsRows ?? []).map((row: any) => [row.owner_id, row]),
+        );
+        const ownerIds = Array.from(
+          new Set((scheduleOwners ?? []).map((row: any) => row.owner_id).filter(Boolean)),
+        ) as string[];
         const ownersToProcess: Array<{ ownerId: string; offsets: number[] }> = [];
-        for (const row of prefsRows ?? []) {
-          const categories = (row.categories ?? {}) as Record<string, boolean>;
+        for (const ownerId of ownerIds) {
+          const row = prefsByOwner.get(ownerId);
+          const categories = (row?.categories ?? {}) as Record<string, boolean>;
           if (categories.class_reminder === false) continue;
-          const extras = (row.extras ?? {}) as ExtrasShape;
+          const extras = (row?.extras ?? {}) as ExtrasShape;
           const raw = Array.isArray(extras.class_reminder_offsets_min)
             ? extras.class_reminder_offsets_min
             : [60, 15];
-          const offsets = raw
+          const offsets = Array.from(new Set(raw
             .map((n) => Math.round(Number(n)))
-            .filter((n) => Number.isFinite(n) && n >= 0 && n <= 720);
+            .filter((n) => Number.isFinite(n) && n >= 0 && n <= 720)));
           if (offsets.length === 0) continue;
-          ownersToProcess.push({ ownerId: row.owner_id, offsets });
+          ownersToProcess.push({ ownerId, offsets });
         }
 
         if (ownersToProcess.length === 0) {
@@ -80,6 +94,8 @@ export const Route = createFileRoute("/api/public/hooks/send-class-reminders")({
         const now = new Date();
         let scanned = 0;
         let sent = 0;
+        let pushSent = 0;
+        let pushFailed = 0;
         let skipped = 0;
 
         for (const { ownerId, offsets } of ownersToProcess) {
@@ -167,7 +183,19 @@ export const Route = createFileRoute("/api/public/hooks/send-class-reminders")({
                     off === 0
                       ? `${className} começa agora (${startHH}:${startMM})`
                       : `${className} começa em ${off} min · ${startHH}:${startMM}`;
-                  await sendPushToStudent(
+                  const { error: notificationError } = await (supabaseAdmin as any)
+                    .from("dojo_student_notifications")
+                    .insert({
+                      owner_id: ownerId,
+                      student_id: st.id,
+                      type: "class_reminder",
+                      title: "Lembrete de aula",
+                      message: bodyText,
+                      link: "/app/schedule",
+                    });
+                  if (notificationError) throw notificationError;
+
+                  const delivery = await sendPushToStudent(
                     st.id,
                     {
                       title: "Lembrete de aula",
@@ -183,8 +211,15 @@ export const Route = createFileRoute("/api/public/hooks/send-class-reminders")({
                     },
                     "class_reminder",
                   );
+                  pushSent += delivery.sent;
+                  pushFailed += delivery.failed;
+                  if (delivery.failed > 0) {
+                    console.warn("[send-class-reminders] push com falhas", {
+                      ownerId, student: st.id, failed: delivery.failed,
+                    });
+                  }
 
-                  await (supabaseAdmin as any)
+                  const { error: sentLogError } = await (supabaseAdmin as any)
                     .from("dojo_class_reminders_sent")
                     .insert({
                       owner_id: ownerId,
@@ -194,6 +229,7 @@ export const Route = createFileRoute("/api/public/hooks/send-class-reminders")({
                       occurrence_start_time: String(s.start_time),
                       offset_minutes: off,
                     });
+                  if (sentLogError) throw sentLogError;
                   sent++;
                 } catch (err: any) {
                   console.warn("[send-class-reminders] falha", {
@@ -207,7 +243,7 @@ export const Route = createFileRoute("/api/public/hooks/send-class-reminders")({
           }
         }
 
-        return Response.json({ ok: true, scanned, sent, skipped });
+        return Response.json({ ok: true, scanned, sent, pushSent, pushFailed, skipped });
       },
     },
   },

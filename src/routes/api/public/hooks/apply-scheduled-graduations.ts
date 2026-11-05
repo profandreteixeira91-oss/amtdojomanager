@@ -79,14 +79,31 @@ export const Route = createFileRoute("/api/public/hooks/apply-scheduled-graduati
               if (student && !student.cancelled_at) {
                 const belt = beltById.get(g.belt_id) as any;
                 const degreeTxt = typeof g.degree === "number" && g.degree > 0 ? ` — ${g.degree}º grau` : "";
+                const title = "Parabéns pela graduação!";
+                const message = `Você foi graduado(a): ${belt?.name ?? "Nova faixa"}${degreeTxt}.`;
+                const { error: notificationError } = await (supabaseAdmin as any)
+                  .from("dojo_student_notifications")
+                  .insert({
+                    owner_id: g.owner_id,
+                    student_id: g.student_id,
+                    type: "graduation",
+                    title,
+                    message,
+                    link: "/app/graduacoes",
+                  });
+                if (notificationError) {
+                  console.warn("[apply-scheduled-graduations] notificação interna falhou", g.id, notificationError.message);
+                }
                 await sendPushToStudent(g.student_id, {
-                  title: "Parabéns pela graduação! 🥋",
-                  body: `Você foi graduado(a): ${belt?.name ?? "Nova faixa"}${degreeTxt}.`,
+                  title: `🥋 ${title}`,
+                  body: message,
                   url: "/app/graduacoes",
                   tag: `graduation-${g.id}`,
                 }, "graduation");
               }
-            } catch (err) {}
+            } catch (err: any) {
+              console.warn("[apply-scheduled-graduations] graduação falhou", g.id, err?.message ?? err);
+            }
           }
         }
 

@@ -827,7 +827,70 @@ export const saveDojoEnrollment = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { id, ...rest } = data;
     if (id) {
-      const { error } = await context.supabase.from("dojo_enrollments").update(rest).eq("id", id);
+      const { data: current, error: currentError } = await context.supabase
+        .from("dojo_enrollments")
+        .select("asaas_subscription_id")
+        .eq("id", id)
+        .maybeSingle();
+      if (currentError) throw new Error(currentError.message);
+
+      const patch: any = { ...rest };
+      // Ao tornar a matrícula isenta, encerra recorrências e cobranças futuras.
+      if (Number(data.custom_amount) === 0) {
+        const { getDojoAsaasCredentials } = await import("@/lib/asaas/dojo-credentials.server");
+        const { asaasCancelSubscription, asaasCancelCharge } = await import("@/lib/asaas/client.server");
+        let apiKey: string | undefined;
+
+        if (current?.asaas_subscription_id) {
+          const credentials = await getDojoAsaasCredentials(ownerId(context));
+          apiKey = credentials.apiKey;
+          const canceled = await asaasCancelSubscription(current.asaas_subscription_id, apiKey);
+          if (!canceled.deleted) throw new Error("Não foi possível cancelar a recorrência no Asaas");
+          patch.asaas_subscription_id = null;
+        }
+
+        // Faturas futuras já emitidas também viram registros isentos de pagamento.
+        const today = todayISO();
+        const { data: futureInvoices, error: futureError } = await context.supabase
+          .from("dojo_invoices")
+          .select("id, asaas_charge_id")
+          .eq("enrollment_id", id)
+          .in("status", ["pending", "overdue"])
+          .gte("due_date", today);
+        if (futureError) throw new Error(futureError.message);
+
+        const invoicesWithGatewayCharge = (futureInvoices ?? []).filter((invoice) => invoice.asaas_charge_id);
+        if (invoicesWithGatewayCharge.length > 0 && !apiKey) {
+          const credentials = await getDojoAsaasCredentials(ownerId(context));
+          apiKey = credentials.apiKey;
+        }
+
+        for (const invoice of futureInvoices ?? []) {
+          if (invoice.asaas_charge_id) {
+            await asaasCancelCharge(invoice.asaas_charge_id, apiKey);
+          }
+          const { error: updateInvoiceError } = await context.supabase
+            .from("dojo_invoices")
+            .update({
+              amount: 0,
+              method: "scholarship",
+              status: "pending",
+              asaas_charge_id: null,
+              asaas_subscription_id: null,
+              payment_id: null,
+              payment_link: null,
+              asaas_invoice_url: null,
+              asaas_pix_copypaste: null,
+              asaas_pix_qrcode: null,
+              payment_provider: null,
+              provider: null,
+            } as never)
+            .eq("id", invoice.id);
+          if (updateInvoiceError) throw new Error(updateInvoiceError.message);
+        }
+      }
+
+      const { error } = await context.supabase.from("dojo_enrollments").update(patch).eq("id", id);
       if (error) throw new Error(error.message);
       return { id };
     }
@@ -873,7 +936,7 @@ export const saveDojoInvoice = createServerFn({ method: "POST" })
     enrollment_id: z.string().regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/, "UUID inválido").optional().nullable(),
     unit_id: z.string().regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/, "UUID inválido").optional().nullable(),
     description: z.string().max(300).optional().nullable(),
-    amount: z.number().positive(),
+    amount: z.number().min(0),
     due_date: z.string(),
     status: z.enum(["pending","paid","overdue","cancelled"]).optional(),
     method: z.string().max(30).optional().nullable(),
@@ -884,7 +947,7 @@ export const saveDojoInvoice = createServerFn({ method: "POST" })
     if (id) {
       const { data: current, error: currentError } = await context.supabase
         .from("dojo_invoices")
-        .select("asaas_charge_id")
+        .select("asaas_charge_id, status")
         .eq("id", id)
         .maybeSingle();
       if (currentError) throw new Error(currentError.message);
@@ -899,8 +962,28 @@ export const saveDojoInvoice = createServerFn({ method: "POST" })
       const { apiKey, split, mode } = creds;
       const patch: any = { ...rest };
 
+      if (Number(rest.amount) === 0) {
+        if ((current as any).status === "paid" && (current as any).asaas_charge_id) {
+          throw new Error("Não é possível tornar isenta uma mensalidade já paga");
+        }
+        if ((current as any).asaas_charge_id && (current as any).status !== "cancelled") {
+          const { asaasCancelCharge } = await import("@/lib/asaas/client.server");
+          await asaasCancelCharge((current as any).asaas_charge_id, apiKey);
+        }
+        Object.assign(patch, {
+          method: "scholarship",
+          asaas_charge_id: null,
+          asaas_subscription_id: null,
+          payment_id: null,
+          payment_link: null,
+          asaas_invoice_url: null,
+          asaas_pix_copypaste: null,
+          asaas_pix_qrcode: null,
+          payment_provider: null,
+          provider: null,
+        });
       // AMT Pay desativado → não toca no Asaas. Apenas atualiza a fatura local.
-      if (mode === "subaccount") {
+      } else if (mode === "subaccount") {
         assertAmtCommission(creds);
         if ((current as any).asaas_charge_id) {
           const { asaasUpdateCharge } = await import("@/lib/asaas/client.server");
@@ -942,6 +1025,7 @@ export const saveDojoInvoice = createServerFn({ method: "POST" })
       ...rest,
       status: "pending",
       owner_id: ownerId(context),
+      ...(Number(rest.amount) === 0 ? { method: "scholarship" } : {}),
     };
     const { syncInvoiceWithAsaas } = await import("@/lib/asaas/enrollment.server");
     const asaasData = await syncInvoiceWithAsaas(context.supabase as any, payload);
@@ -954,8 +1038,10 @@ export const saveDojoInvoice = createServerFn({ method: "POST" })
       const amountFmt = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" })
         .format(Number(payload.amount ?? 0));
       await sendPushToStudent(payload.student_id, {
-        title: "Nova cobrança disponível",
-        body: `${payload.description ?? "Mensalidade"} — ${amountFmt}${payload.due_date ? ` • vence em ${new Date(payload.due_date + "T12:00:00Z").toLocaleDateString("pt-BR", { timeZone: "UTC" })}` : ""}`,
+        title: Number(payload.amount) === 0 ? "Mensalidade isenta registrada" : "Nova cobrança disponível",
+        body: Number(payload.amount) === 0
+          ? `${payload.description ?? "Mensalidade"} — ${amountFmt} · controle financeiro, sem pagamento necessário`
+          : `${payload.description ?? "Mensalidade"} — ${amountFmt}${payload.due_date ? ` • vence em ${new Date(payload.due_date + "T12:00:00Z").toLocaleDateString("pt-BR", { timeZone: "UTC" })}` : ""}`,
         url: "/app/financeiro",
         tag: `invoice-${row.id}`,
       }, "invoice_due_soon");
@@ -980,6 +1066,7 @@ export const markDojoInvoicePaid = createServerFn({ method: "POST" })
       .maybeSingle();
     if (invoiceError) throw new Error(invoiceError.message);
     if (!invoice) throw new Error("Cobrança não encontrada");
+    if (Number(invoice.amount) === 0) throw new Error("Mensalidade isenta não precisa de baixa de pagamento");
 
     // Cobrança vinculada ao AMT Pay (Asaas): dá baixa via API
     if ((invoice as any).asaas_charge_id) {
@@ -1131,7 +1218,7 @@ export const enrollStudentWithPlan = createServerFn({ method: "POST" })
     if (enrErr) throw new Error(enrErr.message);
 
     // 4a) Fluxo GATEWAY (Asaas Subscription) — só quando AMT Pay ativo.
-    if (amtPayMode === "subaccount" && isGatewayPaymentMethod(methodCode)) {
+    if (baseAmount > 0 && amtPayMode === "subaccount" && isGatewayPaymentMethod(methodCode)) {
       assertAmtCommission(amtPay);
       const { apiKey, split } = amtPay;
       const { data: profile } = await context.supabase
@@ -1226,6 +1313,7 @@ export const enrollStudentWithPlan = createServerFn({ method: "POST" })
         due_date: firstDueDate,
         status: "pending",
         owner_id: ownerId(context),
+        ...(amount === 0 ? { method: "scholarship" } : {}),
       };
     const { syncInvoiceWithAsaas } = await import("@/lib/asaas/enrollment.server");
     const asaasData = await syncInvoiceWithAsaas(context.supabase as any, invPayload);
@@ -1452,6 +1540,7 @@ export const generateMonthlyInvoices = createServerFn({ method: "POST" })
         due_date: dueDate,
         status: "pending",
         owner_id: ownerId(context),
+        ...(Number(amount) === 0 ? { method: "scholarship" } : {}),
       };
       const { syncInvoiceWithAsaas } = await import("@/lib/asaas/enrollment.server");
       const asaasData = await syncInvoiceWithAsaas(context.supabase as any, invPayload);
@@ -1630,15 +1719,32 @@ export const issueCertificate = createServerFn({ method: "POST" })
       owner_id: ownerId(context),
     }).select("*").single();
     if (error) throw new Error(error.message);
+    const notificationTitle = "Certificado disponível";
+    const notificationMessage = "Seu novo certificado foi emitido. Toque para visualizar e baixar.";
     try {
+      const { error: notificationError } = await context.supabase
+        .from("dojo_student_notifications")
+        .insert({
+          owner_id: ownerId(context),
+          student_id: data.student_id,
+          type: "contract",
+          title: notificationTitle,
+          message: notificationMessage,
+          link: "/app/certificados",
+        });
+      if (notificationError) {
+        console.warn("[certificate] notificação interna falhou", row.id, notificationError.message);
+      }
       const { safeNotifyStudent } = await import("@/lib/push/push.server");
       await safeNotifyStudent(data.student_id, {
-        title: "Certificado disponível 🎓",
-        body: "Seu novo certificado foi emitido. Toque para visualizar e baixar.",
+        title: `🎓 ${notificationTitle}`,
+        body: notificationMessage,
         url: "/app/certificados",
         tag: `certificate-${row.id}`,
       }, "contract");
-    } catch {}
+    } catch (err: any) {
+      console.warn("[certificate] notificação falhou", row.id, err?.message ?? err);
+    }
     return row;
   });
 

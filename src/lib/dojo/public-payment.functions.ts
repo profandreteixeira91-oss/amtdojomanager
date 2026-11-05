@@ -37,6 +37,7 @@ async function loadInvoiceForPayment(supabaseAdmin: any, invoiceId: string) {
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Cobrança não encontrada");
+  if (Number(data.amount) === 0) throw new Error("Esta mensalidade é isenta e não exige pagamento");
   if (data.status === "canceled") throw new Error("Esta cobrança foi cancelada");
   if (!data.asaas_charge_id) {
     throw new Error(
