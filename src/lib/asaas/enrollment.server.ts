@@ -164,6 +164,9 @@ export async function syncInvoiceWithAsaas(
     owner_id: string;
   },
 ) {
+  // Mensalidade zerada é isenta: mantém o registro local, sem criar cobrança.
+  if (Number(invoice.amount) === 0) return {};
+
   // 1. Credenciais da subconta do dojo (modelo subconta + comissão AMT)
   const { getDojoAsaasCredentials, assertAmtCommission, dojoPublicOrigin } = await import(
     "./dojo-credentials.server"
