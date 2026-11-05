@@ -827,7 +827,25 @@ export const saveDojoEnrollment = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { id, ...rest } = data;
     if (id) {
-      const { error } = await context.supabase.from("dojo_enrollments").update(rest).eq("id", id);
+      const { data: current, error: currentError } = await context.supabase
+        .from("dojo_enrollments")
+        .select("asaas_subscription_id")
+        .eq("id", id)
+        .maybeSingle();
+      if (currentError) throw new Error(currentError.message);
+
+      const patch: any = { ...rest };
+      // Ao tornar a matrícula isenta, encerra a recorrência no Asaas.
+      // Assim, o gateway não continua emitindo cobranças fora do cron local.
+      if (Number(data.custom_amount) === 0 && current?.asaas_subscription_id) {
+        const { getDojoAsaasCredentials } = await import("@/lib/asaas/dojo-credentials.server");
+        const { apiKey } = await getDojoAsaasCredentials(ownerId(context));
+        const { asaasCancelSubscription } = await import("@/lib/asaas/client.server");
+        await asaasCancelSubscription(current.asaas_subscription_id, apiKey);
+        patch.asaas_subscription_id = null;
+      }
+
+      const { error } = await context.supabase.from("dojo_enrollments").update(patch).eq("id", id);
       if (error) throw new Error(error.message);
       return { id };
     }
