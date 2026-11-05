@@ -177,7 +177,7 @@ export const dojoFinanceDashboard = createServerFn({ method: "GET" })
 
     // Em atraso e a receber
     const openInvoices = invoices.filter(
-      (i) => i.status !== "paid" && i.status !== "cancelled",
+      (i) => num(i.amount) > 0 && i.status !== "paid" && i.status !== "cancelled",
     );
     const overdue = openInvoices.filter((i) => new Date(i.due_date) < now);
     const overdueAmount = overdue.reduce((s, i) => s + num(i.amount), 0);
