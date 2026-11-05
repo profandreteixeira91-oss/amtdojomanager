@@ -44,8 +44,8 @@ import { diffDaysISO, todayISO } from "@/lib/dates";
 const DUE_SOON_DAYS = 5;
 
 function effectiveStatus(i: TuitionInvoice) {
-  if (Number(i.amount) === 0) return "exempt";
   if (i.status === "paid" || i.status === "cancelled") return i.status;
+  if (Number(i.amount) === 0) return "exempt";
   const diff = diffDaysISO(todayISO(), i.due_date);
   if (diff < 0) return "overdue";
   if (diff <= DUE_SOON_DAYS) return "due_soon";
