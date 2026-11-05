@@ -168,12 +168,16 @@ export const Route = createFileRoute("/api/public/hooks/generate-dojo-invoices")
               style: "currency",
               currency: "BRL",
             }).format(Number(amount ?? 0));
-            const body = `${invPayload.description} — ${amountFmt} · vence em ${dd}/${dm}/${dy}`;
+            const isExempt = Number(amount) === 0;
+            const body = isExempt
+              ? `${invPayload.description} — ${amountFmt} · registro para controle, sem pagamento necessário`
+              : `${invPayload.description} — ${amountFmt} · vence em ${dd}/${dm}/${dy}`;
+            const notificationTitle = isExempt ? "Mensalidade isenta registrada" : "Nova mensalidade disponível";
             await supabaseAdmin.from("dojo_student_notifications").insert({
               owner_id: e.owner_id,
               student_id: e.student_id,
               type: "invoice_created",
-              title: "Nova mensalidade disponível",
+              title: notificationTitle,
               message: body,
               link: "/app/financeiro",
             } as never);
@@ -181,7 +185,7 @@ export const Route = createFileRoute("/api/public/hooks/generate-dojo-invoices")
             await sendPushToStudent(
               e.student_id,
               {
-                title: "Nova mensalidade disponível",
+                title: notificationTitle,
                 body,
                 url: "/app/financeiro",
                 tag: `invoice-${invPayload.id}`,
