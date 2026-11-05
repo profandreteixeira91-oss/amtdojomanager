@@ -22,6 +22,7 @@ interface Props {
   paymentLink?: string
   pixCopyPaste?: string
   invoiceDescription?: string
+  isExempt?: boolean
 }
 
 const Email = ({
@@ -33,22 +34,27 @@ const Email = ({
   paymentLink,
   pixCopyPaste,
   invoiceDescription = 'Mensalidade',
+  isExempt = false,
 }: Props) => {
   const isPreview = daysOffset < 0
   const isDueToday = daysOffset === 0
   const isOverdue = daysOffset > 0
 
-  const title = isPreview
-    ? 'Sua próxima mensalidade está chegando'
-    : isDueToday
-      ? 'Sua mensalidade vence hoje'
-      : `Mensalidade em atraso há ${daysOffset} ${daysOffset === 1 ? 'dia' : 'dias'}`
+  const title = isExempt
+    ? 'Mensalidade isenta registrada'
+    : isPreview
+      ? 'Sua próxima mensalidade está chegando'
+      : isDueToday
+        ? 'Sua mensalidade vence hoje'
+        : `Mensalidade em atraso há ${daysOffset} ${daysOffset === 1 ? 'dia' : 'dias'}`
 
-  const intro = isPreview
-    ? `Este é um lembrete amigável: sua próxima cobrança vence em ${Math.abs(daysOffset)} ${Math.abs(daysOffset) === 1 ? 'dia' : 'dias'}.`
-    : isDueToday
-      ? 'Passando para lembrar que sua mensalidade vence hoje. Aproveite para pagar agora e evitar juros.'
-      : 'Identificamos que sua mensalidade ainda não foi paga. Regularize para continuar aproveitando todos os benefícios do dojo.'
+  const intro = isExempt
+    ? 'Esta mensalidade está registrada apenas para controle financeiro. Não é necessário realizar pagamento.'
+    : isPreview
+      ? `Este é um lembrete amigável: sua próxima cobrança vence em ${Math.abs(daysOffset)} ${Math.abs(daysOffset) === 1 ? 'dia' : 'dias'}.`
+      : isDueToday
+        ? 'Passando para lembrar que sua mensalidade vence hoje. Aproveite para pagar agora e evitar juros.'
+        : 'Identificamos que sua mensalidade ainda não foi paga. Regularize para continuar aproveitando todos os benefícios do dojo.'
 
   return (
     <Html lang="pt-BR" dir="ltr">
@@ -79,7 +85,7 @@ const Email = ({
             ) : null}
           </Section>
 
-          {paymentLink ? (
+          {!isExempt && paymentLink ? (
             <Section style={{ textAlign: 'center', marginTop: '24px' }}>
               <Button href={paymentLink} style={button}>
                 Pagar agora
@@ -87,7 +93,7 @@ const Email = ({
             </Section>
           ) : null}
 
-          {pixCopyPaste ? (
+          {!isExempt && pixCopyPaste ? (
             <Section style={pixBox}>
               <Text style={cardLabel}>Pix Copia e Cola</Text>
               <Text style={pixCode}>{pixCopyPaste}</Text>
@@ -95,7 +101,9 @@ const Email = ({
           ) : null}
 
           <Text style={footer}>
-            Se você já efetuou o pagamento, desconsidere esta mensagem.
+            {isExempt
+              ? 'Esta mensalidade é isenta. Nenhum pagamento é necessário.'
+              : 'Se você já efetuou o pagamento, desconsidere esta mensagem.'}
           </Text>
         </Container>
       </Body>
@@ -108,6 +116,7 @@ export const template = {
   subject: (d: Record<string, any>) => {
     const days = Number(d.daysOffset ?? 0)
     const dojo = d.dojoName ?? 'Sua academia'
+    if (d.isExempt) return `Mensalidade isenta registrada — ${dojo}`
     if (days < 0) return `Sua mensalidade vence em breve — ${dojo}`
     if (days === 0) return `Sua mensalidade vence hoje — ${dojo}`
     return `Mensalidade em atraso — ${dojo}`
