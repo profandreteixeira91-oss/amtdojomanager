@@ -44,6 +44,7 @@ import { diffDaysISO, todayISO } from "@/lib/dates";
 const DUE_SOON_DAYS = 5;
 
 function effectiveStatus(i: TuitionInvoice) {
+  if (Number(i.amount) === 0) return "exempt";
   if (i.status === "paid" || i.status === "cancelled") return i.status;
   const diff = diffDaysISO(todayISO(), i.due_date);
   if (diff < 0) return "overdue";
@@ -54,6 +55,7 @@ function effectiveStatus(i: TuitionInvoice) {
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
     paid: { label: "Pago", cls: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+    exempt: { label: "Isento · bolsista", cls: "bg-sky-100 text-sky-800 border-sky-200" },
     overdue: { label: "Vencida", cls: "bg-red-100 text-red-800 border-red-200" },
     due_soon: { label: "Próxima ao vencimento", cls: "bg-amber-100 text-amber-800 border-amber-200" },
     pending: { label: "A vencer", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
@@ -126,7 +128,7 @@ export function TuitionRow({
               <QrCode className="h-3.5 w-3.5 mr-1" /> PIX
             </Button>
           )}
-          {st !== "paid" && onMarkPaid && (
+          {st !== "paid" && st !== "exempt" && onMarkPaid && (
             <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => onMarkPaid(inv.id)}>
               <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Receber
             </Button>
