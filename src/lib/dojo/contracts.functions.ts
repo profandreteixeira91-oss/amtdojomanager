@@ -336,7 +336,7 @@ export const generateStudentContract = createServerFn({ method: "POST" })
       await sendPushToStudent(data.student_id, {
         title: "Novo contrato disponível 📄",
         body: `${data.title} — toque para revisar e assinar.`,
-        url: "/app/contratos",
+        url: `/app/documents/${row.id}`,
         tag: `contract-${row.id}`,
       }, "contract");
     } catch (err) {

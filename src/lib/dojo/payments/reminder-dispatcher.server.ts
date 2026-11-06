@@ -149,33 +149,35 @@ export async function dispatchInvoicePushReminder(
   const studentId = invoice.student?.id;
   if (!studentId) return { status: "skipped", reason: "no_student_id" };
 
-  // Idempotência
-  const { data: existing } = await supabase
+  // Idempotência por reserva: a linha (índice único invoice_id+offset+canal)
+  // entra ANTES do envio. Se já existe — outra execução do cron ou um envio
+  // manual —, não manda de novo. Consultar e só depois gravar deixava duas
+  // execuções simultâneas mandarem o mesmo lembrete.
+  const { data: claim, error: claimErr } = await supabase
     .from("dojo_invoice_reminders")
-    .select("id")
-    .eq("invoice_id", invoice.id)
-    .eq("offset_days", offsetDays)
-    .eq("channel", channel)
-    .maybeSingle();
-  if (existing) return { status: "skipped", reason: "already_sent" };
-
-  // Verifica se o aluno tem alguma inscrição push ativa
-  const { data: subs } = await supabase
-    .from("dojo_push_subscriptions")
-    .select("id")
-    .eq("student_id", studentId)
-    .limit(1);
-  if (!subs || subs.length === 0) {
-    await supabase.from("dojo_invoice_reminders").insert({
+    .insert({
       owner_id: invoice.owner_id,
       invoice_id: invoice.id,
       offset_days: offsetDays,
       channel,
-      status: "skipped",
-      error_message: "no_push_subscription",
-    });
-    return { status: "skipped", reason: "no_push_subscription" };
+      status: "sent",
+    })
+    .select("id")
+    .maybeSingle();
+  if (claimErr) {
+    if (claimErr.code === "23505" || String(claimErr.message).includes("duplicate")) {
+      return { status: "skipped", reason: "already_sent" };
+    }
+    return { status: "failed", reason: claimErr.message };
   }
+  const claimId = (claim as { id: string } | null)?.id;
+  const setOutcome = async (status: "skipped" | "failed", message: string) => {
+    if (!claimId) return;
+    await supabase
+      .from("dojo_invoice_reminders")
+      .update({ status, error_message: message.slice(0, 1000) })
+      .eq("id", claimId);
+  };
 
   const amount = formatBRL(Number(invoice.amount));
   const due = formatDateBR(invoice.due_date);
@@ -193,36 +195,23 @@ export async function dispatchInvoicePushReminder(
     body = `${invoice.description ?? "Mensalidade"} — ${amount} · vencia em ${due}`;
   }
 
-  try {
-    const { sendPushToStudent } = await import("@/lib/push/push.server");
-    await sendPushToStudent(studentId, {
-      title,
-      body,
-      url: `/app/invoice/${invoice.id}`,
-      tag: `invoice-${invoice.id}`,
-      data: { invoiceId: invoice.id, offsetDays },
-    }, offsetDays > 0 ? "invoice_overdue" : "invoice_due_soon");
-  } catch (err: any) {
-    await supabase.from("dojo_invoice_reminders").insert({
-      owner_id: invoice.owner_id,
-      invoice_id: invoice.id,
-      offset_days: offsetDays,
-      channel,
-      status: "failed",
-      error_message: String(err?.message ?? err),
-    });
-    return { status: "failed", reason: String(err?.message ?? err) };
-  }
+  // sendPushToStudent nunca lança: o resultado da entrega diz o que houve.
+  // Ele também põe a mensagem na fila de WhatsApp da academia, por isso é
+  // chamado mesmo quando o aluno não tem push ativado no aparelho.
+  const { sendPushToStudent } = await import("@/lib/push/push.server");
+  const result = await sendPushToStudent(studentId, {
+    title,
+    body,
+    url: `/app/invoice/${invoice.id}`,
+    tag: `invoice-${invoice.id}`,
+    data: { invoiceId: invoice.id, offsetDays },
+  }, offsetDays > 0 ? "invoice_overdue" : "invoice_due_soon");
 
-  const { error: logErr } = await supabase.from("dojo_invoice_reminders").insert({
-    owner_id: invoice.owner_id,
-    invoice_id: invoice.id,
-    offset_days: offsetDays,
-    channel,
-    status: "sent",
-  });
-  if (logErr && !logErr.message.includes("duplicate")) {
-    console.warn("[reminders] falha ao logar envio push", logErr);
+  if (result.sent > 0) return { status: "sent" };
+  if (result.failed > 0) {
+    await setOutcome("failed", `push falhou em ${result.failed} aparelho(s)`);
+    return { status: "failed", reason: "push_failed" };
   }
-  return { status: "sent" };
+  await setOutcome("skipped", "no_push_subscription");
+  return { status: "skipped", reason: "no_push_subscription" };
 }

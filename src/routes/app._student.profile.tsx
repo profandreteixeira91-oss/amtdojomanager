@@ -131,7 +131,15 @@ function ProfilePage() {
 
   useEffect(() => {
     if (!anamnesisRow) return;
-    const a = (anamnesisRow.anamnesis ?? {}) as Partial<AnamnesisForm>;
+    const raw = anamnesisRow.anamnesis;
+    const src = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+    // Só os campos do formulário, sem nulos (null em input controlado vira aviso
+    // e não passa na validação do servidor).
+    const a: Partial<AnamnesisForm> = {};
+    for (const k of Object.keys(emptyAnamn) as Array<keyof AnamnesisForm>) {
+      const v = src[k];
+      if (typeof v === typeof emptyAnamn[k]) (a as Record<string, unknown>)[k] = v;
+    }
     setAnamn({ ...emptyAnamn, ...a });
     setHealthInsurance(anamnesisRow.health_insurance ?? "");
   }, [anamnesisRow]);

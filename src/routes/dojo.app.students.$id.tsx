@@ -51,7 +51,33 @@ import { addDaysISO, dayISO, todayISO } from "@/lib/dates";
 export const Route = createFileRoute("/dojo/app/students/$id")({
   head: () => ({ meta: [{ title: "Aluno — AMT Dojo Manager" }] }),
   component: StudentDetail,
+  // Um dado inesperado de um aluno não pode derrubar o painel inteiro: o erro
+  // fica restrito ao perfil, com a mensagem real e opção de tentar de novo.
+  errorComponent: ({ error, reset }) => (
+    <ProfileError
+      message={error instanceof Error ? error.message : String(error)}
+      onRetry={reset}
+    />
+  ),
 });
+
+function ProfileError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="mx-auto max-w-lg space-y-3 rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
+      <AlertTriangle className="mx-auto h-6 w-6 text-red-600" />
+      <div className="text-sm font-semibold text-red-800">Não foi possível abrir o perfil deste aluno.</div>
+      <div className="break-words text-xs text-red-700">{message}</div>
+      <div className="flex justify-center gap-2">
+        <Button size="sm" variant="outline" onClick={onRetry}>
+          <RefreshCw className="mr-1.5 h-4 w-4" /> Tentar de novo
+        </Button>
+        <Button size="sm" variant="ghost" asChild>
+          <Link to="/dojo/app/students">Voltar para Alunos</Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 const brl = (n: number) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const fmtDate = (v?: string | null) => brDate(v);
@@ -64,8 +90,12 @@ function StudentDetail() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isChildRoute = pathname !== `/dojo/app/students/${id}`;
+  // Rota filha (ex.: /analysis) ativa? Comparar o pathname com a string do
+  // perfil falhava com barra final ou UUID em outra caixa e deixava a página
+  // em branco (renderizava só o <Outlet /> vazio).
+  const isChildRoute = useRouterState({
+    select: (s) => s.matches[s.matches.length - 1]?.routeId !== Route.id,
+  });
 
 
 
@@ -275,7 +305,10 @@ function StudentDetail() {
 
   if (isChildRoute) return <Outlet />;
   if (q.isLoading) return <LoadingState />;
-  if (!q.data || !s) return <div className="p-8 text-center text-destructive">Aluno não encontrado ou dados inválidos.</div>;
+  if (q.isError) {
+    return <ProfileError message={(q.error as Error)?.message ?? "Erro ao carregar o aluno."} onRetry={() => q.refetch()} />;
+  }
+  if (!q.data || !s) return <div className="p-8 text-center text-destructive">Aluno não encontrado.</div>;
 
 
   const openCancelDialog = () => setCancelDialog({ open: true, mode: "cancel", frozen_until: "" });

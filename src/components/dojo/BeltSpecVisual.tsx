@@ -29,10 +29,13 @@ export type BeltSpec = {
 };
 
 export function beltSpecIsEmpty(spec: BeltSpec | null | undefined): boolean {
-  if (!spec) return true;
-  const hasSeg = (spec.segments?.length ?? 0) > 0;
+  if (!spec || typeof spec !== "object") return true;
+  const hasSeg = Array.isArray(spec.segments) && spec.segments.length > 0;
   return !hasSeg && !spec.aparador && !spec.centerBand && !spec.tip;
 }
+
+/** `visual`/`variants` vêm de JSON do banco: só confia no formato depois de checar. */
+const asArray = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]).filter(Boolean) : []);
 
 export function BeltSpecVisual({
   spec, degree = 0, label, className = "", fallback,
@@ -46,11 +49,12 @@ export function BeltSpecVisual({
 }) {
   if (beltSpecIsEmpty(spec)) return <>{fallback ?? null}</>;
 
-  const segs = spec!.segments ?? [];
+  const segs = asArray<NonNullable<BeltSpec["segments"]>[number]>(spec!.segments);
   const tip = spec!.tip ?? null;
-  const stripes = tip?.forcedStripes ?? Math.max(0, degree);
-  const before = (spec!.dividers ?? []).filter((d) => d.side === "before-tip");
-  const after = (spec!.dividers ?? []).filter((d) => d.side === "after-tip");
+  const stripes = Math.min(20, Math.max(0, Number(tip?.forcedStripes ?? degree) || 0));
+  const dividers = asArray<NonNullable<BeltSpec["dividers"]>[number]>(spec!.dividers);
+  const before = dividers.filter((d) => d.side === "before-tip");
+  const after = dividers.filter((d) => d.side === "after-tip");
 
   return (
     <div className={`inline-flex flex-col items-start gap-1 ${className}`}>
@@ -166,7 +170,7 @@ export function BeltAuto({
   if (!belt) {
     return <div className={`h-8 w-full rounded-sm border border-dashed border-slate-300 ${className ?? ""}`} />;
   }
-  const degreeOverride = (belt.variants ?? []).find(
+  const degreeOverride = asArray<NonNullable<typeof belt.variants>[number]>(belt.variants).find(
     (v) => v && v.kind === "degree" && Number(v.degree) === Number(degree) && !beltSpecIsEmpty(v.visual),
   );
   if (degreeOverride && !beltSpecIsEmpty(degreeOverride.visual)) {

@@ -165,7 +165,7 @@ async function notifyStudentsForAnnouncement(supabase: any, ownerId: string, row
       type: "announcement",
       title: row.title,
       message: row.summary || row.subtitle || "Novo aviso publicado",
-      link: `/app/announcements/${row.id}`,
+      link: `/app/announcements?open=${row.id}`,
     }));
     await supabase.from("dojo_student_notifications").insert(notifRows);
 
@@ -174,7 +174,7 @@ async function notifyStudentsForAnnouncement(supabase: any, ownerId: string, row
       const result = await sendPushToStudents(visibleStudents, {
         title: `📣 ${row.title}`,
         body: row.summary || row.subtitle || "Novo aviso publicado no quadro de avisos",
-        url: `/app/announcements/${row.id}`,
+        url: `/app/announcements?open=${row.id}`,
         tag: `announcement-${row.id}`,
         data: { announcementId: row.id, type: "announcement" },
       }, "announcement");

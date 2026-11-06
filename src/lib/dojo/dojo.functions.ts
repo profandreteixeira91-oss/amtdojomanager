@@ -286,8 +286,9 @@ export const getDojoStudent = createServerFn({ method: "GET" })
   .validator((i: unknown) => z.object({ id: z.string().regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/, "UUID inválido") }).parse(i))
   .handler(async ({ data, context }) => {
     const { data: student, error } = await context.supabase
-      .from("dojo_students").select("*").eq("id", data.id).single();
+      .from("dojo_students").select("*").eq("id", data.id).maybeSingle();
     if (error) throw new Error(error.message);
+    if (!student) throw new Error("Aluno não encontrado ou sem permissão de acesso.");
     const [grads, enrolls, invoices, certs, photos, classStudentsRes] = await Promise.all([
       context.supabase.from("dojo_graduations").select("*, belt:dojo_belts(id,name,color_hex,stripe_hex,max_degrees,modality,sort_order,visual,variants)").eq("student_id", data.id).order("graduation_date", { ascending: false }),
       context.supabase.from("dojo_enrollments").select("*, plan:dojo_plans(name,amount)").eq("student_id", data.id),
@@ -956,7 +957,7 @@ export const saveDojoInvoice = createServerFn({ method: "POST" })
       await sendPushToStudent(payload.student_id, {
         title: "Nova cobrança disponível",
         body: `${payload.description ?? "Mensalidade"} — ${amountFmt}${payload.due_date ? ` • vence em ${new Date(payload.due_date + "T12:00:00Z").toLocaleDateString("pt-BR", { timeZone: "UTC" })}` : ""}`,
-        url: "/app/financeiro",
+        url: "/app/finance",
         tag: `invoice-${row.id}`,
       }, "invoice_due_soon");
     } catch (err) {
@@ -1397,7 +1398,7 @@ export const changeStudentPlan = createServerFn({ method: "POST" })
       await safeNotifyStudent(data.student_id, {
         title: "Plano alterado",
         body: `Seu plano foi atualizado para ${(plan as any).name}. Novo valor entra em vigor na próxima cobrança.`,
-        url: "/app/plan",
+        url: "/app/finance",
         tag: `plan-change-${(row as any).id}`,
         data: { enrollmentId: (row as any).id, type: "plan_change" },
       }, "plan_change");
@@ -1635,7 +1636,7 @@ export const issueCertificate = createServerFn({ method: "POST" })
       await safeNotifyStudent(data.student_id, {
         title: "Certificado disponível 🎓",
         body: "Seu novo certificado foi emitido. Toque para visualizar e baixar.",
-        url: "/app/certificados",
+        url: "/app/certificates",
         tag: `certificate-${row.id}`,
       }, "contract");
     } catch {}
@@ -1914,7 +1915,7 @@ export const addBulkGraduation = createServerFn({ method: "POST" })
           tasks.push(sendPushToStudent(g.student_id, {
             title: "Parabéns pela graduação! 🥋",
             body: `Você foi graduado(a): ${belt?.name ?? "Nova faixa"}${degreeTxt}.`,
-            url: "/app/graduacoes",
+            url: "/app/graduations",
             tag: `graduation-${g.id}`,
           }, "graduation"));
         }
@@ -1925,7 +1926,7 @@ export const addBulkGraduation = createServerFn({ method: "POST" })
           tasks.push(sendPushToStudent(g.student_id, {
             title: "Nova cobrança disponível",
             body: `Taxa de graduação — ${belt?.name ?? "Faixa"} • ${amountFmt(inv.amount)}${data.graduation_date ? ` • vence em ${new Date(data.graduation_date + "T12:00:00Z").toLocaleDateString("pt-BR", { timeZone: "UTC" })}` : ""}`,
-            url: "/app/financeiro",
+            url: "/app/finance",
             tag: `invoice-${inv.invoice_id}`,
           }, "invoice_due_soon"));
         }

@@ -372,7 +372,7 @@ export const createEvalSession = createServerFn({ method: "POST" })
       await safeNotifyStudent(data.student_id, {
         title: data.scheduled_at ? "Avaliação agendada 📋" : "Nova avaliação criada",
         body: `${(tpl as any)?.title ?? "Avaliação"}${when}`,
-        url: "/app/avaliacoes",
+        url: "/app/evaluations",
         tag: `eval-session-${row.id}`,
       }, "evaluation");
     } catch {}
@@ -461,7 +461,7 @@ export const finishEvalSession = createServerFn({ method: "POST" })
       const msg = map[data.result] ?? { title: "Avaliação concluída", body: "Toque para ver os detalhes." };
       await safeNotifyStudent((sess as any)?.student_id, {
         ...msg,
-        url: "/app/avaliacoes",
+        url: "/app/evaluations",
         tag: `eval-finish-${data.id}`,
       }, "evaluation");
     } catch {}

@@ -45,13 +45,28 @@ export const Route = createFileRoute("/api/public/hooks/generate-dojo-invoices")
           )
           .eq("status", "active")
           .is("asaas_subscription_id", null)
-          .or(`next_run_at.is.null,next_run_at.lte.${maxTargetISO}`);
+          .or(`next_run_at.is.null,next_run_at.lte.${maxTargetISO}`)
+          // Mais urgentes primeiro: se o orçamento de tempo acabar, o que
+          // fica para a próxima execução é o que vence mais tarde.
+          .order("next_run_at", { ascending: true, nullsFirst: true });
         if (error) return Response.json({ error: error.message }, { status: 500 });
 
+        // Orçamento de tempo: o pg_net desiste em 60 s e o Worker é cancelado
+        // quando o cliente desconecta. Um corte entre a cobrança no Asaas e o
+        // insert da fatura deixaria cobrança órfã (e duplicada no dia
+        // seguinte). Por isso só começa uma matrícula nova dentro do prazo; o
+        // restante fica para a próxima chamada (idempotente).
+        const deadline = Date.now() + 40_000;
+        const list = (enrolls ?? []) as any[];
         let created = 0;
         let skipped = 0;
-        for (const raw of (enrolls ?? []) as any[]) {
-          const e = raw;
+        let deferred = 0;
+        for (let idx = 0; idx < list.length; idx++) {
+          if (Date.now() > deadline) {
+            deferred = list.length - idx;
+            break;
+          }
+          const e = list[idx];
           // Respeita pausa temporária.
           if (e.paused_until && e.paused_until >= todayISO) { skipped++; continue; }
           // Renovação automática obrigatória: `installments_total` NÃO interrompe
@@ -164,7 +179,7 @@ export const Route = createFileRoute("/api/public/hooks/generate-dojo-invoices")
               type: "invoice_created",
               title: "Nova mensalidade disponível",
               message: body,
-              link: "/app/financeiro",
+              link: "/app/finance",
             } as never);
             const { sendPushToStudent } = await import("@/lib/push/push.server");
             await sendPushToStudent(
@@ -172,7 +187,7 @@ export const Route = createFileRoute("/api/public/hooks/generate-dojo-invoices")
               {
                 title: "Nova mensalidade disponível",
                 body,
-                url: "/app/financeiro",
+                url: "/app/finance",
                 tag: `invoice-${invPayload.id}`,
                 data: { invoiceId: invPayload.id },
               },
@@ -185,7 +200,10 @@ export const Route = createFileRoute("/api/public/hooks/generate-dojo-invoices")
           created++;
         }
 
-        return Response.json({ ok: true, created, skipped, today: todayISO });
+        if (deferred > 0) {
+          console.warn(`[recurring] orçamento de tempo esgotado; ${deferred} matrícula(s) para a próxima execução`);
+        }
+        return Response.json({ ok: true, created, skipped, deferred, today: todayISO });
       },
     },
   },

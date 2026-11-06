@@ -140,13 +140,13 @@ const anamnesisSchema = z.object({
   injuries: z.string().max(1000).optional().nullable(),
   physical_activity_level: z.string().max(200).optional().nullable(),
   objectives: z.string().max(1000).optional().nullable(),
-  smoking: z.boolean().optional(),
-  alcohol: z.boolean().optional(),
-  heart_issues: z.boolean().optional(),
-  diabetes: z.boolean().optional(),
-  hypertension: z.boolean().optional(),
-  asthma: z.boolean().optional(),
-  pregnant: z.boolean().optional(),
+  smoking: z.boolean().nullable().optional(),
+  alcohol: z.boolean().nullable().optional(),
+  heart_issues: z.boolean().nullable().optional(),
+  diabetes: z.boolean().nullable().optional(),
+  hypertension: z.boolean().nullable().optional(),
+  asthma: z.boolean().nullable().optional(),
+  pregnant: z.boolean().nullable().optional(),
   other: z.string().max(2000).optional().nullable(),
   health_card_number: z.string().max(60).optional().nullable(),
 });
@@ -170,11 +170,18 @@ export const updateMyAnamnesis = createServerFn({ method: "POST" })
     }).parse(i),
   )
   .handler(async ({ data, context }) => {
-    const _meId = await getActiveStudentId(context.supabase); const me = _meId ? (await context.supabase.from("dojo_students").select("id").eq("id", _meId).maybeSingle()).data : null;
+    const me = await fetchActiveStudent<{ id: string; anamnesis: unknown }>(context.supabase, "id, anamnesis");
     if (!me) throw new Error("Aluno não encontrado");
+    // Mescla com a ficha existente: o zod descarta chaves que o aluno não edita
+    // (ex.: autism, weight, height, doctor_contact, gravadas pela academia ou
+    // pela matrícula online) e substituir o JSON inteiro as apagava.
+    const current =
+      me.anamnesis && typeof me.anamnesis === "object" && !Array.isArray(me.anamnesis)
+        ? (me.anamnesis as Record<string, unknown>)
+        : {};
     const { error } = await context.supabase
       .from("dojo_students")
-      .update({ anamnesis: data.anamnesis, health_insurance: data.health_insurance ?? null })
+      .update({ anamnesis: { ...current, ...data.anamnesis }, health_insurance: data.health_insurance ?? null })
       .eq("id", me.id);
     if (error) throw new Error(error.message);
     return { ok: true };

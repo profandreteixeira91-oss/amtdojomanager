@@ -17,6 +17,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as AppSplatRouteImport } from './routes/app.$'
 import { Route as AppStudentRouteImport } from './routes/app._student'
 import { Route as AppInstallRouteImport } from './routes/app.install'
 import { Route as AppLoginRouteImport } from './routes/app.login'
@@ -208,6 +209,11 @@ const TermsRoute = TermsRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSplatRoute = AppSplatRouteImport.update({
+  id: '/$',
+  path: '/$',
   getParentRoute: () => AppRoute,
 } as any)
 const AppStudentRoute = AppStudentRouteImport.update({
@@ -1025,6 +1031,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
+  '/app/$': typeof AppSplatRoute
   '/app/install': typeof AppInstallRouteWithChildren
   '/app/login': typeof AppLoginRoute
   '/app/reset-password': typeof AppResetPasswordRoute
@@ -1184,6 +1191,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
+  '/app/$': typeof AppSplatRoute
   '/app': typeof AppIndexRoute
   '/app/install': typeof AppInstallRouteWithChildren
   '/app/login': typeof AppLoginRoute
@@ -1334,6 +1342,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
+  '/app/$': typeof AppSplatRoute
   '/app/_student': typeof AppStudentRouteWithChildren
   '/app/install': typeof AppInstallRouteWithChildren
   '/app/login': typeof AppLoginRoute
@@ -1498,6 +1507,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/reset-password'
     | '/terms'
+    | '/app/$'
     | '/app/install'
     | '/app/login'
     | '/app/reset-password'
@@ -1657,6 +1667,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/reset-password'
     | '/terms'
+    | '/app/$'
     | '/app'
     | '/app/install'
     | '/app/login'
@@ -1806,6 +1817,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/reset-password'
     | '/terms'
+    | '/app/$'
     | '/app/_student'
     | '/app/install'
     | '/app/login'
@@ -2047,6 +2059,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/app/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/$': {
+      id: '/app/$'
+      path: '/$'
+      fullPath: '/app/$'
+      preLoaderRoute: typeof AppSplatRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/_student': {
@@ -3208,6 +3227,7 @@ const AppInstallRouteWithChildren = AppInstallRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppSplatRoute: typeof AppSplatRoute
   AppStudentRoute: typeof AppStudentRouteWithChildren
   AppInstallRoute: typeof AppInstallRouteWithChildren
   AppLoginRoute: typeof AppLoginRoute
@@ -3216,6 +3236,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppSplatRoute: AppSplatRoute,
   AppStudentRoute: AppStudentRouteWithChildren,
   AppInstallRoute: AppInstallRouteWithChildren,
   AppLoginRoute: AppLoginRoute,

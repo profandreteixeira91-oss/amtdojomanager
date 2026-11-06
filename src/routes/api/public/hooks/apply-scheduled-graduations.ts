@@ -69,10 +69,18 @@ export const Route = createFileRoute("/api/public/hooks/apply-scheduled-graduati
               );
 
               if (!hasNewerSameMod && (!student?.current_belt_id || currentMod === null || currentMod === newMod)) {
-                await (supabaseAdmin as any)
+                const { error: updErr } = await (supabaseAdmin as any)
                   .from("dojo_students")
                   .update({ current_belt_id: g.belt_id, current_degree: g.degree ?? 0 })
                   .eq("id", g.student_id);
+                if (updErr) {
+                  // Devolve a graduação para a fila: a próxima execução tenta de novo.
+                  await (supabaseAdmin as any)
+                    .from("dojo_graduations")
+                    .update({ applied_at: null })
+                    .eq("id", g.id);
+                  throw new Error(`atualizar faixa do aluno: ${updErr.message}`);
+                }
               }
               gradsApplied++;
 
@@ -82,11 +90,13 @@ export const Route = createFileRoute("/api/public/hooks/apply-scheduled-graduati
                 await sendPushToStudent(g.student_id, {
                   title: "Parabéns pela graduação! 🥋",
                   body: `Você foi graduado(a): ${belt?.name ?? "Nova faixa"}${degreeTxt}.`,
-                  url: "/app/graduacoes",
+                  url: "/app/graduations",
                   tag: `graduation-${g.id}`,
                 }, "graduation");
               }
-            } catch (err) {}
+            } catch (err: any) {
+              console.error("[apply-scheduled-graduations] graduação", g.id, err?.message ?? err);
+            }
           }
         }
 
