@@ -173,7 +173,7 @@ function StudentDetail() {
       setEnroll({
         id: currentEnrollment.id,
         plan_id: currentEnrollment.plan_id,
-        custom_amount: currentEnrollment.custom_amount ? String(currentEnrollment.custom_amount).replace(".", ",") : "",
+        custom_amount: currentEnrollment.custom_amount != null ? String(currentEnrollment.custom_amount).replace(".", ",") : "",
         due_day: currentEnrollment.due_day || 5,
         start_date: currentEnrollment.start_date ? currentEnrollment.start_date.slice(0, 10) : todayISO(),
         status: currentEnrollment.status,
@@ -791,7 +791,7 @@ function StudentDetail() {
                     <option value="">Plano</option>
                     {(plans.data ?? []).map((p: any) => <option key={p.id} value={p.id}>{p.name} · {brl(p.amount)}</option>)}
                   </select>
-                  <Input type="number" step="0.01" placeholder="Valor custom" value={enroll.custom_amount} onChange={(e) => setEnroll({ ...enroll, custom_amount: e.target.value })} />
+                  <Input type="number" min={0} step="0.01" placeholder="Valor custom (0 para bolsista)" value={enroll.custom_amount} onChange={(e) => setEnroll({ ...enroll, custom_amount: e.target.value })} />
                   <Input type="number" min={1} max={31} placeholder="Dia venc." value={enroll.due_day} onChange={(e) => setEnroll({ ...enroll, due_day: Number(e.target.value) })} />
                   <Input type="date" value={enroll.start_date} onChange={(e) => setEnroll({ ...enroll, start_date: e.target.value })} />
                   <Button onClick={doAddEnroll}>Salvar</Button>
@@ -833,7 +833,10 @@ function StudentDetail() {
                     <div>
                       <label className="text-xs text-muted-foreground">Valor mensal (R$)</label>
                       <Input
-                        placeholder="Ex: 150,00"
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        placeholder="Ex: 150,00 (0 para bolsista)"
                         value={enroll.custom_amount}
                         onChange={(e) => setEnroll({ ...enroll, custom_amount: e.target.value })}
                       />
@@ -902,7 +905,7 @@ function StudentDetail() {
                     <div>
                       <label className="text-xs text-muted-foreground">Valor personalizado (opcional)</label>
                       <Input
-                        type="number" step="0.01" placeholder="Deixe em branco para usar valor do plano"
+                        type="number" min={0} step="0.01" placeholder="Deixe em branco para usar valor do plano"
                         value={changePlan.custom_amount}
                         onChange={(e) => setChangePlan({ ...changePlan, custom_amount: e.target.value })}
                       />

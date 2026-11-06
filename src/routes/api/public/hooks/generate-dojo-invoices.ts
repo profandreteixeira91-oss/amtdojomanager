@@ -131,6 +131,21 @@ export const Route = createFileRoute("/api/public/hooks/generate-dojo-invoices")
 
           const cycleAmount = Number(e.custom_amount ?? plan.amount ?? 0);
           const amount = planChargeAmount(cycleAmount, installments);
+
+          // Bolsista: mensalidade zerada não gera fatura, cobrança no gateway
+          // nem notificação. Avança o ciclo para não reprocessar diariamente.
+          if (amount <= 0) {
+            await supabaseAdmin
+              .from("dojo_enrollments")
+              .update({
+                last_run_at: dueDate,
+                next_run_at: addMonthsISO(dueDate, intervalMonths),
+              } as never)
+              .eq("id", e.id);
+            skipped++;
+            continue;
+          }
+
           const invPayload: any = {
             id: crypto.randomUUID(),
             student_id: e.student_id,
