@@ -94,10 +94,6 @@ export const createTicket = createServerFn({ method: "POST" })
       console.warn("Falha ao notificar admins sobre ticket:", e);
     }
 
-    // E no WhatsApp da equipe de suporte (nunca lança).
-    const { notifySupportWhatsApp } = await import("@/lib/whatsapp/support-whatsapp.server");
-    await notifySupportWhatsApp({ ticket, body: data.body, isNew: true });
-
     return ticket as SupportTicket;
   });
 
@@ -148,19 +144,11 @@ export const postMessage = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
 
-    // Se for mensagem do CLIENTE, notificar admin (push) e a equipe (WhatsApp)
+    // Se for mensagem do CLIENTE, notificar admin
     if (role === "client") {
-      const { data: ticket } = await context.supabase
-        .from("dojo_support_tickets")
-        .select("id, owner_id, subject, category, priority")
-        .eq("id", data.ticketId)
-        .maybeSingle();
-      if (ticket) {
-        const { notifySupportWhatsApp } = await import("@/lib/whatsapp/support-whatsapp.server");
-        await notifySupportWhatsApp({ ticket, body: data.body, isNew: false });
-      }
       try {
         const { sendPushToAmtAdmins } = await import("@/lib/push/admin-push.server");
+        const { data: ticket } = await context.supabase.from("dojo_support_tickets").select("subject").eq("id", data.ticketId).single();
         await sendPushToAmtAdmins({
           title: "Nova mensagem de suporte",
           body: `${ticket?.subject ?? "Suporte"}: ${data.body.slice(0, 100)}...`,

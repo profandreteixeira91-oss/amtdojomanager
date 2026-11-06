@@ -115,6 +115,7 @@ function SupportPage() {
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="font-semibold text-neutral-950 group-hover:text-red-600 transition-colors">{t.subject}</span>
+                            <span className="font-mono text-[11px] text-neutral-400">#{t.id.slice(0, 8)}</span>
                             <Badge variant="outline" className="border-neutral-200 bg-neutral-50 text-[10px] text-neutral-600">
                               {CATEGORY_LABELS[t.category] ?? t.category}
                             </Badge>
@@ -276,6 +277,7 @@ function TicketConversation({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <span className="truncate text-sm font-semibold text-neutral-950 sm:text-base">{ticket.subject}</span>
+            <span className="font-mono text-[11px] text-neutral-400">#{ticket.id.slice(0, 8)}</span>
             <Badge variant="outline" className="border-neutral-200 bg-neutral-50 text-[10px] text-neutral-600">
               {CATEGORY_LABELS[ticket.category] ?? ticket.category}
             </Badge>

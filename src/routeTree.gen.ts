@@ -104,7 +104,7 @@ import { Route as ApiPublicHooksGenerateDojoInvoicesRouteImport } from './routes
 import { Route as ApiPublicHooksMercadopagoRouteImport } from './routes/api/public/hooks/mercadopago'
 import { Route as ApiPublicHooksSendClassRemindersRouteImport } from './routes/api/public/hooks/send-class-reminders'
 import { Route as ApiPublicHooksSendDojoRemindersRouteImport } from './routes/api/public/hooks/send-dojo-reminders'
-import { Route as ApiPublicHooksSupportWhatsappRouteImport } from './routes/api/public/hooks/support-whatsapp'
+import { Route as ApiPublicHooksSupportReplyRouteImport } from './routes/api/public/hooks/support-reply'
 import { Route as ApiPublicHooksWhatsappDispatchRouteImport } from './routes/api/public/hooks/whatsapp-dispatch'
 import { Route as AppStudentCompetitionsIdRouteImport } from './routes/app._student.competitions.$id'
 import { Route as AppStudentDocumentsIndexRouteImport } from './routes/app._student.documents.index'
@@ -659,10 +659,10 @@ const ApiPublicHooksSendDojoRemindersRoute =
     path: '/api/public/hooks/send-dojo-reminders',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicHooksSupportWhatsappRoute =
-  ApiPublicHooksSupportWhatsappRouteImport.update({
-    id: '/api/public/hooks/support-whatsapp',
-    path: '/api/public/hooks/support-whatsapp',
+const ApiPublicHooksSupportReplyRoute =
+  ApiPublicHooksSupportReplyRouteImport.update({
+    id: '/api/public/hooks/support-reply',
+    path: '/api/public/hooks/support-reply',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicHooksWhatsappDispatchRoute =
@@ -1125,7 +1125,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/mercadopago': typeof ApiPublicHooksMercadopagoRoute
   '/api/public/hooks/send-class-reminders': typeof ApiPublicHooksSendClassRemindersRoute
   '/api/public/hooks/send-dojo-reminders': typeof ApiPublicHooksSendDojoRemindersRoute
-  '/api/public/hooks/support-whatsapp': typeof ApiPublicHooksSupportWhatsappRoute
+  '/api/public/hooks/support-reply': typeof ApiPublicHooksSupportReplyRoute
   '/api/public/hooks/whatsapp-dispatch': typeof ApiPublicHooksWhatsappDispatchRoute
   '/app/competitions/$id': typeof AppStudentCompetitionsIdRoute
   '/app/documents/$id': typeof AppStudentDocumentsIdRoute
@@ -1276,7 +1276,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/mercadopago': typeof ApiPublicHooksMercadopagoRoute
   '/api/public/hooks/send-class-reminders': typeof ApiPublicHooksSendClassRemindersRoute
   '/api/public/hooks/send-dojo-reminders': typeof ApiPublicHooksSendDojoRemindersRoute
-  '/api/public/hooks/support-whatsapp': typeof ApiPublicHooksSupportWhatsappRoute
+  '/api/public/hooks/support-reply': typeof ApiPublicHooksSupportReplyRoute
   '/api/public/hooks/whatsapp-dispatch': typeof ApiPublicHooksWhatsappDispatchRoute
   '/app/competitions/$id': typeof AppStudentCompetitionsIdRoute
   '/app/documents/$id': typeof AppStudentDocumentsIdRoute
@@ -1439,7 +1439,7 @@ export interface FileRoutesById {
   '/api/public/hooks/mercadopago': typeof ApiPublicHooksMercadopagoRoute
   '/api/public/hooks/send-class-reminders': typeof ApiPublicHooksSendClassRemindersRoute
   '/api/public/hooks/send-dojo-reminders': typeof ApiPublicHooksSendDojoRemindersRoute
-  '/api/public/hooks/support-whatsapp': typeof ApiPublicHooksSupportWhatsappRoute
+  '/api/public/hooks/support-reply': typeof ApiPublicHooksSupportReplyRoute
   '/api/public/hooks/whatsapp-dispatch': typeof ApiPublicHooksWhatsappDispatchRoute
   '/app/_student/competitions/$id': typeof AppStudentCompetitionsIdRoute
   '/app/_student/documents/$id': typeof AppStudentDocumentsIdRoute
@@ -1604,7 +1604,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/mercadopago'
     | '/api/public/hooks/send-class-reminders'
     | '/api/public/hooks/send-dojo-reminders'
-    | '/api/public/hooks/support-whatsapp'
+    | '/api/public/hooks/support-reply'
     | '/api/public/hooks/whatsapp-dispatch'
     | '/app/competitions/$id'
     | '/app/documents/$id'
@@ -1755,7 +1755,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/mercadopago'
     | '/api/public/hooks/send-class-reminders'
     | '/api/public/hooks/send-dojo-reminders'
-    | '/api/public/hooks/support-whatsapp'
+    | '/api/public/hooks/support-reply'
     | '/api/public/hooks/whatsapp-dispatch'
     | '/app/competitions/$id'
     | '/app/documents/$id'
@@ -1917,7 +1917,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/mercadopago'
     | '/api/public/hooks/send-class-reminders'
     | '/api/public/hooks/send-dojo-reminders'
-    | '/api/public/hooks/support-whatsapp'
+    | '/api/public/hooks/support-reply'
     | '/api/public/hooks/whatsapp-dispatch'
     | '/app/_student/competitions/$id'
     | '/app/_student/documents/$id'
@@ -2011,7 +2011,7 @@ export interface RootRouteChildren {
   ApiPublicHooksMercadopagoRoute: typeof ApiPublicHooksMercadopagoRoute
   ApiPublicHooksSendClassRemindersRoute: typeof ApiPublicHooksSendClassRemindersRoute
   ApiPublicHooksSendDojoRemindersRoute: typeof ApiPublicHooksSendDojoRemindersRoute
-  ApiPublicHooksSupportWhatsappRoute: typeof ApiPublicHooksSupportWhatsappRoute
+  ApiPublicHooksSupportReplyRoute: typeof ApiPublicHooksSupportReplyRoute
   ApiPublicHooksWhatsappDispatchRoute: typeof ApiPublicHooksWhatsappDispatchRoute
   ApiPublicAppSlugDownloadRoute: typeof ApiPublicAppSlugDownloadRoute
   ApiPublicDojoPartnerCheckinProviderRoute: typeof ApiPublicDojoPartnerCheckinProviderRoute
@@ -2684,11 +2684,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksSendDojoRemindersRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/hooks/support-whatsapp': {
-      id: '/api/public/hooks/support-whatsapp'
-      path: '/api/public/hooks/support-whatsapp'
-      fullPath: '/api/public/hooks/support-whatsapp'
-      preLoaderRoute: typeof ApiPublicHooksSupportWhatsappRouteImport
+    '/api/public/hooks/support-reply': {
+      id: '/api/public/hooks/support-reply'
+      path: '/api/public/hooks/support-reply'
+      fullPath: '/api/public/hooks/support-reply'
+      preLoaderRoute: typeof ApiPublicHooksSupportReplyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/whatsapp-dispatch': {
@@ -3655,7 +3655,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksMercadopagoRoute: ApiPublicHooksMercadopagoRoute,
   ApiPublicHooksSendClassRemindersRoute: ApiPublicHooksSendClassRemindersRoute,
   ApiPublicHooksSendDojoRemindersRoute: ApiPublicHooksSendDojoRemindersRoute,
-  ApiPublicHooksSupportWhatsappRoute: ApiPublicHooksSupportWhatsappRoute,
+  ApiPublicHooksSupportReplyRoute: ApiPublicHooksSupportReplyRoute,
   ApiPublicHooksWhatsappDispatchRoute: ApiPublicHooksWhatsappDispatchRoute,
   ApiPublicAppSlugDownloadRoute: ApiPublicAppSlugDownloadRoute,
   ApiPublicDojoPartnerCheckinProviderRoute:
