@@ -2,34 +2,36 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { adminClient, assertControlCenterAdmin, corsHeaders, errorResponse, HttpError, json, withCors } from "../_shared/control-center.ts";
 
-// Caixa de entrada do WhatsApp do suporte AMT (Evolution API, instância amt-suporte) para o Control Center
-// (amtsistemas.com.br/admin) — o mesmo esquema da caixa da loja na AMT Fight Wear, com a academia do Dojo
-// Manager no lugar do cliente.
+// Atendimento da AMT pelo Control Center (amtsistemas.com.br/admin): WhatsApp do suporte (Evolution API,
+// instância amt-suporte, o número 551151040791 conectado), chamados do Dojo Manager e o chat do site.
 //
-// Duas entradas:
+// Três entradas:
 // - Webhook da Evolution: POST ?hook=1 com o cabeçalho x-amt-token (derivado da chave da API). Grava as
-//   mensagens em support_wa_chats / support_wa_messages e repassa cada evento ao webhook antigo do Dojo
-//   (/api/public/hooks/support-whatsapp), para a equipe continuar respondendo chamados citando o aviso.
+//   mensagens em support_wa_chats / support_wa_messages, no mesmo esquema da caixa da loja na AMT Fight Wear.
 // - Painel: POST { action, ... } com o token de sessão do Control Center (ver _shared/control-center.ts).
+//   Os chamados do Dojo são lidos direto do banco e respondidos pelo endpoint support-reply do Dojo.
+// - Chat do site: POST { action: "site_*" } sem login (limitado por IP). O visitante informa nome, WhatsApp e
+//   mensagem; o número do suporte manda uma confirmação para o WhatsApp dele e a conversa segue no WhatsApp
+//   (celular do suporte e /admin), com a janela do site mostrando a conversa ao vivo.
 //
 // Segredos (supabase secrets set --project-ref gudjmkiyprgwgxmzbgji):
 //   EVOLUTION_API_URL, EVOLUTION_API_KEY          — servidor Evolution da AMT (os mesmos do Dojo)
 //   SUPPORT_WHATSAPP_INSTANCE                     — instância do suporte (padrão amt-suporte)
-//   SUPPORT_WHATSAPP_TO                           — número da equipe que recebe os avisos de chamado
-//   SUPPORT_WHATSAPP_WEBHOOK_SECRET               — segredo do webhook antigo do Dojo (repasse)
-//   SUPPORT_WHATSAPP_FORWARD_URL                  — opcional; padrão https://amtdojomanager.com.br/api/public/hooks/support-whatsapp
+//   SUPPORT_WHATSAPP_TO                           — número conectado na instância (conversa consigo mesmo)
+//   SUPPORT_WHATSAPP_WEBHOOK_SECRET               — segredo do endpoint support-reply do Dojo
+//   SUPPORT_REPLY_URL                             — opcional; padrão https://amtdojomanager.com.br/api/public/hooks/support-reply
 //
 // Deploy: npx supabase functions deploy support-inbox --project-ref gudjmkiyprgwgxmzbgji --use-api --no-verify-jwt
 
 const TIMEOUT_MS = 20_000;
 const enc = encodeURIComponent;
-const DEFAULT_FORWARD_URL = "https://amtdojomanager.com.br/api/public/hooks/support-whatsapp";
+const DEFAULT_REPLY_URL = "https://amtdojomanager.com.br/api/public/hooks/support-reply";
 const CLOSED_TICKET_STATUSES = ["resolvido", "fechado", "concluido", "closed", "resolved"];
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /* ------------------------------ Configuração ------------------------------ */
 
-type Config = { url: string; apiKey: string; instance: string; teamPhone: string | null; forwardUrl: string; forwardSecret: string };
+type Config = { url: string; apiKey: string; instance: string; ownPhone: string | null; replyUrl: string; replySecret: string };
 
 function config(): Config | null {
   const url = (Deno.env.get("EVOLUTION_API_URL") ?? "").trim().replace(/\/+$/, "");
@@ -39,9 +41,9 @@ function config(): Config | null {
     url,
     apiKey,
     instance: (Deno.env.get("SUPPORT_WHATSAPP_INSTANCE") ?? "").trim() || "amt-suporte",
-    teamPhone: normalizePhone(Deno.env.get("SUPPORT_WHATSAPP_TO")),
-    forwardUrl: (Deno.env.get("SUPPORT_WHATSAPP_FORWARD_URL") ?? "").trim() || DEFAULT_FORWARD_URL,
-    forwardSecret: (Deno.env.get("SUPPORT_WHATSAPP_WEBHOOK_SECRET") ?? "").trim(),
+    ownPhone: normalizePhone(Deno.env.get("SUPPORT_WHATSAPP_TO")),
+    replyUrl: (Deno.env.get("SUPPORT_REPLY_URL") ?? "").trim() || DEFAULT_REPLY_URL,
+    replySecret: (Deno.env.get("SUPPORT_WHATSAPP_WEBHOOK_SECRET") ?? "").trim(),
   };
 }
 
@@ -392,11 +394,11 @@ async function academyNames(sb: SupabaseClient, ownerIds: string[]): Promise<Map
 
 async function withAcademy(sb: SupabaseClient, chats: Chat[]) {
   const names = await academyNames(sb, chats.map((c) => c.academy_owner_id ?? ""));
-  const team = config()?.teamPhone ?? null;
+  const own = config()?.ownPhone ?? null;
   return chats.map((c) => ({
     ...c,
     academy: c.academy_owner_id && names.has(c.academy_owner_id) ? { owner_id: c.academy_owner_id, name: names.get(c.academy_owner_id)! } : null,
-    is_team: !!team && c.phone_normalized === team,
+    is_self: !!own && c.phone_normalized === own,
   }));
 }
 
@@ -472,16 +474,16 @@ async function panel(sb: SupabaseClient, body: Record<string, unknown>): Promise
     case "status": {
       const cfg = config();
       const { count } = await sb.from("support_wa_chats").select("id", { count: "exact", head: true });
-      if (!cfg) return { configured: false, instance: null, state: null, connected: false, number: null, profileName: null, webhookActive: false, forwarding: false, chats: count ?? 0, error: null };
+      if (!cfg) return { configured: false, instance: null, state: null, connected: false, number: null, profileName: null, webhookActive: false, ticketReplies: false, chats: count ?? 0, error: null };
       try {
         const [state, hook] = await Promise.all([connectionState(), findWebhook().catch(() => null)]);
         const info = state === "open" ? await instanceInfo().catch(() => ({ number: null, profileName: null })) : { number: null, profileName: null };
         return {
           configured: true, instance: cfg.instance, state, connected: state === "open", ...info,
-          webhookActive: !!hook?.enabled && hook.url === hookUrl(), forwarding: !!cfg.forwardSecret, chats: count ?? 0, error: null,
+          webhookActive: !!hook?.enabled && hook.url === hookUrl(), ticketReplies: !!cfg.replySecret, chats: count ?? 0, error: null,
         };
       } catch (err) {
-        return { configured: true, instance: cfg.instance, state: null, connected: false, number: null, profileName: null, webhookActive: false, forwarding: !!cfg.forwardSecret, chats: count ?? 0, error: err instanceof Error ? err.message : String(err) };
+        return { configured: true, instance: cfg.instance, state: null, connected: false, number: null, profileName: null, webhookActive: false, ticketReplies: !!cfg.replySecret, chats: count ?? 0, error: err instanceof Error ? err.message : String(err) };
       }
     }
     case "connect": {
@@ -535,8 +537,9 @@ async function panel(sb: SupabaseClient, body: Record<string, unknown>): Promise
       const chat = await chatById(sb, String(body.id));
       const { data, error } = await sb
         .from("support_wa_messages")
-        .select("id, message_id, from_me, type, body, media_mime, media_name, quoted_body, status, sent_at")
+        .select("id, message_id, from_me, type, body, media_mime, media_name, quoted_body, status, sent_at, source")
         .eq("chat_id", chat.id)
+        .eq("hidden", false)
         .order("sent_at", { ascending: false })
         .limit(150);
       if (error) throw new Error(error.message);
@@ -547,7 +550,7 @@ async function panel(sb: SupabaseClient, body: Record<string, unknown>): Promise
       const chat = await chatById(sb, String(body.id));
       if (!chat.unread_count) return { ok: true };
       await sb.from("support_wa_chats").update({ unread_count: 0 }).eq("id", chat.id);
-      const { data: unread } = await sb.from("support_wa_messages").select("message_id").eq("chat_id", chat.id).eq("from_me", false)
+      const { data: unread } = await sb.from("support_wa_messages").select("message_id").eq("chat_id", chat.id).eq("from_me", false).eq("source", "whatsapp")
         .order("sent_at", { ascending: false }).limit(Math.min(chat.unread_count, 20));
       try {
         const ids = (unread ?? []).map((m) => m.message_id);
@@ -643,27 +646,204 @@ async function panel(sb: SupabaseClient, body: Record<string, unknown>): Promise
       if (error) throw new Error(error.message);
       return { ok: true };
     }
+    case "tickets_list": {
+      let q = sb.from("dojo_support_tickets").select(TICKET_COLUMNS).order("last_message_at", { ascending: false, nullsFirst: false }).limit(300);
+      if (body.filter !== "todos") q = q.not("status", "in", `(${CLOSED_TICKET_STATUSES.join(",")})`);
+      const { data, error } = await q;
+      if (error) throw new Error(error.message);
+      const names = await academyNames(sb, (data ?? []).map((t) => t.owner_id));
+      return (data ?? []).map((t) => ({ ...t, code: String(t.id).slice(0, 8), academy_name: names.get(t.owner_id) ?? "Academia sem nome" }));
+    }
+    case "ticket_get": {
+      const id = String(body.id ?? "");
+      if (!UUID_RE.test(id)) throw new HttpError(400, "Chamado inválido.");
+      const [{ data: ticket, error }, { data: messages }] = await Promise.all([
+        sb.from("dojo_support_tickets").select(TICKET_COLUMNS).eq("id", id).maybeSingle(),
+        sb.from("dojo_support_messages").select("id, author_role, body, created_at").eq("ticket_id", id).order("created_at").limit(300),
+      ]);
+      if (error) throw new Error(error.message);
+      if (!ticket) throw new HttpError(404, "Chamado não encontrado.");
+      // Abrir no painel = lido pela AMT (o Dojo faz o mesmo na tela dele).
+      if (ticket.unread_by_admin) await sb.from("dojo_support_tickets").update({ unread_by_admin: 0 }).eq("id", id);
+      const names = await academyNames(sb, [ticket.owner_id]);
+      return {
+        ticket: { ...ticket, unread_by_admin: 0, code: id.slice(0, 8), academy_name: names.get(ticket.owner_id) ?? "Academia sem nome" },
+        messages: messages ?? [],
+      };
+    }
+    case "ticket_reply": {
+      const cfg = config();
+      if (!cfg?.replySecret) throw new HttpError(503, "Resposta a chamados não configurada (SUPPORT_WHATSAPP_WEBHOOK_SECRET).");
+      const id = String(body.id ?? "");
+      const text = str(body.body, 4000);
+      if (!UUID_RE.test(id)) throw new HttpError(400, "Chamado inválido.");
+      if (!text) throw new HttpError(400, "Escreva a resposta.");
+      const status = TICKET_STATUSES.includes(String(body.status)) ? String(body.status) : undefined;
+      let res: Response;
+      try {
+        res = await fetch(cfg.replyUrl, {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-amt-webhook-secret": cfg.replySecret },
+          body: JSON.stringify({ ticket_id: id, body: text, ...(status ? { status } : {}) }),
+          signal: AbortSignal.timeout(20_000),
+        });
+      } catch {
+        throw new HttpError(502, "O Dojo Manager não respondeu. Tente de novo em instantes.");
+      }
+      const data = await res.json().catch(() => ({})) as Record<string, unknown>;
+      if (!res.ok) {
+        const reason = res.status === 404 && !data.error
+          ? "O Dojo Manager ainda não publicou o endpoint de respostas (support-reply)."
+          : String(data.error ?? `O Dojo Manager recusou a resposta (HTTP ${res.status}).`);
+        throw new HttpError(502, reason);
+      }
+      return data;
+    }
     default:
       throw new HttpError(400, "Ação inválida.");
   }
 }
 
-/* ------------------------------- Entrada ------------------------------- */
+const TICKET_COLUMNS = "id, owner_id, subject, category, status, priority, last_message_at, unread_by_admin, unread_by_client, created_at";
+const TICKET_STATUSES = ["aberto", "em_atendimento", "resolvido", "fechado"];
 
-/** Repassa o evento ao webhook antigo do Dojo (respostas a chamados citando o aviso). Nunca lança. */
-async function forwardToTicketHook(cfg: Config, raw: string) {
-  if (!cfg.forwardSecret) return;
-  try {
-    await fetch(cfg.forwardUrl, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-amt-webhook-secret": cfg.forwardSecret },
-      body: raw,
-      signal: AbortSignal.timeout(15_000),
-    });
-  } catch (err) {
-    console.error("support-inbox: repasse ao webhook de chamados falhou", err instanceof Error ? err.message : err);
-  }
+/* ------------------------------ Chat do site ------------------------------ */
+
+const SITE_STARTS_PER_IP_HOUR = 3;
+const SITE_STARTS_PER_HOUR = 60;
+const SITE_MESSAGES_PER_10_MIN = 15;
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
+
+function clientIp(req: Request): string {
+  return req.headers.get("cf-connecting-ip") ?? req.headers.get("x-real-ip") ?? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
+}
+
+type SiteMessage = { id: string; from_me: boolean; type: string; body: string | null; sent_at: string };
+
+async function siteMessages(sb: SupabaseClient, chatId: string): Promise<SiteMessage[]> {
+  const { data } = await sb
+    .from("support_wa_messages")
+    .select("id, from_me, type, body, sent_at")
+    .eq("chat_id", chatId)
+    .eq("hidden", false)
+    .order("sent_at", { ascending: false })
+    .limit(100);
+  return ((data ?? []) as SiteMessage[]).reverse();
+}
+
+/** Mensagem que o sistema mandou e não deve aparecer como resposta do suporte (confirmação ou cópia). */
+async function markSystemMessage(sb: SupabaseClient, chatId: string, res: any, body: string, source: "auto" | "relay") {
+  const id: string | undefined = res?.key?.id;
+  if (!id) return;
+  const row = { chat_id: chatId, message_id: id, from_me: true, type: "text", body, status: "sent", sent_at: new Date().toISOString(), source, hidden: source === "relay" };
+  await sb.from("support_wa_messages").upsert(row, { onConflict: "message_id", ignoreDuplicates: true });
+  // O webhook pode ter gravado antes como mensagem comum: corrige a origem.
+  await sb.from("support_wa_messages").update({ source, hidden: source === "relay" }).eq("message_id", id);
+}
+
+/** Depois de uma mensagem do visitante, a conversa mostra a mensagem dele e fica como não lida. */
+async function touchFromVisitor(sb: SupabaseClient, chatId: string, text: string, at: string) {
+  const { data } = await sb.from("support_wa_chats").select("unread_count").eq("id", chatId).maybeSingle();
+  await sb.from("support_wa_chats").update({
+    last_message_at: at,
+    last_message_preview: text.slice(0, 160),
+    last_message_from_me: false,
+    unread_count: Math.max(1, Number(data?.unread_count ?? 0)),
+    archived: false,
+  }).eq("id", chatId);
+}
+
+async function siteSession(sb: SupabaseClient, token: unknown): Promise<{ id: string; chat_id: string }> {
+  const raw = String(token ?? "");
+  if (!/^[0-9a-f]{64}$/.test(raw)) throw new HttpError(401, "Conversa expirada. Comece de novo.");
+  const { data } = await sb.from("support_site_sessions").select("id, chat_id").eq("token_hash", await sha256Hex(raw)).maybeSingle();
+  if (!data) throw new HttpError(401, "Conversa expirada. Comece de novo.");
+  await sb.from("support_site_sessions").update({ last_seen_at: new Date().toISOString() }).eq("id", data.id);
+  return data;
+}
+
+async function site(req: Request, sb: SupabaseClient, body: Record<string, unknown>): Promise<unknown> {
+  const action = String(body.action ?? "");
+  const cfg = requireConfig();
+  if (action === "site_start") {
+    if (str(body.website, 200)) throw new HttpError(400, "Não foi possível iniciar a conversa.");
+    const name = str(body.name, 80);
+    const phone = normalizePhone(String(body.phone ?? ""));
+    const text = str(body.message, 1000);
+    if (name.length < 2) throw new HttpError(400, "Informe o seu nome.");
+    if (!phone) throw new HttpError(400, "Informe um WhatsApp válido, com DDD.");
+    if (text.length < 2) throw new HttpError(400, "Escreva a sua mensagem.");
+
+    const ipHash = await sha256Hex(`${clientIp(req)}|${cfg.apiKey.slice(0, 12)}`);
+    const hourAgo = new Date(Date.now() - 3600_000).toISOString();
+    const [{ count: byIp }, { count: total }] = await Promise.all([
+      sb.from("support_site_sessions").select("id", { count: "exact", head: true }).eq("ip_hash", ipHash).gte("created_at", hourAgo),
+      sb.from("support_site_sessions").select("id", { count: "exact", head: true }).gte("created_at", hourAgo),
+    ]);
+    if ((byIp ?? 0) >= SITE_STARTS_PER_IP_HOUR || (total ?? 0) >= SITE_STARTS_PER_HOUR) {
+      throw new HttpError(429, "Muitas conversas iniciadas agora. Tente de novo em alguns minutos.");
+    }
+    if ((await connectionState()) !== "open") throw new HttpError(503, "O atendimento por WhatsApp está indisponível agora. Use o formulário de contato.");
+
+    // O número precisa ter WhatsApp: a conversa continua lá.
+    const check = await evo<any>("POST", `/chat/whatsappNumbers/${enc(cfg.instance)}`, { numbers: [phone] });
+    const found = (Array.isArray(check) ? check : []).find((r: any) => r?.exists);
+    if (!found) throw new HttpError(400, "Esse número não tem WhatsApp. Confira o DDD e o número.");
+
+    const firstName = name.split(/\s+/)[0];
+    const greeting = `Olá, ${firstName}! Aqui é a AMT Sistemas. Recebemos sua mensagem pelo site:\n\n“${text}”\n\nJá vamos te responder por aqui.`;
+    const sent = await evo<any>("POST", `/message/sendText/${enc(cfg.instance)}`, { number: phone, text: greeting, delay: 0 });
+    const jid: string = sent?.key?.remoteJid || found.jid || `${phone}@s.whatsapp.net`;
+    const chatId = await upsertChat(sb, jid, { phone, name });
+    const { data: chat } = await sb.from("support_wa_chats").select("tags, name").eq("id", chatId).maybeSingle();
+    await sb.from("support_wa_chats").update({
+      tags: [...new Set([...(chat?.tags ?? []), "Site"])],
+      ...(chat?.name ? {} : { name }),
+    }).eq("id", chatId);
+
+    const at = new Date(Date.now() - 1000).toISOString();
+    await sb.from("support_wa_messages").insert({ chat_id: chatId, message_id: `site-${crypto.randomUUID()}`, from_me: false, type: "text", body: text, sent_at: at, source: "site" });
+    await markSystemMessage(sb, chatId, sent, greeting, "auto");
+    await touchFromVisitor(sb, chatId, text, at);
+
+    const token = [...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, "0")).join("");
+    const { error } = await sb.from("support_site_sessions").insert({ chat_id: chatId, token_hash: await sha256Hex(token), ip_hash: ipHash, visitor_name: name });
+    if (error) throw new Error(error.message);
+    return { token, messages: await siteMessages(sb, chatId) };
+  }
+
+  const session = await siteSession(sb, body.token);
+  if (action === "site_poll") return { messages: await siteMessages(sb, session.chat_id) };
+  if (action === "site_send") {
+    const text = str(body.text, 1000);
+    if (!text) throw new HttpError(400, "Escreva a mensagem.");
+    const since = new Date(Date.now() - 600_000).toISOString();
+    const { count } = await sb.from("support_wa_messages").select("id", { count: "exact", head: true })
+      .eq("chat_id", session.chat_id).eq("source", "site").gte("sent_at", since);
+    if ((count ?? 0) >= SITE_MESSAGES_PER_10_MIN) throw new HttpError(429, "Muitas mensagens seguidas. Aguarde um pouco ou continue pelo WhatsApp.");
+    const { data: chat } = await sb.from("support_wa_chats").select("remote_jid, phone_normalized").eq("id", session.chat_id).maybeSingle();
+    if (!chat) throw new HttpError(401, "Conversa expirada. Comece de novo.");
+    const at = new Date().toISOString();
+    await sb.from("support_wa_messages").insert({ chat_id: session.chat_id, message_id: `site-${crypto.randomUUID()}`, from_me: false, type: "text", body: text, sent_at: at, source: "site" });
+    // Cópia no WhatsApp: é o único jeito de a mensagem do site aparecer no celular do suporte, na mesma conversa.
+    try {
+      const relay = `📝 Mensagem enviada pelo site:\n“${text}”`;
+      const sent = await evo<any>("POST", `/message/sendText/${enc(cfg.instance)}`, { number: chat.phone_normalized ?? recipient(chat.remote_jid), text: relay, delay: 0 });
+      await markSystemMessage(sb, session.chat_id, sent, relay, "relay");
+    } catch (err) {
+      console.error("support-inbox: cópia da mensagem do site não enviada", err instanceof Error ? err.message : err);
+    }
+    await touchFromVisitor(sb, session.chat_id, text, at);
+    return { messages: await siteMessages(sb, session.chat_id) };
+  }
+  throw new HttpError(400, "Ação inválida.");
+}
+
+/* ------------------------------- Entrada ------------------------------- */
 
 async function webhook(req: Request): Promise<Response> {
   const cfg = config();
@@ -678,9 +858,6 @@ async function webhook(req: Request): Promise<Response> {
   }
   const instance = String(payload?.instance?.instanceName ?? payload?.instance ?? "").trim();
   if (instance && instance !== cfg.instance) return json({ ignored: true });
-  // O repasse corre em paralelo; a gravação na caixa é o que a Evolution espera terminar.
-  const forwarding = forwardToTicketHook(cfg, raw);
-  (globalThis as { EdgeRuntime?: { waitUntil(p: Promise<unknown>): void } }).EdgeRuntime?.waitUntil(forwarding);
   try {
     await handleEvent(adminClient(), payload);
     return json({ ok: true });
@@ -696,8 +873,10 @@ Deno.serve(async (req: Request) => {
   }
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(req) });
   try {
-    await assertControlCenterAdmin(req);
     const body = req.method === "POST" ? await req.json().catch(() => ({})) as Record<string, unknown> : {};
+    // Chat do site: público, limitado por IP e por sessão.
+    if (String(body.action ?? "").startsWith("site_")) return withCors(req, json(await site(req, adminClient(), body)));
+    await assertControlCenterAdmin(req);
     return withCors(req, json(await panel(adminClient(), body)));
   } catch (error) {
     return withCors(req, errorResponse("support-inbox", error));
