@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-// Relatório da plataforma para o Control Center da AMT (amtsistemas.com.br/admin). Somente leitura.
+// Relatório da plataforma e exclusão de contas de academia para o Control Center da AMT (amtsistemas.com.br/admin).
 //
 // Chamada pelo navegador do /admin com o token de sessão do Control Center (projeto amt-sistemas). Quem chama
 // precisa ser admin ativo de lá: o token é conferido no Auth do amt-sistemas e a permissão pela função
@@ -11,6 +11,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 // Deploy: npx supabase functions deploy platform-overview --project-ref gudjmkiyprgwgxmzbgji --no-verify-jwt
 //
 // GET/POST -> { customers, apk, support, amt_fees } com as academias, assinaturas, downloads do app e chamados.
+// POST { action: "delete_preview", owner_id }          -> prévia da exclusão (registros, logins, arquivos)
+// POST { action: "delete_account", owner_id, confirm } -> exclui a conta; confirm = nome ou e-mail da academia
+// A exclusão é feita por public.platform_dojo_account_deletion (regras e travas descritas na migration).
 
 const CONTROL_CENTER_URL = Deno.env.get("CONTROL_CENTER_SUPABASE_URL") ?? "https://yqxmxevphdumyuwlvppg.supabase.co";
 const CONTROL_CENTER_KEY = Deno.env.get("CONTROL_CENTER_PUBLISHABLE_KEY") ?? "sb_publishable_jK7lhco6DQLlfjYm8LGS3g_sGBkVtK2";
@@ -73,6 +76,51 @@ function groupOf(subscription: Subscription | undefined, now: number): string {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const normalize = (value: unknown) => String(value ?? "").trim().toLowerCase();
+
+type DeletionResult = {
+  owner_id: string; name: string | null; email: string | null; rows: number; tables: Record<string, number>;
+  logins?: number; files?: number; logins_deleted?: number; logins_kept?: number;
+  storage?: Array<{ bucket: string; path: string }>;
+};
+
+async function runDeletion(admin: ReturnType<typeof createClient>, ownerId: string, execute: boolean): Promise<DeletionResult> {
+  const { data, error } = await admin.rpc("platform_dojo_account_deletion", { p_owner: ownerId, p_execute: execute });
+  // Exceções levantadas pela função (P0001) já vêm com mensagem pronta para exibir.
+  if (error) throw new HttpError(error.code === "P0001" ? 409 : 500, error.code === "P0001" ? error.message : "Não foi possível processar a exclusão.");
+  return data as DeletionResult;
+}
+
+async function deleteAccount(admin: ReturnType<typeof createClient>, action: string, body: Record<string, unknown>): Promise<Response> {
+  const ownerId = String(body.owner_id ?? "");
+  if (!UUID_RE.test(ownerId)) throw new HttpError(400, "Conta não informada.");
+  const preview = await runDeletion(admin, ownerId, false);
+  if (action === "delete_preview") return json(preview);
+
+  const confirm = normalize(body.confirm);
+  if (!confirm || (confirm !== normalize(preview.name) && confirm !== normalize(preview.email))) {
+    throw new HttpError(400, "Para confirmar, digite exatamente o nome ou o e-mail da academia.");
+  }
+  const result = await runDeletion(admin, ownerId, true);
+
+  // Arquivos do Storage (logos, fotos, certificados, vídeos): só pela API, depois que os dados já saíram.
+  let filesDeleted = 0;
+  let filesFailed = 0;
+  const byBucket = new Map<string, string[]>();
+  for (const file of result.storage ?? []) byBucket.set(file.bucket, [...(byBucket.get(file.bucket) ?? []), file.path]);
+  for (const [bucket, paths] of byBucket) {
+    for (let i = 0; i < paths.length; i += 100) {
+      const chunk = paths.slice(i, i + 100);
+      const { error } = await admin.storage.from(bucket).remove(chunk);
+      if (error) filesFailed += chunk.length;
+      else filesDeleted += chunk.length;
+    }
+  }
+  const { storage: _storage, ...summary } = result;
+  return json({ ...summary, files_deleted: filesDeleted, files_failed: filesFailed });
+}
+
 Deno.serve(async (req: Request) => {
   const cors = corsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
@@ -86,6 +134,12 @@ Deno.serve(async (req: Request) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!url || !serviceKey) throw new Error("config");
     const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+
+    const body = req.method === "POST" ? await req.json().catch(() => ({})) as Record<string, unknown> : {};
+    const action = String(body.action ?? "");
+    if (action === "delete_preview" || action === "delete_account") {
+      return withCors(await deleteAccount(admin, action, body));
+    }
 
     const since30 = new Date(Date.now() - 30 * 86400000).toISOString();
     const [subscriptions, profiles, users, students, apkVersions, apkDownloads, tickets, fees] = await Promise.all([
