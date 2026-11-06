@@ -1,1 +1,6 @@
 project_id = "gudjmkiyprgwgxmzbgji"
+
+[functions.platform-overview]
+# Chamada pelo /admin de amtsistemas.com.br com o token do Control Center (outro projeto Supabase): a funcao
+# confere o token e a permissao no projeto amt-sistemas, entao o gateway nao valida JWT daqui.
+verify_jwt = false
