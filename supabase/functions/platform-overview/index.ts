@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { adminClient, assertControlCenterAdmin, corsHeaders, errorResponse, HttpError, json, withCors } from "../_shared/control-center.ts";
 
 // Relatório da plataforma e exclusão de contas de academia para o Control Center da AMT (amtsistemas.com.br/admin).
 //
@@ -15,44 +16,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 // POST { action: "delete_account", owner_id, confirm } -> exclui a conta; confirm = nome ou e-mail da academia
 // A exclusão é feita por public.platform_dojo_account_deletion (regras e travas descritas na migration).
 
-const CONTROL_CENTER_URL = Deno.env.get("CONTROL_CENTER_SUPABASE_URL") ?? "https://yqxmxevphdumyuwlvppg.supabase.co";
-const CONTROL_CENTER_KEY = Deno.env.get("CONTROL_CENTER_PUBLISHABLE_KEY") ?? "sb_publishable_jK7lhco6DQLlfjYm8LGS3g_sGBkVtK2";
-const ALLOWED_ORIGINS = ["https://amtsistemas.com.br", "https://www.amtsistemas.com.br"];
 const CLOSED_TICKET_STATUSES = ["resolvido", "fechado", "concluido", "closed", "resolved"];
-
-class HttpError extends Error {
-  constructor(public status: number, message: string) {
-    super(message);
-  }
-}
-
-function corsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get("origin") ?? "";
-  const allowed = ALLOWED_ORIGINS.includes(origin) || /^http:\/\/localhost(:\d+)?$/.test(origin);
-  return allowed
-    ? {
-        "access-control-allow-origin": origin,
-        "access-control-allow-headers": "authorization, apikey, content-type, x-client-info",
-        "access-control-allow-methods": "GET, POST, OPTIONS",
-        vary: "origin",
-      }
-    : {};
-}
-
-async function assertControlCenterAdmin(req: Request): Promise<void> {
-  const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
-  if (!token) throw new HttpError(401, "Sessão do Control Center obrigatória.");
-  const headers = { apikey: CONTROL_CENTER_KEY, Authorization: `Bearer ${token}` };
-  const userResponse = await fetch(`${CONTROL_CENTER_URL}/auth/v1/user`, { headers });
-  if (!userResponse.ok) throw new HttpError(401, "Sessão do Control Center inválida ou expirada. Entre novamente.");
-  const user = await userResponse.json() as { id?: string };
-  const allowed = await fetch(`${CONTROL_CENTER_URL}/rest/v1/rpc/is_control_center_admin`, {
-    method: "POST",
-    headers: { ...headers, "content-type": "application/json" },
-    body: JSON.stringify({ _user_id: user.id }),
-  });
-  if (!allowed.ok || await allowed.json() !== true) throw new HttpError(403, "Acesso restrito aos admins do Control Center.");
-}
 
 type Subscription = {
   owner_id: string; status: string; plan_amount: number | null; trial_ends_at: string | null;
@@ -73,9 +37,6 @@ function groupOf(subscription: Subscription | undefined, now: number): string {
   return "pendente"; // pending, suspended, paused
 }
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
-
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const normalize = (value: unknown) => String(value ?? "").trim().toLowerCase();
 
@@ -85,14 +46,14 @@ type DeletionResult = {
   storage?: Array<{ bucket: string; path: string }>;
 };
 
-async function runDeletion(admin: ReturnType<typeof createClient>, ownerId: string, execute: boolean): Promise<DeletionResult> {
+async function runDeletion(admin: SupabaseClient, ownerId: string, execute: boolean): Promise<DeletionResult> {
   const { data, error } = await admin.rpc("platform_dojo_account_deletion", { p_owner: ownerId, p_execute: execute });
   // Exceções levantadas pela função (P0001) já vêm com mensagem pronta para exibir.
   if (error) throw new HttpError(error.code === "P0001" ? 409 : 500, error.code === "P0001" ? error.message : "Não foi possível processar a exclusão.");
   return data as DeletionResult;
 }
 
-async function deleteAccount(admin: ReturnType<typeof createClient>, action: string, body: Record<string, unknown>): Promise<Response> {
+async function deleteAccount(admin: SupabaseClient, action: string, body: Record<string, unknown>): Promise<Response> {
   const ownerId = String(body.owner_id ?? "");
   if (!UUID_RE.test(ownerId)) throw new HttpError(400, "Conta não informada.");
   const preview = await runDeletion(admin, ownerId, false);
@@ -122,23 +83,15 @@ async function deleteAccount(admin: ReturnType<typeof createClient>, action: str
 }
 
 Deno.serve(async (req: Request) => {
-  const cors = corsHeaders(req);
-  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
-  const withCors = (response: Response) => {
-    Object.entries(cors).forEach(([key, value]) => response.headers.set(key, value));
-    return response;
-  };
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(req) });
   try {
     await assertControlCenterAdmin(req);
-    const url = Deno.env.get("SUPABASE_URL");
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!url || !serviceKey) throw new Error("config");
-    const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    const admin = adminClient();
 
     const body = req.method === "POST" ? await req.json().catch(() => ({})) as Record<string, unknown> : {};
     const action = String(body.action ?? "");
     if (action === "delete_preview" || action === "delete_account") {
-      return withCors(await deleteAccount(admin, action, body));
+      return withCors(req, await deleteAccount(admin, action, body));
     }
 
     const since30 = new Date(Date.now() - 30 * 86400000).toISOString();
@@ -209,7 +162,7 @@ Deno.serve(async (req: Request) => {
 
     const nameById = new Map(customers.map((customer) => [customer.id, customer.name]));
     const openTickets = (tickets.data ?? []).filter((ticket) => !CLOSED_TICKET_STATUSES.includes(ticket.status));
-    return withCors(json({
+    return withCors(req, json({
       system: "amt-dojo-manager",
       generated_at: new Date(now).toISOString(),
       customers,
@@ -237,8 +190,6 @@ Deno.serve(async (req: Request) => {
       },
     }));
   } catch (error) {
-    if (error instanceof HttpError) return withCors(json({ error: error.message }, error.status));
-    console.error("platform-overview: erro inesperado", error instanceof Error ? error.message : "unknown");
-    return withCors(json({ error: "Erro inesperado no servidor." }, 500));
+    return withCors(req, errorResponse("platform-overview", error));
   }
 });

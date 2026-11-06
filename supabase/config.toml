@@ -4,3 +4,7 @@ project_id = "gudjmkiyprgwgxmzbgji"
 # Chamada pelo /admin de amtsistemas.com.br com o token do Control Center (outro projeto Supabase): a funcao
 # confere o token e a permissao no projeto amt-sistemas, entao o gateway nao valida JWT daqui.
 verify_jwt = false
+
+[functions.support-inbox]
+# Painel: token do Control Center (outro projeto Supabase). Webhook da Evolution: ?hook=1 com x-amt-token.
+verify_jwt = false
