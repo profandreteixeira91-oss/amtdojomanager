@@ -44,11 +44,22 @@ import { Trash2, Pencil, UserPlus, FileDown, Upload, Printer, User, MapPin, Phon
 import { cn } from "@/lib/utils";
 import { todayISO, brl } from "@/lib/format";
 import { currentBeltEntries, rankedBelts, beltLabel, beltEntryKey } from "@/lib/dojo/current-belts";
+import { RouteErrorCard } from "@/components/dojo/SectionErrorBoundary";
 
 
 export const Route = createFileRoute("/dojo/app/students/")({
   head: () => ({ meta: [{ title: "Alunos — AMT Dojo Manager" }] }),
   component: StudentsPage,
+  // Erro na listagem/edição fica restrito a esta tela, com a mensagem real.
+  errorComponent: ({ error, reset }) => (
+    <RouteErrorCard
+      title="Não foi possível abrir a lista de alunos."
+      message={error instanceof Error ? error.message : String(error)}
+      onRetry={reset}
+      backTo="/dojo/app"
+      backLabel="Voltar ao painel"
+    />
+  ),
 });
 
 /** Metadados visuais das etapas do cadastro de aluno. */
@@ -373,9 +384,19 @@ function StudentsPage() {
       });
     }
 
+    // Colunas de texto nulas no banco (comum em alunos da matrícula online, da
+    // importação por planilha ou do app) sobrescreviam os "" do formulário e o
+    // assistente quebrava em `form.city.trim()` / `form.email.trim()` ao abrir
+    // a edição. O save já converte "" de volta em null, então nada muda no banco.
+    const textDefaults: Record<string, string> = {};
+    for (const [k, v] of Object.entries(emptyForm)) {
+      if (typeof v === "string") textDefaults[k] = s[k] == null ? v : String(s[k]);
+    }
+
     setForm({
       ...emptyForm,
       ...s,
+      ...textDefaults,
       current_degree: s.current_degree ?? 0,
       anamnesis: s.anamnesis ?? {},
       medical_clearance_date: s.medical_clearance_date ?? "",
@@ -676,8 +697,13 @@ function StudentsPage() {
 
   const onDelete = async (id: string) => {
     if (!confirm("Cancelar a matrícula e excluir o aluno? Todos os registros (presenças, mensalidades, contratos, graduações, fotos) e o acesso ao app do aluno serão apagados. Esta ação não pode ser desfeita.")) return;
-    await delFn({ data: { id } });
-    qc.invalidateQueries({ queryKey: ["dojo-students"] });
+    try {
+      await delFn({ data: { id } });
+      qc.invalidateQueries({ queryKey: ["dojo-students"] });
+    } catch (e) {
+      // Antes a falha virava rejeição não tratada, sem nenhum aviso na tela.
+      toast.error("Erro ao excluir aluno", { description: (e as Error)?.message });
+    }
   };
 
   const onPickFile = async (file: File) => {

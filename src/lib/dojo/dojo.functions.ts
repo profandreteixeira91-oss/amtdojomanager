@@ -285,15 +285,19 @@ export const getDojoStudent = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((i: unknown) => z.object({ id: z.string().regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/, "UUID inválido") }).parse(i))
   .handler(async ({ data, context }) => {
+    // `unit` alimenta unidade no topo, na sidebar, na aba Academia e na ficha em PDF
+    // (sem o join esses campos ficavam sempre vazios).
     const { data: student, error } = await context.supabase
-      .from("dojo_students").select("*").eq("id", data.id).maybeSingle();
+      .from("dojo_students").select("*, unit:dojo_units(name)").eq("id", data.id).maybeSingle();
     if (error) throw new Error(error.message);
     if (!student) throw new Error("Aluno não encontrado ou sem permissão de acesso.");
     const [grads, enrolls, invoices, certs, photos, classStudentsRes] = await Promise.all([
-      context.supabase.from("dojo_graduations").select("*, belt:dojo_belts(id,name,color_hex,stripe_hex,max_degrees,modality,sort_order,visual,variants)").eq("student_id", data.id).order("graduation_date", { ascending: false }),
+      // criteria_mode/min_classes/min_months: o card "Critério para próxima graduação"
+      // usa a faixa da última graduação e, sem esses campos, nunca mostrava a meta da faixa.
+      context.supabase.from("dojo_graduations").select("*, belt:dojo_belts(id,name,color_hex,stripe_hex,max_degrees,modality,sort_order,visual,variants,criteria_mode,min_classes,min_months)").eq("student_id", data.id).order("graduation_date", { ascending: false }),
       context.supabase.from("dojo_enrollments").select("*, plan:dojo_plans(name,amount)").eq("student_id", data.id),
       context.supabase.from("dojo_invoices").select("*").eq("student_id", data.id).order("due_date", { ascending: false }).limit(50),
-      context.supabase.from("dojo_certificates").select("*, template:dojo_certificate_templates(*), graduation:dojo_graduations(graduation_date, degree, belt:dojo_belts(name))").eq("student_id", data.id).order("issued_at", { ascending: false }),
+      context.supabase.from("dojo_certificates").select("*, template:dojo_certificate_templates(*), graduation:dojo_graduations(graduation_date, degree, belt:dojo_belts(name,modality))").eq("student_id", data.id).order("issued_at", { ascending: false }),
       context.supabase.from("dojo_student_reference_photos").select("*").eq("student_id", data.id),
       context.supabase.from("dojo_class_students").select("class_id, dojo_classes(modality)").eq("student_id", data.id),
     ]);

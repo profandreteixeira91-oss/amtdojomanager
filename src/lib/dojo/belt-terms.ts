@@ -23,7 +23,10 @@ let memory: Registry = {};
 if (typeof window !== "undefined") {
   try {
     const raw = window.localStorage.getItem(LS_KEY);
-    if (raw) memory = JSON.parse(raw) as Registry;
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    // Só aceita objeto simples: `null`/array salvos ali faziam `memory[key]`
+    // lançar em todo rótulo de faixa (perfil, listagem, certificados).
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) memory = parsed as Registry;
   } catch {
     memory = {};
   }

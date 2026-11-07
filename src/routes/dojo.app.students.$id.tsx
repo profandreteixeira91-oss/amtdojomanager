@@ -47,6 +47,23 @@ import { addStudentReferencePhoto, deleteStudentReferencePhoto } from "@/lib/doj
 import { brDate } from "@/lib/format";
 import { parseAmountBR } from "@/lib/br-masks";
 import { addDaysISO, dayISO, todayISO } from "@/lib/dates";
+import { SectionErrorBoundary } from "@/components/dojo/SectionErrorBoundary";
+
+const TAB_LABELS: Record<string, string> = {
+  pessoal: "Dados", academia: "Academia", plano: "Plano", anamnese: "Anamnese", lgpd: "LGPD",
+  graduacoes: "Graduações", certificados: "Certificados", contratos: "Contratos",
+  competicoes: "Competições", turmas: "Turmas", frequencia: "Frequência",
+  documentos: "Documentos", observacoes: "Observações", beneficios: "Benefícios",
+};
+
+/** Aba do perfil com limite de erro próprio: um dado ruim numa aba não derruba o perfil. */
+function SafeTab({ value, className, children }: { value: string; className?: string; children: React.ReactNode }) {
+  return (
+    <TabsContent value={value} className={className}>
+      <SectionErrorBoundary label={TAB_LABELS[value] ?? value}>{children}</SectionErrorBoundary>
+    </TabsContent>
+  );
+}
 
 export const Route = createFileRoute("/dojo/app/students/$id")({
   head: () => ({ meta: [{ title: "Aluno — AMT Dojo Manager" }] }),
@@ -81,6 +98,9 @@ function ProfileError({ message, onRetry }: { message: string; onRetry: () => vo
 
 const brl = (n: number) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const fmtDate = (v?: string | null) => brDate(v);
+/** Campos de JSON livre (anamnese, valores de certificado) só viram texto: objeto cru quebra o React. */
+const textOrDash = (v: unknown) =>
+  v == null || v === "" ? "—" : typeof v === "object" ? "—" : String(v);
 const fmtDateTime = (v?: string | null) => {
   if (!v) return "—";
   try { return new Date(v).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }); } catch { return String(v); }
@@ -602,6 +622,7 @@ function StudentDetail() {
 
             {/* Faixas atuais (uma por modalidade) */}
             <div className="p-4 space-y-3 text-sm">
+              <SectionErrorBoundary label="Faixa atual" resetKey={q.dataUpdatedAt}>
               {(() => {
                 const currentBelts: any[] = ((q.data as any)?.current_belts ?? []).filter(
                   (b: any) => b?.belt,
@@ -643,11 +664,10 @@ function StudentDetail() {
                   </div>
                 );
               })()}
-
-
+              </SectionErrorBoundary>
 
               <SidebarField icon={MapPin} label="Unidade" value={s.unit?.name} />
-              <SidebarField icon={UserIcon} label="Modalidade" value={anamn.modality ?? "—"} />
+              <SidebarField icon={UserIcon} label="Modalidade" value={textOrDash(anamn.modality)} />
               <SidebarField icon={Wallet} label="Plano" value={currentEnrollment?.plan?.name ?? "—"} />
               <SidebarField icon={CalendarCheck} label="Matrícula" value={fmtDate(enrollmentDate)} />
               <SidebarField icon={TrendingUp} label="Tempo de academia" value={enrollmentDate ? `${Math.floor(daysTraining / 30)} meses` : "—"} />
@@ -655,10 +675,14 @@ function StudentDetail() {
           </Card>
 
           {/* Códigos de check-in */}
-          <CheckinCodesCard student={s} onUpdated={() => q.refetch()} />
+          <SectionErrorBoundary label="Check-in" resetKey={q.dataUpdatedAt}>
+            <CheckinCodesCard student={s} onUpdated={() => q.refetch()} />
+          </SectionErrorBoundary>
 
           {/* Senha do app do aluno (recuperação pelo site, sem e-mail) */}
-          <AppPasswordResetCard student={s} />
+          <SectionErrorBoundary label="Senha do app" resetKey={q.dataUpdatedAt}>
+            <AppPasswordResetCard student={s} />
+          </SectionErrorBoundary>
         </aside>
 
         {/* ============ ÁREA PRINCIPAL ============ */}
@@ -725,7 +749,7 @@ function StudentDetail() {
             </div>
 
             {/* --- Dados Pessoais --- */}
-            <TabsContent value="pessoal" className="mt-4 space-y-4">
+            <SafeTab value="pessoal" className="mt-4 space-y-4">
               <SectionCard title="Identificação" icon={UserIcon}>
                 <InfoGrid>
                   <Info label="CPF" value={s.cpf} />
@@ -768,10 +792,10 @@ function StudentDetail() {
                   <Info label="Parentesco" value={s.emergency_contact_relationship} />
                 </InfoGrid>
               </SectionCard>
-            </TabsContent>
+            </SafeTab>
 
             {/* --- Dados da Academia --- */}
-            <TabsContent value="academia" className="mt-4 space-y-4">
+            <SafeTab value="academia" className="mt-4 space-y-4">
               <SectionCard title="Matrícula" icon={GraduationCap}>
                 <InfoGrid>
                   <Info label="Nº matrícula" value={s.id?.slice(0, 8).toUpperCase()} />
@@ -791,7 +815,7 @@ function StudentDetail() {
                     <option value="">Plano</option>
                     {(plans.data ?? []).map((p: any) => <option key={p.id} value={p.id}>{p.name} · {brl(p.amount)}</option>)}
                   </select>
-                  <Input type="number" min={0} step="0.01" placeholder="Valor custom (0 para bolsista)" value={enroll.custom_amount} onChange={(e) => setEnroll({ ...enroll, custom_amount: e.target.value })} />
+                  <Input type="text" inputMode="decimal" placeholder="Valor custom (0 para bolsista)" value={enroll.custom_amount} onChange={(e) => setEnroll({ ...enroll, custom_amount: e.target.value })} />
                   <Input type="number" min={1} max={31} placeholder="Dia venc." value={enroll.due_day} onChange={(e) => setEnroll({ ...enroll, due_day: Number(e.target.value) })} />
                   <Input type="date" value={enroll.start_date} onChange={(e) => setEnroll({ ...enroll, start_date: e.target.value })} />
                   <Button onClick={doAddEnroll}>Salvar</Button>
@@ -802,7 +826,14 @@ function StudentDetail() {
                       <div className="min-w-0 flex-1 truncate">
                         {e.plan?.name} · {brl(e.custom_amount ?? e.plan?.amount)} · venc. dia {e.due_day} · <Badge variant="outline">{e.status}</Badge>
                       </div>
-                      <Button size="icon" variant="ghost" onClick={async () => { await delEnroll({ data: { id: e.id } }); refresh(); }}>
+                      <Button size="icon" variant="ghost" onClick={async () => {
+                        try {
+                          await delEnroll({ data: { id: e.id } });
+                          refresh();
+                        } catch (err) {
+                          toast.error("Não foi possível excluir a matrícula", { description: (err as Error)?.message });
+                        }
+                      }}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
@@ -810,10 +841,10 @@ function StudentDetail() {
                   {enrollments.length === 0 && <div className="p-4 text-sm text-muted-foreground">Sem matrículas ativas.</div>}
                 </div>
               </SectionCard></div>
-            </TabsContent>
+            </SafeTab>
 
             {/* --- Plano atual + Troca de plano --- */}
-            <TabsContent value="plano" className="mt-4 space-y-4">
+            <SafeTab value="plano" className="mt-4 space-y-4">
               <SectionCard title="Matrícula" icon={Wallet}>
                 <div className="space-y-4">
                   <div className="grid gap-3 md:grid-cols-2">
@@ -833,9 +864,8 @@ function StudentDetail() {
                     <div>
                       <label className="text-xs text-muted-foreground">Valor mensal (R$)</label>
                       <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
                         placeholder="Ex: 150,00 (0 para bolsista)"
                         value={enroll.custom_amount}
                         onChange={(e) => setEnroll({ ...enroll, custom_amount: e.target.value })}
@@ -974,7 +1004,8 @@ function StudentDetail() {
                             onClick={() => setEnroll({
                               id: e.id,
                               plan_id: e.plan_id,
-                              custom_amount: e.custom_amount ? String(e.custom_amount).replace(".", ",") : "",
+                              // `!= null`: bolsista (0) vinha vazio e, ao salvar, voltava ao valor cheio do plano.
+                              custom_amount: e.custom_amount != null ? String(e.custom_amount).replace(".", ",") : "",
                               due_day: e.due_day || 5,
                               start_date: e.start_date ? e.start_date.slice(0, 10) : todayISO(),
                               status: e.status,
@@ -988,12 +1019,12 @@ function StudentDetail() {
                   </div>
                 </SectionCard>
               )}
-            </TabsContent>
+            </SafeTab>
 
 
 
             {/* --- Anamnese --- */}
-            <TabsContent value="anamnese" className="mt-4 space-y-4">
+            <SafeTab value="anamnese" className="mt-4 space-y-4">
               <SectionCard title="Ficha de saúde" icon={Heart}>
                 <InfoGrid>
                   <Info label="Tipo sanguíneo" value={s.blood_type} />
@@ -1033,10 +1064,10 @@ function StudentDetail() {
                   ))}
                 </div>
               </SectionCard>
-            </TabsContent>
+            </SafeTab>
 
             {/* --- LGPD --- */}
-            <TabsContent value="lgpd" className="mt-4 space-y-4">
+            <SafeTab value="lgpd" className="mt-4 space-y-4">
               <SectionCard title="Termos e consentimentos" icon={ShieldCheck}>
                 <div className="space-y-3">
                   <ConsentRow label="Consentimento para uso de dados (LGPD)" granted={!!s.lgpd_consent} date={s.lgpd_consent_date} />
@@ -1103,10 +1134,10 @@ function StudentDetail() {
                   Anexo de termo assinado (PDF) — em breve integrado ao módulo Documentos.
                 </div>
               </SectionCard>
-            </TabsContent>
+            </SafeTab>
 
             {/* --- Graduações --- */}
-            <TabsContent value="graduacoes" className="mt-4 space-y-4">
+            <SafeTab value="graduacoes" className="mt-4 space-y-4">
               <GraduationCriteriaCard
                 student={s}
                 belts={belts.data ?? []}
@@ -1243,10 +1274,10 @@ function StudentDetail() {
                 )}
               </SectionCard>
 
-            </TabsContent>
+            </SafeTab>
 
             {/* --- Certificados --- */}
-            <TabsContent value="certificados" className="mt-4 space-y-4">
+            <SafeTab value="certificados" className="mt-4 space-y-4">
               <SectionCard title="Certificados emitidos" icon={Award}>
                 {certificates.length === 0 ? (
                   <EmptyState label="Sem certificados. Emita a partir da aba de Graduações." />
@@ -1266,7 +1297,7 @@ function StudentDetail() {
                           const hasTemplate = !!c.template && (!!c.template.background_url || (Array.isArray(c.template.fields) && c.template.fields.length > 0));
                           const beltLabel = c.graduation?.belt?.name
                             ? formatBeltFull(c.graduation.belt.name, c.graduation.belt?.modality, c.graduation.degree)
-                            : (c.values?.belt ?? "—");
+                            : textOrDash(c.values?.belt);
 
                           return (
                             <tr key={c.id} className="border-b border-border last:border-0">
@@ -1292,23 +1323,23 @@ function StudentDetail() {
                   </div>
                 )}
               </SectionCard>
-            </TabsContent>
+            </SafeTab>
 
-            <TabsContent value="contratos" className="mt-4 space-y-4">
+            <SafeTab value="contratos" className="mt-4 space-y-4">
               <SectionCard title="Contratos do aluno" icon={FileText}>
                 <StudentContracts studentId={id} student={s} />
               </SectionCard>
-            </TabsContent>
+            </SafeTab>
 
             {/* --- Competições --- */}
-            <TabsContent value="competicoes" className="mt-4 space-y-4">
+            <SafeTab value="competicoes" className="mt-4 space-y-4">
               <SectionCard title="Competições" icon={Trophy}>
                 <StudentCompetitionHistory studentId={id} />
               </SectionCard>
-            </TabsContent>
+            </SafeTab>
 
             {/* --- Turmas --- */}
-            <TabsContent value="turmas" className="mt-4 space-y-4">
+            <SafeTab value="turmas" className="mt-4 space-y-4">
               <SectionCard title="Turmas do aluno" icon={Users}>
                 {studentClasses.isLoading ? (
                   <div className="space-y-2">
@@ -1382,10 +1413,10 @@ function StudentDetail() {
                   </div>
                 )}
               </SectionCard>
-            </TabsContent>
+            </SafeTab>
 
 
-            <TabsContent value="frequencia" className="mt-4 space-y-4">
+            <SafeTab value="frequencia" className="mt-4 space-y-4">
               <SectionCard title="Presença" icon={CalendarCheck}>
                 <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
                   <MiniStat label="Este mês" value={attendanceThisMonth} />
@@ -1413,10 +1444,10 @@ function StudentDetail() {
                   ))}
                 </div>
               </SectionCard>
-            </TabsContent>
+            </SafeTab>
 
             {/* --- Documentos --- */}
-            <TabsContent value="documentos" className="mt-4 space-y-4">
+            <SafeTab value="documentos" className="mt-4 space-y-4">
               <SectionCard title="Documentos anexados" icon={FileText}>
                 <div className="rounded-lg border-2 border-dashed border-border p-8 text-center">
                   <Upload className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
@@ -1432,10 +1463,10 @@ function StudentDetail() {
                   Estrutura preparada para categorização, download e exclusão de documentos por aluno.
                 </p>
               </SectionCard>
-            </TabsContent>
+            </SafeTab>
 
             {/* --- Observações --- */}
-            <TabsContent value="observacoes" className="mt-4 space-y-4">
+            <SafeTab value="observacoes" className="mt-4 space-y-4">
               <SectionCard title="Nova observação" icon={ClipboardList}>
                 <Textarea rows={3} placeholder="Registre uma observação sobre o aluno…" value={manualNote} onChange={(e) => setManualNote(e.target.value)} />
                 <div className="mt-2 flex justify-end">
@@ -1469,17 +1500,17 @@ function StudentDetail() {
                   </div>
                 )}
               </SectionCard>
-            </TabsContent>
+            </SafeTab>
 
             {/* --- Benefícios Corporativos --- */}
-            <TabsContent value="beneficios" className="mt-4 space-y-4">
+            <SafeTab value="beneficios" className="mt-4 space-y-4">
               <SectionCard title="Benefícios Corporativos" icon={ShieldCheck}>
                 <p className="text-xs text-muted-foreground mb-3">
                   Vincule o aluno a plataformas de benefícios corporativos. A validação de check-in acontece automaticamente no módulo Check-in.
                 </p>
                 <StudentCorporateBenefitsSection studentId={id} />
               </SectionCard>
-            </TabsContent>
+            </SafeTab>
           </Tabs>
         </main>
       </div>
@@ -1493,6 +1524,7 @@ function StudentDetail() {
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
+          <SectionErrorBoundary label="Movimentação" resetKey={q.dataUpdatedAt}>
           {timeline.length === 0 ? (
             <EmptyState label="Sem eventos registrados." compact />
           ) : (
@@ -1518,6 +1550,7 @@ function StudentDetail() {
               </ol>
             </div>
           )}
+          </SectionErrorBoundary>
         </CardContent>
       </Card>
 
