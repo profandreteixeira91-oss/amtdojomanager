@@ -320,17 +320,25 @@ export function AMTPayActivationForm({
         },
       });
 
+      // A falha da subconta não impede concluir o cadastro do dojo, mas o
+      // usuário precisa saber que o AMT Pay NÃO foi ativado — e por quê.
+      let amtPayError: string | null = null;
       try {
         await createSubaccount({ data: {} });
       } catch (e) {
         console.warn("[amtpay-activation] AMT Pay subaccount:", e);
-        toast.warning("AMT Pay pendente", {
-          description: "Cadastro salvo. A subconta AMT Pay será revisada em breve.",
-        });
+        amtPayError = e instanceof Error ? e.message : String(e);
       }
 
       await finish({});
-      toast.success("AMT Pay ativado com sucesso!");
+      if (amtPayError) {
+        toast.warning("Cadastro salvo, mas o AMT Pay não foi ativado", {
+          description: amtPayError,
+          duration: 15000,
+        });
+      } else {
+        toast.success("AMT Pay ativado com sucesso!");
+      }
       onCompleted?.();
     } catch (e) {
       toast.error("Falha ao concluir ativação", {

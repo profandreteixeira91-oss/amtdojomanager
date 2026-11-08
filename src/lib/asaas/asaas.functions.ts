@@ -8,6 +8,27 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+/**
+ * Mensagem para o dono da academia quando o Asaas recusa a criação da subconta.
+ * Recebe a classe do erro por parâmetro porque este módulo não importa
+ * `client.server.ts` no topo.
+ */
+function subaccountErrorMessage(
+  err: unknown,
+  AsaasApiError: typeof import("@/lib/asaas/client.server").AsaasApiError,
+): string {
+  if (err instanceof AsaasApiError) {
+    // Limite/homologação da conta AMT no Asaas: não é algo que o dono resolve.
+    if (err.code?.startsWith("baas_")) {
+      return "A ativação do AMT Pay está temporariamente indisponível. Seus dados foram salvos — tente novamente mais tarde ou fale com o suporte AMT.";
+    }
+    if (err.status === 400 && err.description) {
+      return `O cadastro no AMT Pay foi recusado: ${err.description}`;
+    }
+  }
+  return "Não foi possível ativar o AMT Pay agora. Seus dados foram salvos — tente novamente em instantes.";
+}
+
 /** Verifica a conexão com o Asaas e retorna informações do ambiente. */
 export const asaasCheckConnection = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -263,25 +284,42 @@ export const createMyAsaasSubaccount = createServerFn({ method: "POST" })
 
     // Criar subconta no Asaas — payload completo evita a etapa manual de
     // "confirmação de e-mail / ativação" que o Asaas cobra em cadastros parciais.
-    const subaccount = await asaasCreateSubaccount({
-      name: String(p.legal_name || p.trade_name),
-      email: String(p.email),
-      loginEmail: String(p.email),
-      personType: isCpf ? "FISICA" : "JURIDICA",
-      cpfCnpj,
-      birthDate: isCpf ? birthDate : undefined,
-      companyType: isCnpj ? companyType : undefined,
-      phone: p.phone ? String(p.phone).replace(/\D/g, "") : (mobilePhone ?? undefined),
-      mobilePhone,
-      incomeValue: incomeValue!,
-      address: String(p.address),
-      addressNumber: addressNumber!,
-      complement,
-      province: province!,
-      postalCode: zip,
-      site: (p as any).website ?? undefined,
-      externalReference: `dojo:${context.userId}`,
-    });
+    let subaccount: Awaited<ReturnType<typeof asaasCreateSubaccount>>;
+    try {
+      subaccount = await asaasCreateSubaccount({
+        name: String(p.legal_name || p.trade_name),
+        email: String(p.email),
+        loginEmail: String(p.email),
+        personType: isCpf ? "FISICA" : "JURIDICA",
+        cpfCnpj,
+        birthDate: isCpf ? birthDate : undefined,
+        companyType: isCnpj ? companyType : undefined,
+        phone: p.phone ? String(p.phone).replace(/\D/g, "") : (mobilePhone ?? undefined),
+        mobilePhone,
+        incomeValue: incomeValue!,
+        address: String(p.address),
+        addressNumber: addressNumber!,
+        complement,
+        province: province!,
+        postalCode: zip,
+        site: (p as any).website ?? undefined,
+        externalReference: `dojo:${context.userId}`,
+      });
+    } catch (err) {
+      // Registra a tentativa para a AMT acompanhar quem ficou sem AMT Pay, e
+      // devolve ao dono uma mensagem que ele entende (sem detalhes internos).
+      const { AsaasApiError } = await import("@/lib/asaas/client.server");
+      const code = err instanceof AsaasApiError ? err.code : null;
+      const detail =
+        err instanceof AsaasApiError ? err.description : String((err as Error)?.message ?? err);
+      console.error("[amtpay] falha ao criar subconta:", code, detail);
+      await context.supabase.from("dojo_account_audit").insert({
+        owner_id: context.userId,
+        action: "asaas_subaccount_failed",
+        meta: { code, detail: detail.slice(0, 500) },
+      });
+      throw new Error(subaccountErrorMessage(err, AsaasApiError));
+    }
 
     // A API key da subconta só é devolvida agora: guarda na tabela privada
     // (só o servidor lê), nunca no perfil, que alunos e equipe conseguem ler.

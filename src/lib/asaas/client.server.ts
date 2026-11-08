@@ -252,7 +252,7 @@ async function asaasFetch<T>(
 
     const err = data?.errors?.[0]?.description || data?.message || res.statusText;
     if (res.status !== 401 || overrideKey) {
-      throw new Error(`AMT Pay API ${res.status}: ${err}`);
+      throw new AsaasApiError(res.status, data?.errors?.[0]?.code ?? data?.code ?? null, err);
     }
 
     attempted.push(`${cfg.source} (${cfg.env})`);
@@ -261,6 +261,18 @@ async function asaasFetch<T>(
   throw new Error(
     `AMT Pay API 401: nenhuma credencial configurada foi aceita. Tentativas: ${attempted.join(", ")}.`,
   );
+}
+
+/** Erro devolvido pela API do Asaas, com o código (ex.: `baas_trial_limit_child_account_creation_reached`). */
+export class AsaasApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string | null,
+    readonly description: string,
+  ) {
+    super(`AMT Pay API ${status}: ${description}`);
+    this.name = "AsaasApiError";
+  }
 }
 
 async function asaasFetchMultipart<T>(
