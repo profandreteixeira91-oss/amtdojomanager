@@ -1,9 +1,24 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { motion } from "framer-motion";
 import { studentSupabase as supabase } from "@/lib/student-auth/student-client";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft, Eye, EyeOff, ShieldCheck, Sparkles } from "lucide-react";
+import {
+  Loader2,
+  ArrowLeft,
+  ArrowRight,
+  Award,
+  BellRing,
+  CalendarCheck,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Lock,
+  Mail,
+  ShieldCheck,
+  Wallet,
+} from "lucide-react";
 import { checkStudentAccess, activateStudentAccount } from "@/lib/student/activation.functions";
 import { redeemStudentPasswordReset, requestStudentPasswordReset } from "@/lib/student-auth/password-reset.functions";
 import { RESET_CODE_TTL_MINUTES } from "@/lib/student-auth/password-reset";
@@ -15,6 +30,25 @@ export const Route = createFileRoute("/app/login")({
 });
 
 type Step = "email" | "password" | "activate" | "reset";
+
+// Visual alinhado à tela de login do painel (/dojo/auth).
+const inputCls =
+  "h-11 w-full rounded-xl border border-black/10 bg-[#fafafa] pl-9 pr-3 text-[15px] text-[#111111] placeholder:text-[#111111]/35 outline-none transition focus:border-[#dc2626]/40 focus:bg-white focus:ring-2 focus:ring-[#dc2626]/25";
+const labelCls = "mb-1.5 block text-xs font-semibold text-[#111111]/75";
+const iconCls = "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#111111]/40";
+const eyeCls =
+  "absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-[#111111]/45 transition hover:bg-black/[0.04] hover:text-[#111111]";
+const primaryBtnCls =
+  "inline-flex h-12 w-full items-center justify-center rounded-xl bg-[#dc2626] text-[15px] font-bold text-white shadow-[0_12px_24px_-12px_rgba(220,38,38,0.9)] transition hover:bg-[#b91c1c] active:scale-[0.99] disabled:opacity-60";
+const backBtnCls = "inline-flex items-center gap-1 text-sm font-medium text-[#111111]/55 hover:text-[#111111]";
+const noticeCls = "rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs leading-relaxed text-red-800";
+
+const highlights = [
+  { icon: CalendarCheck, title: "Agenda e check-in", text: "Horários das turmas e presença pelo QR Code." },
+  { icon: Award, title: "Sua evolução", text: "Graduações, certificados e desempenho nos treinos." },
+  { icon: Wallet, title: "Mensalidades", text: "Consulte e pague suas mensalidades pelo app." },
+  { icon: BellRing, title: "Avisos da academia", text: "Notificações e comunicados em tempo real." },
+];
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -144,308 +178,316 @@ function LoginPage() {
 
   if (checking) {
     return (
-      <div className="grid min-h-screen place-items-center bg-black">
-        <Loader2 className="h-6 w-6 animate-spin text-red-500" />
+      <div className="grid min-h-screen place-items-center bg-[#f6f6f7]">
+        <Loader2 className="h-6 w-6 animate-spin text-[#dc2626]" />
       </div>
     );
   }
 
+  const emailChip = (
+    <div className="flex items-center justify-between gap-3 rounded-xl bg-[#f3f3f4] px-3 py-2.5 text-sm">
+      <span className="min-w-0 truncate text-[#111111]/80">
+        <span className="text-[#111111]/45">E-mail: </span>
+        {email}
+      </span>
+      <button
+        type="button"
+        onClick={() => setStep("email")}
+        className="shrink-0 text-xs font-semibold text-[#dc2626] hover:underline"
+      >
+        Trocar
+      </button>
+    </div>
+  );
+
   return (
-    <div className="relative isolate min-h-screen overflow-hidden bg-[#050505] text-white">
-      {/* Ambient glow layer */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute -top-40 left-1/2 h-[560px] w-[560px] -translate-x-1/2 rounded-full bg-red-600/25 blur-[140px]" />
-        <div className="absolute -bottom-40 -right-24 h-[420px] w-[420px] rounded-full bg-red-900/40 blur-[120px]" />
-        <div className="absolute -bottom-24 -left-24 h-[360px] w-[360px] rounded-full bg-amber-500/10 blur-[120px]" />
-      </div>
-      {/* Grid texture */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.05]"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
-          backgroundSize: "42px 42px",
-          maskImage: "radial-gradient(ellipse at center, black 40%, transparent 75%)",
-        }}
-      />
+    <div className="relative min-h-screen w-full bg-[#f6f6f7] text-[#111111] lg:grid lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+      {/* ===== Painel da marca (desktop) ===== */}
+      <aside
+        className="relative hidden overflow-hidden text-white lg:flex lg:flex-col"
+        style={{ background: "linear-gradient(160deg, #dc2626 0%, #c81f1f 45%, #8f1414 100%)" }}
+      >
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-[0.12]"
+          style={{ backgroundImage: "radial-gradient(rgba(255,255,255,0.9) 1px, transparent 1px)", backgroundSize: "18px 18px" }}
+        />
+        <div aria-hidden className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -bottom-40 -left-24 h-96 w-96 rounded-full bg-black/20 blur-3xl" />
 
-      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-between px-6 py-10">
-        {/* Header / Logo */}
-        <div className="pt-6">
-          <div className="mx-auto flex flex-col items-center text-center">
-            <div className="relative">
-              <div aria-hidden className="absolute inset-0 -z-10 rounded-[32px] bg-gradient-to-br from-red-500/40 via-red-700/20 to-transparent blur-2xl" />
-              <div className="rounded-[28px] border border-white/10 bg-white/[0.03] px-6 py-5 shadow-[0_20px_60px_-25px_rgba(220,38,38,0.6)] backdrop-blur-md">
-                <img
-                  src={logoAsset.url}
-                  alt="AMT Dojo Manager"
-                  className="mx-auto h-24 w-auto select-none sm:h-28"
-                  draggable={false}
-                />
-              </div>
-            </div>
-
-            <div className="mt-6 inline-flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.28em] text-red-200">
-              <Sparkles className="h-3 w-3" /> Portal do Aluno
-            </div>
-            <h1 className="mt-4 font-display text-3xl font-black leading-tight tracking-tight">
-              Bem-vindo de volta
-            </h1>
-            <p className="mt-2 max-w-sm text-sm text-white/60">
-              {step === "email" && "Acesse com o e-mail cadastrado na sua academia"}
-              {step === "password" && "Informe sua senha para continuar"}
-              {step === "activate" && "Primeiro acesso — crie sua senha"}
-              {step === "reset" && "Redefina sua senha com o código da academia"}
-            </p>
+        <div className="relative flex flex-1 flex-col justify-between gap-10 px-12 py-10 xl:px-16">
+          <div className="inline-flex w-fit items-center rounded-2xl bg-white px-4 py-2.5 shadow-[0_10px_30px_-12px_rgba(60,0,0,0.7)]">
+            <img src={logoAsset.url} alt="AMT Dojo Manager" className="h-14 w-auto select-none" draggable={false} />
           </div>
+
+          <div className="max-w-lg">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ring-1 ring-white/25">
+              <ShieldCheck className="h-3.5 w-3.5" /> Portal do Aluno
+            </div>
+            <h2 className="text-4xl font-bold leading-[1.1] tracking-tight xl:text-[44px]">
+              Seu treino na palma da mão.
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-white/85">
+              Acompanhe aulas, presença, graduações e mensalidades da sua academia em um só app.
+            </p>
+
+            <ul className="mt-8 grid gap-3 xl:grid-cols-2">
+              {highlights.map((h) => (
+                <li key={h.title} className="flex gap-3 rounded-2xl bg-white/10 p-4 ring-1 ring-white/15 backdrop-blur-sm">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-[#dc2626] shadow-sm">
+                    <h.icon className="h-[18px] w-[18px]" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-bold">{h.title}</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-white/80">{h.text}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <p className="text-xs text-white/70">© {new Date().getFullYear()} AMT Sistemas · amtdojomanager.com.br</p>
         </div>
+      </aside>
 
-        {/* Card */}
-        <div className="relative mt-8">
-          <div aria-hidden className="absolute -inset-px rounded-3xl bg-gradient-to-b from-red-500/30 via-white/5 to-transparent opacity-70 blur-[1px]" />
-          <div className="relative rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-6 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl sm:p-7">
+      {/* ===== Formulário ===== */}
+      <div className="relative flex min-h-screen flex-col bg-[#f6f6f7]">
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-700 via-red-600 to-red-500 lg:hidden" />
+        <header className="flex items-center px-5 py-4 sm:px-8 lg:invisible">
+          <img src={logoAsset.url} alt="AMT Dojo Manager" className="h-9 w-auto rounded-md select-none" draggable={false} />
+        </header>
 
-            {step === "email" && (
-              <form onSubmit={onEmailContinue} className="space-y-4">
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-white/60">E-mail</label>
-                  <input
-                    type="email"
-                    required
-                    autoFocus
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3.5 text-base text-white placeholder:text-white/30 outline-none transition focus:border-red-400/60 focus:ring-2 focus:ring-red-500/30"
-                    placeholder="voce@exemplo.com"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-red-600 to-red-500 py-3.5 text-base font-bold text-white shadow-[0_15px_40px_-15px_rgba(239,68,68,0.75)] transition hover:from-red-500 hover:to-red-400 active:scale-[0.99] disabled:opacity-60"
-                >
-                  <span aria-hidden className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-                  <span className="relative">{loading ? "Verificando…" : "Continuar"}</span>
-                </button>
-              </form>
-            )}
+        <main className="flex flex-1 items-center justify-center px-5 pb-10 sm:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35 }}
+            className="w-full max-w-[420px]"
+          >
+            <div className="mb-6">
+              <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#dc2626]">Portal do Aluno</div>
+              <h1 className="mt-1.5 text-[28px] font-bold leading-tight tracking-tight">Bem-vindo de volta</h1>
+              <p className="mt-1.5 text-sm text-[#111111]/60">
+                {step === "email" && "Acesse com o e-mail cadastrado na sua academia"}
+                {step === "password" && "Informe sua senha para continuar"}
+                {step === "activate" && "Primeiro acesso — crie sua senha"}
+                {step === "reset" && "Redefina sua senha com o código da academia"}
+              </p>
+            </div>
 
-            {step === "password" && (
-              <form onSubmit={onLogin} className="space-y-4">
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm">
-                  <span className="min-w-0 truncate text-white/80"><span className="text-white/40">E-mail: </span>{email}</span>
-                  <button type="button" onClick={() => setStep("email")} className="shrink-0 text-[11px] font-semibold text-red-300 hover:text-red-200">Trocar</button>
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-white/60">Senha</label>
-                  <div className="relative">
-                    <input
-                      type={showPw ? "text" : "password"}
-                      required
-                      autoFocus
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3.5 pr-11 text-base text-white placeholder:text-white/30 outline-none transition focus:border-red-400/60 focus:ring-2 focus:ring-red-500/30"
-                      placeholder="••••••••"
-                    />
-                    <button type="button" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? "Ocultar senha" : "Mostrar senha"} className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-md text-white/50 hover:text-white">
-                      {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
+            <div className="rounded-2xl border border-black/[0.07] bg-white p-5 shadow-[0_24px_60px_-28px_rgba(17,17,17,0.25)] sm:p-7">
+              {step === "email" && (
+                <form onSubmit={onEmailContinue} className="space-y-4">
+                  <div>
+                    <label className={labelCls}>E-mail</label>
+                    <div className="relative">
+                      <Mail className={iconCls} />
+                      <input
+                        type="email"
+                        required
+                        autoFocus
+                        autoComplete="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className={inputCls}
+                        placeholder="voce@exemplo.com"
+                      />
+                    </div>
                   </div>
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-red-600 to-red-500 py-3.5 text-base font-bold text-white shadow-[0_15px_40px_-15px_rgba(239,68,68,0.75)] transition hover:from-red-500 hover:to-red-400 active:scale-[0.99] disabled:opacity-60"
-                >
-                  <span aria-hidden className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-                  <span className="relative">{loading ? "Entrando…" : "Entrar"}</span>
-                </button>
-                <div className="flex items-center justify-between text-sm">
-                  <button
-                    type="button"
-                    onClick={() => setStep("email")}
-                    className="inline-flex items-center gap-1 text-white/50 hover:text-white"
-                  >
+                  <button type="submit" disabled={loading} className={primaryBtnCls}>
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {loading ? "Verificando…" : "Continuar"}
+                    {!loading && <ArrowRight className="ml-1.5 h-4 w-4" />}
+                  </button>
+                </form>
+              )}
+
+              {step === "password" && (
+                <form onSubmit={onLogin} className="space-y-4">
+                  {emailChip}
+                  <div>
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <label className="text-xs font-semibold text-[#111111]/75">Senha</label>
+                      <button type="button" onClick={onForgot} className="text-xs font-semibold text-[#dc2626] hover:underline">
+                        Esqueci minha senha
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <Lock className={iconCls} />
+                      <input
+                        type={showPw ? "text" : "password"}
+                        required
+                        autoFocus
+                        autoComplete="current-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className={`${inputCls} pr-11`}
+                        placeholder="••••••••"
+                      />
+                      <button type="button" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? "Ocultar senha" : "Mostrar senha"} className={eyeCls}>
+                        {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <button type="submit" disabled={loading} className={primaryBtnCls}>
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {loading ? "Entrando…" : "Entrar"}
+                    {!loading && <ArrowRight className="ml-1.5 h-4 w-4" />}
+                  </button>
+                  <button type="button" onClick={() => setStep("email")} className={backBtnCls}>
                     <ArrowLeft className="h-3.5 w-3.5" /> Trocar e-mail
                   </button>
-                  <button
-                    type="button"
-                    onClick={onForgot}
-                    className="text-white/60 underline-offset-4 hover:text-white hover:underline"
-                  >
-                    Esqueci minha senha
+                </form>
+              )}
+
+              {step === "activate" && (
+                <form onSubmit={onActivate} className="space-y-4">
+                  <div className={noticeCls}>Este é seu primeiro acesso. Crie uma senha para continuar usando o app.</div>
+                  {emailChip}
+                  <div>
+                    <label className={labelCls}>Nova senha</label>
+                    <div className="relative">
+                      <Lock className={iconCls} />
+                      <input
+                        type={showPw ? "text" : "password"}
+                        required
+                        autoFocus
+                        minLength={8}
+                        autoComplete="new-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className={`${inputCls} pr-11`}
+                        placeholder="Mínimo 8 caracteres"
+                      />
+                      <button type="button" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? "Ocultar senha" : "Mostrar senha"} className={eyeCls}>
+                        {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Confirme a senha</label>
+                    <div className="relative">
+                      <Lock className={iconCls} />
+                      <input
+                        type={showPw2 ? "text" : "password"}
+                        required
+                        minLength={8}
+                        autoComplete="new-password"
+                        value={passwordConfirm}
+                        onChange={(e) => setPasswordConfirm(e.target.value)}
+                        className={`${inputCls} pr-11`}
+                        placeholder="Repita a senha"
+                      />
+                      <button type="button" onClick={() => setShowPw2((v) => !v)} aria-label={showPw2 ? "Ocultar senha" : "Mostrar senha"} className={eyeCls}>
+                        {showPw2 ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <button type="submit" disabled={loading} className={primaryBtnCls}>
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {loading ? "Criando acesso…" : "Criar senha e entrar"}
+                    {!loading && <ArrowRight className="ml-1.5 h-4 w-4" />}
                   </button>
-                </div>
-              </form>
-            )}
-
-            {step === "activate" && (
-              <form onSubmit={onActivate} className="space-y-4">
-                <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2.5 text-xs text-red-100">
-                  Este é seu primeiro acesso. Crie uma senha para continuar usando o app.
-                </div>
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm">
-                  <span className="min-w-0 truncate text-white/80"><span className="text-white/40">E-mail: </span>{email}</span>
-                  <button type="button" onClick={() => setStep("email")} className="shrink-0 text-[11px] font-semibold text-red-300 hover:text-red-200">Trocar</button>
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-white/60">Nova senha</label>
-                  <div className="relative">
-                    <input
-                      type={showPw ? "text" : "password"}
-                      required
-                      autoFocus
-                      minLength={8}
-                      autoComplete="new-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3.5 pr-11 text-base text-white placeholder:text-white/30 outline-none transition focus:border-red-400/60 focus:ring-2 focus:ring-red-500/30"
-                      placeholder="Mínimo 8 caracteres"
-                    />
-                    <button type="button" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? "Ocultar senha" : "Mostrar senha"} className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-md text-white/50 hover:text-white">
-                      {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-white/60">Confirme a senha</label>
-                  <div className="relative">
-                    <input
-                      type={showPw2 ? "text" : "password"}
-                      required
-                      minLength={8}
-                      autoComplete="new-password"
-                      value={passwordConfirm}
-                      onChange={(e) => setPasswordConfirm(e.target.value)}
-                      className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3.5 pr-11 text-base text-white placeholder:text-white/30 outline-none transition focus:border-red-400/60 focus:ring-2 focus:ring-red-500/30"
-                      placeholder="Repita a senha"
-                    />
-                    <button type="button" onClick={() => setShowPw2((v) => !v)} aria-label={showPw2 ? "Ocultar senha" : "Mostrar senha"} className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-md text-white/50 hover:text-white">
-                      {showPw2 ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-red-600 to-red-500 py-3.5 text-base font-bold text-white shadow-[0_15px_40px_-15px_rgba(239,68,68,0.75)] transition hover:from-red-500 hover:to-red-400 active:scale-[0.99] disabled:opacity-60"
-                >
-                  <span aria-hidden className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-                  <span className="relative">{loading ? "Criando acesso…" : "Criar senha e entrar"}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStep("email")}
-                  className="inline-flex items-center gap-1 text-sm text-white/50 hover:text-white"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" /> Trocar e-mail
-                </button>
-              </form>
-            )}
-
-            {step === "reset" && (
-              <form onSubmit={onReset} className="space-y-4">
-                <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2.5 text-xs text-red-100">
-                  Peça à sua academia o código para redefinir a senha. Ele vale {RESET_CODE_TTL_MINUTES} minutos e só
-                  pode ser usado uma vez.
-                  <button
-                    type="button"
-                    onClick={onRequestCode}
-                    disabled={requesting}
-                    className="mt-2 block font-semibold text-red-200 underline underline-offset-4 hover:text-white disabled:opacity-60"
-                  >
-                    {requesting ? "Avisando…" : "Avisar minha academia"}
+                  <button type="button" onClick={() => setStep("email")} className={backBtnCls}>
+                    <ArrowLeft className="h-3.5 w-3.5" /> Trocar e-mail
                   </button>
-                </div>
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm">
-                  <span className="min-w-0 truncate text-white/80"><span className="text-white/40">E-mail: </span>{email}</span>
-                  <button type="button" onClick={() => setStep("email")} className="shrink-0 text-[11px] font-semibold text-red-300 hover:text-red-200">Trocar</button>
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-white/60">Código da academia</label>
-                  <input
-                    type="text"
-                    required
-                    autoFocus
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={7}
-                    value={resetCode}
-                    onChange={(e) => setResetCode(e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3.5 text-center font-mono text-xl tracking-[0.4em] text-white placeholder:text-white/30 outline-none transition focus:border-red-400/60 focus:ring-2 focus:ring-red-500/30"
-                    placeholder="000000"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-white/60">Nova senha</label>
-                  <div className="relative">
-                    <input
-                      type={showPw ? "text" : "password"}
-                      required
-                      minLength={8}
-                      autoComplete="new-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3.5 pr-11 text-base text-white placeholder:text-white/30 outline-none transition focus:border-red-400/60 focus:ring-2 focus:ring-red-500/30"
-                      placeholder="Mínimo 8 caracteres"
-                    />
-                    <button type="button" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? "Ocultar senha" : "Mostrar senha"} className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-md text-white/50 hover:text-white">
-                      {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-white/60">Confirme a senha</label>
-                  <div className="relative">
-                    <input
-                      type={showPw2 ? "text" : "password"}
-                      required
-                      minLength={8}
-                      autoComplete="new-password"
-                      value={passwordConfirm}
-                      onChange={(e) => setPasswordConfirm(e.target.value)}
-                      className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3.5 pr-11 text-base text-white placeholder:text-white/30 outline-none transition focus:border-red-400/60 focus:ring-2 focus:ring-red-500/30"
-                      placeholder="Repita a senha"
-                    />
-                    <button type="button" onClick={() => setShowPw2((v) => !v)} aria-label={showPw2 ? "Ocultar senha" : "Mostrar senha"} className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-md text-white/50 hover:text-white">
-                      {showPw2 ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-red-600 to-red-500 py-3.5 text-base font-bold text-white shadow-[0_15px_40px_-15px_rgba(239,68,68,0.75)] transition hover:from-red-500 hover:to-red-400 active:scale-[0.99] disabled:opacity-60"
-                >
-                  <span aria-hidden className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-                  <span className="relative">{loading ? "Redefinindo…" : "Redefinir senha e entrar"}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStep("password")}
-                  className="inline-flex items-center gap-1 text-sm text-white/50 hover:text-white"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar para a senha
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
+                </form>
+              )}
 
-        {/* Footer */}
-        <div className="mt-8 space-y-3 text-center">
-          <div className="inline-flex items-center gap-1.5 text-[11px] text-white/40">
-            <ShieldCheck className="h-3.5 w-3.5 text-red-400/70" />
-            Conexão segura · Gestão · Disciplina · Evolução
-          </div>
-          <p className="text-[11px] text-white/30">
-            Sua academia precisa cadastrar seu e-mail previamente para liberar o acesso.
-          </p>
-        </div>
+              {step === "reset" && (
+                <form onSubmit={onReset} className="space-y-4">
+                  <div className={noticeCls}>
+                    Peça à sua academia o código para redefinir a senha. Ele vale {RESET_CODE_TTL_MINUTES} minutos e só
+                    pode ser usado uma vez.
+                    <button
+                      type="button"
+                      onClick={onRequestCode}
+                      disabled={requesting}
+                      className="mt-2 block font-semibold text-[#dc2626] underline underline-offset-4 hover:text-[#b91c1c] disabled:opacity-60"
+                    >
+                      {requesting ? "Avisando…" : "Avisar minha academia"}
+                    </button>
+                  </div>
+                  {emailChip}
+                  <div>
+                    <label className={labelCls}>Código da academia</label>
+                    <div className="relative">
+                      <KeyRound className={iconCls} />
+                      <input
+                        type="text"
+                        required
+                        autoFocus
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        maxLength={7}
+                        value={resetCode}
+                        onChange={(e) => setResetCode(e.target.value)}
+                        className={`${inputCls} text-center font-mono text-xl tracking-[0.4em]`}
+                        placeholder="000000"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Nova senha</label>
+                    <div className="relative">
+                      <Lock className={iconCls} />
+                      <input
+                        type={showPw ? "text" : "password"}
+                        required
+                        minLength={8}
+                        autoComplete="new-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className={`${inputCls} pr-11`}
+                        placeholder="Mínimo 8 caracteres"
+                      />
+                      <button type="button" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? "Ocultar senha" : "Mostrar senha"} className={eyeCls}>
+                        {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Confirme a senha</label>
+                    <div className="relative">
+                      <Lock className={iconCls} />
+                      <input
+                        type={showPw2 ? "text" : "password"}
+                        required
+                        minLength={8}
+                        autoComplete="new-password"
+                        value={passwordConfirm}
+                        onChange={(e) => setPasswordConfirm(e.target.value)}
+                        className={`${inputCls} pr-11`}
+                        placeholder="Repita a senha"
+                      />
+                      <button type="button" onClick={() => setShowPw2((v) => !v)} aria-label={showPw2 ? "Ocultar senha" : "Mostrar senha"} className={eyeCls}>
+                        {showPw2 ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <button type="submit" disabled={loading} className={primaryBtnCls}>
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {loading ? "Redefinindo…" : "Redefinir senha e entrar"}
+                    {!loading && <ArrowRight className="ml-1.5 h-4 w-4" />}
+                  </button>
+                  <button type="button" onClick={() => setStep("password")} className={backBtnCls}>
+                    <ArrowLeft className="h-3.5 w-3.5" /> Voltar para a senha
+                  </button>
+                </form>
+              )}
+            </div>
+
+            <div className="mt-6 space-y-2 text-center">
+              <div className="inline-flex items-center gap-1.5 text-[11px] text-[#111111]/45">
+                <ShieldCheck className="h-3.5 w-3.5 text-[#dc2626]/70" />
+                Conexão segura · Gestão · Disciplina · Evolução
+              </div>
+              <p className="text-xs text-[#111111]/45">
+                Sua academia precisa cadastrar seu e-mail previamente para liberar o acesso.
+              </p>
+            </div>
+          </motion.div>
+        </main>
       </div>
     </div>
   );
