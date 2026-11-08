@@ -1,4 +1,5 @@
 import { BeltVisual } from "./BeltVisual";
+import { BeltShade, BeltWeave, RANK_BAR_SHADOW, beltMaterial, beltShellClass, tapeStyle } from "./belt-finish";
 
 /**
  * Spec de aparência da faixa — estrutura declarativa que permite desenhar
@@ -38,12 +39,14 @@ export function beltSpecIsEmpty(spec: BeltSpec | null | undefined): boolean {
 const asArray = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]).filter(Boolean) : []);
 
 export function BeltSpecVisual({
-  spec, degree = 0, label, className = "", fallback,
+  spec, degree = 0, label, className = "", fallback, modality,
 }: {
   spec: BeltSpec | null | undefined;
   degree?: number;
   label?: string;
   className?: string;
+  /** Modalidade da faixa — define o acabamento (tecido, costura, cordão). */
+  modality?: string | null;
   /** Renderização de fallback quando o spec é vazio. */
   fallback?: React.ReactNode;
 }) {
@@ -55,11 +58,12 @@ export function BeltSpecVisual({
   const dividers = asArray<NonNullable<BeltSpec["dividers"]>[number]>(spec!.dividers);
   const before = dividers.filter((d) => d.side === "before-tip");
   const after = dividers.filter((d) => d.side === "after-tip");
+  const material = beltMaterial(modality);
 
   return (
     <div className={`inline-flex flex-col items-start gap-1 ${className}`}>
       <div
-        className="relative flex w-full min-w-[220px] h-8 rounded-sm overflow-hidden border border-black/25 shadow-sm"
+        className={`relative flex w-full min-w-[220px] h-8 overflow-hidden border border-black/35 ${beltShellClass(material)}`}
         aria-label={label}
       >
         {/* Aparador topo */}
@@ -93,6 +97,9 @@ export function BeltSpecVisual({
           <div className="h-full flex-1" style={{ background: "#F5F5F5" }} />
         )}
 
+        {/* Tecido e costuras (abaixo da ponteira, que é costurada por cima) */}
+        <BeltWeave material={material} />
+
         {/* Divisórias antes da ponteira */}
         {before.map((d, i) => (
           <div key={`bt${i}`} className="h-full" style={{ background: d.color, width: d.widthPx ?? 8 }} />
@@ -102,18 +109,10 @@ export function BeltSpecVisual({
         {tip && (
           <div
             className="relative h-full flex items-center justify-center gap-[3px] px-1.5"
-            style={{ background: tip.color, width: `${tip.widthPct}%` }}
+            style={{ background: tip.color, width: `${tip.widthPct}%`, boxShadow: RANK_BAR_SHADOW }}
           >
             {Array.from({ length: stripes }).map((_, i) => (
-              <div
-                key={i}
-                className="h-[80%] rounded-sm"
-                style={{
-                  width: 4,
-                  background: tip.stripeColor ?? "#FFFFFF",
-                  boxShadow: "0 0 0 0.5px rgba(0,0,0,0.35)",
-                }}
-              />
+              <div key={i} className="h-[80%] rounded-[1px]" style={tapeStyle(tip.stripeColor ?? "#FFFFFF")} />
             ))}
           </div>
         )}
@@ -134,6 +133,9 @@ export function BeltSpecVisual({
             }}
           />
         )}
+
+        {/* Volume e luz por cima de tudo */}
+        <BeltShade material={material} />
       </div>
       {label && <span className="text-xs text-muted-foreground">{label}</span>}
     </div>
@@ -174,10 +176,12 @@ export function BeltAuto({
     (v) => v && v.kind === "degree" && Number(v.degree) === Number(degree) && !beltSpecIsEmpty(v.visual),
   );
   if (degreeOverride && !beltSpecIsEmpty(degreeOverride.visual)) {
-    return <BeltSpecVisual spec={degreeOverride.visual!} degree={degree} className={className} />;
+    return (
+      <BeltSpecVisual spec={degreeOverride.visual!} degree={degree} className={className} modality={belt.modality} />
+    );
   }
   if (!beltSpecIsEmpty(belt.visual)) {
-    return <BeltSpecVisual spec={belt.visual!} degree={degree} className={className} />;
+    return <BeltSpecVisual spec={belt.visual!} degree={degree} className={className} modality={belt.modality} />;
   }
   return (
     <BeltVisual

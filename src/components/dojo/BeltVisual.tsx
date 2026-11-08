@@ -1,3 +1,5 @@
+import { BeltShade, BeltWeave, GOLD, RANK_BAR_SHADOW, beltMaterial, beltShellClass, tapeStyle } from "./belt-finish";
+
 interface BeltVisualProps {
   colorHex: string;
   stripeHex?: string | null;
@@ -40,6 +42,9 @@ export function BeltVisual({
   const n = (name ?? "").trim();
   const mod = (modality ?? "").toString().toLowerCase().trim();
   const isJiuJitsu = mod === "" || mod === "jiu-jitsu" || mod === "jiujitsu" || mod === "bjj";
+  // Acabamento realista por modalidade (só visual; não muda cores nem graus).
+  const material = isJiuJitsu ? "bjj" : beltMaterial(mod);
+  const shell = beltShellClass(material);
 
   // Preta family variants — BJJ only.
   const isPretaPlain = /^preta$/i.test(n);
@@ -67,25 +72,23 @@ export function BeltVisual({
     return (
       <div className={`inline-flex flex-col items-start gap-1 ${className}`}>
         <div
-          className="relative flex w-full min-w-[220px] h-8 rounded-sm overflow-hidden border border-black/25 shadow-sm"
+          className={`relative flex w-full min-w-[220px] h-8 overflow-hidden border border-black/40 ${shell}`}
           aria-label={label ?? `Faixa ${n}`}
         >
           <div className="h-full" style={{ flex: "0 0 55%", background: "#111111" }} />
-          {showAparador && <div className="h-full" style={{ width: 6, background: "#FFFFFF" }} />}
+          {showAparador && <div className="relative z-10 h-full" style={{ width: 6, background: "#FFFFFF" }} />}
           <div
-            className="h-full flex items-stretch justify-end gap-[3px] pr-1.5 pl-2"
-            style={{ flex: "1 1 auto", background: "#D32F2F" }}
+            className="relative z-10 h-full flex items-stretch justify-end gap-[3px] pr-1.5 pl-2"
+            style={{ flex: "1 1 auto", background: "#D32F2F", boxShadow: RANK_BAR_SHADOW }}
           >
             {Array.from({ length: stripes }).map((_, i) => (
-              <div
-                key={i}
-                className="h-full"
-                style={{ width: 4, background: "#FFFFFF", boxShadow: "0 0 0 0.5px rgba(0,0,0,0.35)" }}
-              />
+              <div key={i} className="h-full" style={tapeStyle("#FFFFFF")} />
             ))}
           </div>
-          {showAparador && <div className="h-full" style={{ width: 6, background: "#FFFFFF" }} />}
+          {showAparador && <div className="relative z-10 h-full" style={{ width: 6, background: "#FFFFFF" }} />}
           <div className="h-full" style={{ width: 10, background: "#111111" }} />
+          <BeltWeave material={material} />
+          <BeltShade material={material} />
         </div>
         {label && <span className="text-xs text-muted-foreground">{label}</span>}
       </div>
@@ -102,7 +105,7 @@ export function BeltVisual({
     return (
       <div className={`inline-flex flex-col items-start gap-1 ${className}`}>
         <div
-          className="relative flex w-full min-w-[220px] h-8 rounded-sm overflow-hidden border border-black/25 shadow-sm"
+          className={`relative flex w-full min-w-[220px] h-8 overflow-hidden border border-black/40 ${shell}`}
           aria-label={label ?? `Faixa ${n}`}
         >
           {/* Body: alternating blocks (or solid red) */}
@@ -119,22 +122,20 @@ export function BeltVisual({
             )}
           </div>
           {/* Left divider */}
-          <div className="h-full w-[10px]" style={{ background: dividerColor }} />
+          <div className="relative z-10 h-full w-[10px]" style={{ background: dividerColor }} />
           {/* White tip with red vertical stripes */}
           <div
-            className="h-full flex items-stretch justify-center gap-[3px] px-2 bg-white"
-            style={{ width: `${Math.max(38, forcedDegrees * 6 + 12)}%` }}
+            className="relative z-10 h-full flex items-stretch justify-center gap-[3px] px-2 bg-white"
+            style={{ width: `${Math.max(38, forcedDegrees * 6 + 12)}%`, boxShadow: RANK_BAR_SHADOW }}
           >
             {Array.from({ length: forcedDegrees }).map((_, i) => (
-              <div
-                key={i}
-                className="h-full w-[4px]"
-                style={{ background: stripeColor, boxShadow: "0 0 0 0.5px rgba(0,0,0,0.35)" }}
-              />
+              <div key={i} className="h-full" style={tapeStyle(stripeColor)} />
             ))}
           </div>
           {/* Right end divider */}
-          <div className="h-full w-[10px]" style={{ background: dividerColor }} />
+          <div className="relative z-10 h-full w-[10px]" style={{ background: dividerColor }} />
+          <BeltWeave material={material} />
+          <BeltShade material={material} />
         </div>
         {label && <span className="text-xs text-muted-foreground">{label}</span>}
       </div>
@@ -158,24 +159,19 @@ export function BeltVisual({
       return (
         <div className={`inline-flex flex-col items-start gap-1 ${className}`}>
           <div
-            className="relative w-full min-w-[220px] h-8 rounded-sm overflow-hidden border border-black/25 shadow-sm"
+            className={`relative w-full min-w-[220px] h-8 overflow-hidden border border-black/40 ${shell}`}
             style={{ background: "#111111" }}
             aria-label={label ?? `Faixa ${n} ${dan ? `${dan}º Dan` : ""}`.trim()}
           >
+            <BeltWeave material={material} />
             {dan > 0 && (
-              <div className="absolute right-2 top-0 h-full flex items-center gap-[3px]">
+              <div className="absolute right-2 top-0 z-10 h-full flex items-center gap-[3px]">
                 {Array.from({ length: dan }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-[70%] w-[3px] rounded-sm"
-                    style={{
-                      background: "#D32F2F",
-                      boxShadow: "0 0 0 0.5px rgba(0,0,0,0.5)",
-                    }}
-                  />
+                  <div key={i} className="h-[70%] rounded-[1px]" style={tapeStyle("#D32F2F", 3)} />
                 ))}
               </div>
             )}
+            <BeltShade material={material} />
           </div>
           {label && <span className="text-xs text-muted-foreground">{label}</span>}
         </div>
@@ -190,11 +186,17 @@ export function BeltVisual({
     // Fall back to stripe_hex when the name does not encode a "ponta" color.
     const pontaColor = pontaName ? colorNameToHex(pontaName) : stripeHex || null;
     const hasPonta = !!pontaMatch && !!pontaColor;
+    const isCord = material === "cord";
+    // Karatê / Taekwondo: graus da faixa preta são bordados em dourado.
+    const goldMarks =
+      (material === "karate" || material === "taekwondo") &&
+      (/^preta/i.test(n) || base === "#111111" || base === "#000000");
+    const markColor = goldMarks ? GOLD : isLight ? "#111111" : "#FFFFFF";
 
     return (
       <div className={`inline-flex flex-col items-start gap-1 ${className}`}>
         <div
-          className="relative flex w-full min-w-[220px] h-8 rounded-sm overflow-hidden border border-black/20 shadow-sm"
+          className={`relative flex w-full min-w-[220px] h-8 overflow-hidden border border-black/30 ${shell}`}
           aria-label={label ?? `Faixa ${n || colorHex}`}
         >
           {hasPonta ? (
@@ -215,9 +217,18 @@ export function BeltVisual({
               <div className="h-full" style={{ flex: "0 0 22%", background: pontaColor! }} />
             </>
           ) : (
-            <div className="relative w-full h-full" style={{ background: colorHex }}>
+            <div
+              className="relative w-full h-full"
+              style={{
+                background:
+                  isCord && stripeHex && !isTrim
+                    ? // Cordão de duas cores: fios trançados em espiral
+                      `repeating-linear-gradient(115deg, ${colorHex} 0 8px, ${stripeHex} 8px 16px)`
+                    : colorHex,
+              }}
+            >
               {/* Center band */}
-              {stripeHex && !isTrim && (
+              {stripeHex && !isTrim && !isCord && (
                 <div
                   className="absolute inset-x-0"
                   style={{ background: stripeHex, top: "33.333%", height: "33.333%" }}
@@ -230,23 +241,25 @@ export function BeltVisual({
                   <div className="absolute inset-x-0 bottom-0" style={{ background: stripeHex, height: "18%" }} />
                 </>
               )}
-              {/* Degree marks — thin dark stripes near the right end, no black rectangle */}
+              <BeltWeave material={material} />
+              {/* Degree marks — thin stripes near the right end, no black rectangle */}
               {stripes > 0 && (
-                <div className="absolute right-2 top-0 h-full flex items-center gap-[3px]">
+                <div
+                  className={`absolute top-0 z-10 h-full flex items-center gap-[3px] ${isCord ? "right-4" : "right-2"}`}
+                >
                   {Array.from({ length: stripes }).map((_, i) => (
                     <div
                       key={i}
-                      className="h-[70%] w-[3px] rounded-sm"
-                      style={{
-                        background: isLight ? "#111111" : "#FFFFFF",
-                        boxShadow: "0 0 0 0.5px rgba(0,0,0,0.35)",
-                      }}
+                      className={isCord ? "h-full" : "h-[70%] rounded-[1px]"}
+                      style={tapeStyle(markColor, 3)}
                     />
                   ))}
                 </div>
               )}
             </div>
           )}
+          {hasPonta && <BeltWeave material={material} />}
+          <BeltShade material={material} />
         </div>
         {label && <span className="text-xs text-muted-foreground">{label}</span>}
       </div>
@@ -260,7 +273,7 @@ export function BeltVisual({
   return (
     <div className={`inline-flex flex-col items-start gap-1 ${className}`}>
       <div
-        className="relative w-full min-w-[140px] h-8 rounded-sm overflow-hidden border border-black/20 shadow-sm"
+        className={`relative w-full min-w-[140px] h-8 overflow-hidden border border-black/30 ${shell}`}
         style={{ background: colorHex }}
         aria-label={label ?? `Faixa ${colorHex}`}
       >
@@ -278,23 +291,18 @@ export function BeltVisual({
             <div className="absolute inset-x-0 bottom-0" style={{ background: stripeHex, height: "18%" }} />
           </>
         )}
-        {/* Black tip on the right */}
+        <BeltWeave material={material} />
+        {/* Ponteira preta costurada perto da ponta — como na faixa real, sobra
+            um pedaço da cor da faixa depois dela. */}
         <div
-          className="absolute right-0 top-0 h-full flex items-center justify-center gap-[3px] px-1.5"
-          style={{
-            width: "38%",
-            background: tipBg,
-            borderLeft: isLight ? "1px solid rgba(0,0,0,0.35)" : "1px solid rgba(255,255,255,0.15)",
-          }}
+          className="absolute right-[6%] top-0 z-10 h-full flex items-center justify-center gap-[3px] px-1.5"
+          style={{ width: "34%", background: tipBg, boxShadow: RANK_BAR_SHADOW }}
         >
           {Array.from({ length: stripes }).map((_, i) => (
-            <div
-              key={i}
-              className="h-full w-[3px] rounded-sm"
-              style={{ background: stripeColor, boxShadow: "0 0 0 0.5px rgba(0,0,0,0.4)" }}
-            />
+            <div key={i} className="h-full" style={tapeStyle(stripeColor, 3)} />
           ))}
         </div>
+        <BeltShade material={material} />
       </div>
       {label && <span className="text-xs text-muted-foreground">{label}</span>}
     </div>

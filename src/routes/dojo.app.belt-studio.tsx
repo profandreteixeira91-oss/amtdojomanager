@@ -534,6 +534,7 @@ function VariantRow({
           spec={effective}
           degree={variant.degree}
           fallback={<BeltAuto belt={parentBelt as any} degree={variant.degree} />}
+          modality={parentBelt?.modality}
         />
       </div>
       {showEditor && (
@@ -702,6 +703,7 @@ function DegreeRow({
           spec={effective}
           degree={degree}
           fallback={<BeltAuto belt={parentBelt as any} degree={degree} />}
+          modality={parentBelt?.modality}
         />
       </div>
       {open && hasVisual && (
