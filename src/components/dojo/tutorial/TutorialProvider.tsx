@@ -3,6 +3,7 @@ import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { type TutorialTrack } from "@/lib/dojo/tutorial/tracks";
 import { findTrack } from "@/lib/dojo/tutorial/custom-tracks";
+import { isOnRoute } from "@/lib/dojo/tutorial/locations";
 import { TourOverlay } from "./TourOverlay";
 import { ResumeTutorialDialog } from "./ResumeTutorialDialog";
 import { TutorialAchievement } from "./TutorialAchievement";
@@ -123,8 +124,14 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  /**
+   * Leva o usuário à página do passo. Ao avançar para um passo sem `route`
+   * própria não navega (`force` falso): a pessoa está onde as próprias ações a
+   * levaram — ficha do aluno, editor de contrato, detalhe da competição.
+   */
   const applyStepRoute = useCallback(
-    (t: TutorialTrack, index: number) => {
+    (t: TutorialTrack, index: number, force: boolean) => {
+      if (!force && !t.steps[index]?.route) return;
       let target: string | null = null;
       for (let i = index; i >= 0; i--) {
         const r = t.steps[i]?.route;
@@ -134,7 +141,9 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
         }
       }
       target = target ?? t.route;
-      if (target && target !== pathname) navigate({ to: target as any }).catch(() => {});
+      // Sub-páginas da rota (ficha do aluno, editor, detalhes) contam como "já está lá":
+      // senão o tutorial puxaria o usuário de volta para a lista a cada passo.
+      if (target && !isOnRoute(pathname, target)) navigate({ to: target as any }).catch(() => {});
     },
     [navigate, pathname],
   );
@@ -153,7 +162,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
       setStartedAt(Date.now());
       persistLocal(id, step);
       void saveProgress(id, step, "in_progress");
-      applyStepRoute(t, step);
+      applyStepRoute(t, step, true);
     },
     [applyStepRoute, persistLocal, saveProgress],
   );
@@ -192,9 +201,13 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
       setActionDone(false);
       persistLocal(track.id, clamped);
       void saveProgress(track.id, clamped, "in_progress");
-      applyStepRoute(track, clamped);
+      // Avançar só navega se o passo pedir. Voltar reabre a página do passo
+      // apenas quando o trecho desfeito tinha levado o usuário para outra rota.
+      const crossedRoute =
+        clamped < stepIndex && track.steps.slice(clamped + 1, stepIndex + 1).some((s) => s.route);
+      applyStepRoute(track, clamped, crossedRoute);
     },
-    [applyStepRoute, persistLocal, saveProgress, track],
+    [applyStepRoute, persistLocal, saveProgress, stepIndex, track],
   );
 
   const next = useCallback(() => {

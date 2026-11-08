@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTutorial } from "./TutorialProvider";
-import { describeTarget, findRouteLocation } from "@/lib/dojo/tutorial/locations";
+import { describeTarget, findRouteKey, findRouteLocation, isOnRoute } from "@/lib/dojo/tutorial/locations";
 import { remainingMinutes, type TutorialAction, type TutorialStep } from "@/lib/dojo/tutorial/tracks";
 
 type Rect = { top: number; left: number; width: number; height: number };
@@ -51,7 +51,27 @@ function openDialog(): HTMLElement | null {
   return dialogs[dialogs.length - 1] ?? null;
 }
 
-/** Resolve o alvo do passo: seletor CSS ou `text:Frase`. */
+/** Normaliza texto para comparação: minúsculas, sem acentos e espaços extras. */
+function norm(s: string) {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function isVisible(el: HTMLElement) {
+  return el.offsetHeight > 0 || el.offsetParent !== null;
+}
+
+/**
+ * Resolve o alvo do passo: seletor CSS ou `text:Frase`.
+ *
+ * No modo `text:` o menu lateral e a própria caixa do tutorial são ignorados
+ * (senão "Financeiro", "Planos" etc. cairiam no item do menu), e a
+ * correspondência exata vence a que só começa com / contém a frase.
+ */
 function resolveTarget(target?: string): HTMLElement | null {
   if (!target || typeof document === "undefined") return null;
   // Quando há uma janela aberta, procuramos primeiro dentro dela.
@@ -62,19 +82,32 @@ function resolveTarget(target?: string): HTMLElement | null {
 
   for (const scope of scopes) {
     if (target.startsWith("text:")) {
-      const needle = target.slice(5).trim().toLowerCase();
+      const needle = norm(target.slice(5));
+      if (!needle) return null;
       const candidates = Array.from(
-        scope.querySelectorAll<HTMLElement>("button, a, [role='tab'], [role='button'], [role='switch'], [role='combobox']"),
+        scope.querySelectorAll<HTMLElement>(
+          "button, a, [role='tab'], [role='button'], [role='switch'], [role='combobox']",
+        ),
+      ).filter(
+        (el) => isVisible(el) && !el.closest("[data-sidebar]") && !el.closest("[data-tutorial-card]"),
       );
-      const found = candidates.find((el) => {
-        if (!el.offsetParent && el.offsetHeight === 0) return false;
-        return (el.textContent ?? "").trim().toLowerCase().includes(needle);
-      });
-      if (found) return found;
+      const texts = candidates.map((el) => norm(el.textContent ?? ""));
+      const pick =
+        texts.findIndex((t) => t === needle) >= 0
+          ? texts.findIndex((t) => t === needle)
+          : texts.findIndex((t) => t.startsWith(needle)) >= 0
+            ? texts.findIndex((t) => t.startsWith(needle))
+            : texts.findIndex((t) => t.includes(needle));
+      if (pick >= 0) return candidates[pick];
       continue;
     }
-    const all = Array.from(scope.querySelectorAll<HTMLElement>(target));
-    const visible = all.find((el) => el.offsetHeight > 0 || el.offsetParent) ?? all[0];
+    let all: HTMLElement[] = [];
+    try {
+      all = Array.from(scope.querySelectorAll<HTMLElement>(target));
+    } catch {
+      return null;
+    }
+    const visible = all.find(isVisible) ?? all[0];
     if (visible) return visible;
   }
   return null;
@@ -83,12 +116,32 @@ function resolveTarget(target?: string): HTMLElement | null {
 /** Item do menu lateral correspondente à rota do passo (usado como plano B). */
 function resolveMenuLink(route?: string | null): HTMLElement | null {
   if (!route || typeof document === "undefined") return null;
+  const base = findRouteKey(route);
+  for (const r of base && base !== route ? [route, base] : [route]) {
+    const el =
+      document.querySelector<HTMLElement>(`[data-sidebar] a[href="${r}"]`) ??
+      document.querySelector<HTMLElement>(`aside a[href="${r}"]`) ??
+      document.querySelector<HTMLElement>(`nav a[href="${r}"]`);
+    if (el) return el;
+  }
+  return null;
+}
+
+/** O usuário está digitando (setas não devem trocar de passo). */
+function isTyping(el: EventTarget | null) {
+  if (!(el instanceof HTMLElement)) return false;
   return (
-    document.querySelector<HTMLElement>(`aside a[href="${route}"]`) ??
-    document.querySelector<HTMLElement>(`nav a[href="${route}"]`) ??
-    document.querySelector<HTMLElement>(`a[href="${route}"]`)
+    el.isContentEditable ||
+    ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName) ||
+    el.getAttribute("role") === "combobox"
   );
 }
+
+const MARKER_LABEL: Partial<Record<TutorialAction, string>> = {
+  input: "Preencha aqui",
+  select: "Escolha aqui",
+  upload: "Envie aqui",
+};
 
 function toRect(el: HTMLElement): Rect | null {
   const r = el.getBoundingClientRect();
@@ -103,7 +156,6 @@ export function TourOverlay() {
     next,
     prev,
     stop,
-    finish,
     goTo,
     minimized,
     setMinimized,
@@ -136,6 +188,8 @@ export function TourOverlay() {
   const location = useMemo(() => findRouteLocation(stepRoute), [stepRoute]);
   const targetDesc = describeTarget(step?.target);
 
+  const onStepRoute = isOnRoute(pathname, stepRoute);
+
   const measure = useCallback(() => {
     const el = resolveTarget(step?.target);
     targetRef.current = el;
@@ -146,21 +200,47 @@ export function TourOverlay() {
         return;
       }
     }
-    const menu = resolveMenuLink(stepRoute);
+    // Plano B: só aponta o menu lateral quando o usuário está em outra página.
+    // Na página certa, apontar o menu dela mesma só confunde.
+    const menu = onStepRoute ? null : resolveMenuLink(stepRoute);
     const menuRect = menu ? toRect(menu) : null;
     setSpot(menuRect ? { rect: menuRect, fallback: true } : null);
-  }, [step?.target, stepRoute]);
+  }, [onStepRoute, step?.target, stepRoute]);
+
+  /** Direção da última troca de passo (para pular na direção certa). */
+  const lastIndex = useRef(stepIndex);
+  const direction = stepIndex >= lastIndex.current ? 1 : -1;
+  useEffect(() => {
+    lastIndex.current = stepIndex;
+  }, [stepIndex]);
 
   /** Pula automaticamente passos cujo pré-requisito não existe para o usuário. */
   useEffect(() => {
     if (!track || !step?.requires) return;
     const t = setTimeout(() => {
       if (!document.querySelector(step.requires as string)) {
-        if (stepIndex < track.steps.length - 1) goTo(stepIndex + 1);
+        const to = stepIndex + direction;
+        if (to >= 0 && to < track.steps.length) goTo(to);
       }
     }, 900);
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goTo, step?.requires, stepIndex, track]);
+
+  /** Validação por seletor: a ação conta como feita quando o elemento aparece. */
+  useEffect(() => {
+    const sel = step?.validate?.selector;
+    if (!track || !sel || actionDone || action === "none") return;
+    const check = () => {
+      try {
+        if (document.querySelector(sel)) markActionDone();
+      } catch {
+        /* seletor inválido: ignora */
+      }
+    };
+    const i = setInterval(check, 400);
+    return () => clearInterval(i);
+  }, [action, actionDone, markActionDone, step?.validate?.selector, track]);
 
   /** Medição + auto scroll suave até centralizar o elemento. */
   useLayoutEffect(() => {
@@ -257,6 +337,8 @@ export function TourOverlay() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !openDialog()) stop();
+      // Setas só navegam no tutorial quando a pessoa não está digitando.
+      if (isTyping(e.target) || openDialog()) return;
       if (e.key === "ArrowRight" && !waiting) next();
       if (e.key === "ArrowLeft") prev();
     };
@@ -344,7 +426,11 @@ export function TourOverlay() {
           style={markerStyle}
         >
           {useBelow ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />}
-          {spot?.fallback ? "Abra por aqui" : waiting ? "Clique aqui" : "É aqui"}
+          {spot?.fallback
+            ? "Abra por aqui"
+            : waiting
+              ? (MARKER_LABEL[action] ?? "Clique aqui")
+              : "É aqui"}
         </div>
       )}
 
@@ -411,12 +497,8 @@ export function TourOverlay() {
                 ) : (
                   <span className="text-foreground">nesta tela</span>
                 )}
-                {targetDesc && (
-                  <span className="text-muted-foreground">
-                    {" "}
-                    · procure o {targetDesc}
-                    {spot && !spot.fallback ? " destacado em vermelho" : ""}
-                  </span>
+                {targetDesc && spot && !spot.fallback && (
+                  <span className="text-muted-foreground"> · procure {targetDesc}</span>
                 )}
               </div>
             </div>
@@ -451,7 +533,7 @@ export function TourOverlay() {
               {actionDone || demoMode
                 ? "Ação concluída! Você pode seguir para o próximo passo."
                 : targetMissing
-                  ? "Não encontrei este elemento na tela — siga manualmente e avance quando terminar."
+                  ? "Não encontrei este item na tela. Se uma janela foi fechada, abra de novo; ou faça manualmente e clique em Próximo."
                   : ACTION_LABEL[action]}
             </span>
           </div>
@@ -470,9 +552,17 @@ export function TourOverlay() {
             <ChevronLeft className="h-4 w-4" /> Voltar
           </Button>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" onClick={finish} className="gap-1 text-muted-foreground">
-              <SkipForward className="h-3.5 w-3.5" /> Pular
-            </Button>
+            {waiting && !isLast && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={next}
+                className="gap-1 text-muted-foreground"
+                title="Seguir para o próximo passo sem fazer esta ação"
+              >
+                <SkipForward className="h-3.5 w-3.5" /> Pular passo
+              </Button>
+            )}
             <Button size="sm" onClick={next} disabled={waiting} className="gap-1">
               {isLast ? (
                 <>

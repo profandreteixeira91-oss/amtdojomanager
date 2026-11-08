@@ -187,7 +187,7 @@ function StudentNotificationsConfigPage() {
                 <Clock className="h-4 w-4 text-red-600" />
                 <h2 className="text-sm font-semibold text-neutral-900">Lembretes de aula</h2>
               </div>
-              <Switch checked={!!state.class_reminder} onCheckedChange={(v) => toggle("class_reminder", !!v)} />
+              <Switch data-tour="notif-class-reminder" checked={!!state.class_reminder} onCheckedChange={(v) => toggle("class_reminder", !!v)} />
             </div>
             <p className="mt-1 text-xs text-neutral-500">Minutos antes do início da aula. Pode configurar vários disparos.</p>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -227,7 +227,7 @@ function StudentNotificationsConfigPage() {
                 <Calendar className="h-4 w-4 text-red-600" />
                 <h2 className="text-sm font-semibold text-neutral-900">Cobrança a vencer</h2>
               </div>
-              <Switch checked={!!state.invoice_due_soon} onCheckedChange={(v) => toggle("invoice_due_soon", !!v)} />
+              <Switch data-tour="notif-due-soon" checked={!!state.invoice_due_soon} onCheckedChange={(v) => toggle("invoice_due_soon", !!v)} />
             </div>
             <p className="mt-1 text-xs text-neutral-500">Dias antes do vencimento. Pode configurar vários disparos (0 = no dia do vencimento).</p>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -267,7 +267,7 @@ function StudentNotificationsConfigPage() {
                 <AlertTriangle className="h-4 w-4 text-red-600" />
                 <h2 className="text-sm font-semibold text-neutral-900">Cobrança vencida</h2>
               </div>
-              <Switch checked={!!state.invoice_overdue} onCheckedChange={(v) => toggle("invoice_overdue", !!v)} />
+              <Switch data-tour="notif-overdue" checked={!!state.invoice_overdue} onCheckedChange={(v) => toggle("invoice_overdue", !!v)} />
             </div>
             <p className="mt-1 text-xs text-neutral-500">Dias após o vencimento. Pode configurar vários disparos.</p>
             <div className="mt-3 flex flex-wrap gap-2">

@@ -47,7 +47,17 @@ export const Route = createFileRoute("/dojo/app/tutorial")({
   component: TutorialPage,
 });
 
-type StatusFilter = "Todos" | "Concluídos" | "Em andamento" | "Não iniciados" | "Favoritos";
+/** Minúsculas, sem acentos e com espaços simples — para a busca. */
+function fold(s: string) {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+type StatusFilter ="Todos" | "Concluídos" | "Em andamento" | "Não iniciados" | "Favoritos";
 
 const STATUS_FILTERS: StatusFilter[] = [
   "Todos",
@@ -79,7 +89,7 @@ function TutorialPage() {
   const tracks = useMemo(() => listAllTracks(), [catalogVersion]);
 
   const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
+    const needle = fold(q);
     return tracks.filter((t) => {
       if (cat !== "Todos" && t.category !== cat) return false;
       const st = progress[t.id]?.status;
@@ -88,10 +98,13 @@ function TutorialPage() {
       if (status === "Não iniciados" && st) return false;
       if (status === "Favoritos" && !favs.includes(t.id)) return false;
       if (!needle) return true;
-      const hay = `${t.title} ${t.question} ${t.category} ${t.steps
-        .map((s) => `${s.title ?? ""} ${s.text} ${s.objective ?? ""}`)
-        .join(" ")}`.toLowerCase();
-      return needle.split(/\s+/).some((w) => hay.includes(w));
+      const hay = fold(
+        `${t.title} ${t.question} ${t.category} ${t.steps
+          .map((s) => `${s.title ?? ""} ${s.text} ${s.hint ?? ""} ${s.objective ?? ""}`)
+          .join(" ")}`,
+      );
+      // Todas as palavras precisam aparecer ("cadastrar aluno" não traz "cadastrar turma").
+      return needle.split(" ").every((w) => hay.includes(w));
     });
   }, [cat, favs, progress, q, status, tracks]);
 

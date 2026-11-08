@@ -417,11 +417,9 @@ function DojoLayoutInner({
   const stepTargetsSidebar = (() => {
     if (!step?.target || typeof document === "undefined") return false;
     const raw = step.target;
-    if (raw.startsWith("text:")) {
-      const needle = raw.slice(5).trim().toLowerCase();
-      const links = Array.from(document.querySelectorAll("[data-sidebar] a, [data-sidebar] button"));
-      return links.some((el) => (el.textContent || "").toLowerCase().includes(needle));
-    }
+    // Alvos `text:` nunca apontam para o menu lateral (o tutorial ignora a
+    // sidebar ao procurar por texto), então não há por que abri-la no mobile.
+    if (raw.startsWith("text:")) return false;
     try {
       const el = document.querySelector(raw);
       return Boolean(el?.closest("[data-sidebar]"));
