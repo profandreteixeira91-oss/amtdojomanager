@@ -121,7 +121,8 @@ export function PayPageView({ invoiceId }: { invoiceId: string }) {
   }
 
   const { invoice, identity } = state.data;
-  const isCanceled = invoice.status === "canceled";
+  // `dojo_invoices.status` usa "cancelled"; "canceled" ficou em linhas antigas.
+  const isCanceled = invoice.status === "cancelled" || invoice.status === "canceled";
   const isPaid = paid || invoice.status === "paid" || !!invoice.paid_at;
 
   return (

@@ -147,9 +147,9 @@ export const syncMyInvoicePayment = createServerFn({ method: "POST" })
     if (status === "approved") {
       patch.status = "paid";
       patch.paid_at = new Date().toISOString();
-    } else if (["cancelled", "rejected"].includes(status)) {
-      patch.status = "canceled";
     }
+    // "rejected"/"cancelled" é a tentativa (cartão recusado, PIX expirado):
+    // a mensalidade segue em aberto para o aluno tentar de novo.
     if (Object.keys(patch).length) {
       await context.supabase.from("dojo_invoices").update(patch as never).eq("id", invoice.id);
     }

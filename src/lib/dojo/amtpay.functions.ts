@@ -513,8 +513,21 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
       throw new Error(`Valor mínimo para saque é R$ ${min.toFixed(2)}.`);
     }
 
-    const balance = await computeBalance(supabase, ownerId);
-    if (data.amount > balance.available) {
+    // Saque só sai da subconta aprovada, com o saldo REAL dela no Asaas.
+    // O ledger interno não serve de lastro: o próprio dono consegue gravar nele.
+    const resolved = await resolveWalletMode(supabase, ownerId);
+    if (resolved.mode !== "native" || !resolved.apiKey) {
+      throw new Error("Saques ficam disponíveis depois que o AMT Pay da sua academia for aprovado.");
+    }
+    const { asaasGetBalance } = await import("@/lib/asaas/client.server");
+    let available = 0;
+    try {
+      const b = await asaasGetBalance(resolved.apiKey);
+      available = Number((b as any)?.totalBalance ?? 0);
+    } catch {
+      throw new Error("Não foi possível consultar o saldo agora. Tente novamente em instantes.");
+    }
+    if (data.amount > available) {
       throw new Error("Saldo insuficiente na sua carteira AMT Pay para este saque.");
     }
 
@@ -537,7 +550,10 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
       pixKeyType = bankAccount.pix_key_type ?? null;
     }
 
-    const { data: wd, error } = await supabase
+    // Saque e lançamento são gravados pelo servidor (service role): o cliente do
+    // usuário só lê essas tabelas.
+    const { supabaseAdmin: ledgerDb } = await import("@/integrations/supabase/client.server");
+    const { data: wd, error } = await ledgerDb
       .from("dojo_withdrawals")
       .insert({
         owner_id: ownerId,
@@ -557,8 +573,8 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
 
-    // Debita saldo imediatamente (kind=withdrawal, direction=-1, status=available)
-    await supabase.from("dojo_wallet_transactions").insert({
+    // Debita saldo imediatamente (kind=withdrawal, direction=-1, status=available).
+    await ledgerDb.from("dojo_wallet_transactions").insert({
       owner_id: ownerId,
       kind: "withdrawal",
       method: "pix",
@@ -647,27 +663,50 @@ export const cancelWithdrawal = createServerFn({ method: "POST" })
       .eq("owner_id", context.userId)
       .maybeSingle();
     if (!wd) throw new Error("Solicitação não encontrada");
-    if ((wd as any).status !== "requested" && (wd as any).status !== "pending") {
+    if (
+      ((wd as any).status !== "requested" && (wd as any).status !== "in_review") ||
+      (wd as any).asaas_transfer_id
+    ) {
       throw new Error("Este saque já foi processado e não pode ser cancelado.");
     }
-    await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Atualização condicional: dois cliques (ou um envio ao Asaas em paralelo)
+    // não podem cancelar — e estornar — o mesmo saque duas vezes.
+    const { data: changed } = await supabaseAdmin
       .from("dojo_withdrawals")
       .update({ status: "cancelled", cancelled_at: new Date().toISOString() } as never)
-      .eq("id", data.id);
-    // Reverte o débito
-    await context.supabase.from("dojo_wallet_transactions").insert({
-      owner_id: context.userId,
-      kind: "withdrawal_reversal",
-      method: "internal",
-      status: "available",
-      amount: Number((wd as any).amount),
-      direction: 1,
-      fee_amount: 0,
-      net_amount: Number((wd as any).amount),
-      description: `Cancelamento de saque #${data.id.slice(0, 8)}`,
-      reference_type: "withdrawal",
-      reference_id: data.id,
-      provider: "amt_pay",
-    } as never);
+      .eq("id", data.id)
+      .eq("owner_id", context.userId)
+      .in("status", ["requested", "in_review"])
+      .is("asaas_transfer_id", null)
+      .select("id");
+    if (!changed?.length) {
+      throw new Error("Este saque já foi processado e não pode ser cancelado.");
+    }
+    // Reverte o débito (idempotente por saque).
+    const { data: already } = await supabaseAdmin
+      .from("dojo_wallet_transactions")
+      .select("id")
+      .eq("owner_id", context.userId)
+      .eq("reference_type", "withdrawal")
+      .eq("reference_id", data.id)
+      .eq("kind", "withdrawal_reversal")
+      .maybeSingle();
+    if (!already) {
+      await supabaseAdmin.from("dojo_wallet_transactions").insert({
+        owner_id: context.userId,
+        kind: "withdrawal_reversal",
+        method: "internal",
+        status: "available",
+        amount: Number((wd as any).amount),
+        direction: 1,
+        fee_amount: 0,
+        net_amount: Number((wd as any).amount),
+        description: `Cancelamento de saque #${data.id.slice(0, 8)}`,
+        reference_type: "withdrawal",
+        reference_id: data.id,
+        provider: "amt_pay",
+      } as never);
+    }
     return { ok: true };
   });

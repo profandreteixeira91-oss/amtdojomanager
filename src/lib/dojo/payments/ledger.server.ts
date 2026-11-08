@@ -152,9 +152,15 @@ export async function recordInvoiceRefundToLedger(
     .eq("direction", 1)
     .maybeSingle();
 
-  const grossRefund = Number((receipt as any)?.amount ?? input.gross);
-  const netRefund = Number((receipt as any)?.net_amount ?? input.gross);
-  const feeRefund = Number((receipt as any)?.fee_amount ?? 0);
+  // Sem recibo, nada foi creditado na carteira: debitar agora deixaria o saldo
+  // negativo por um valor que nunca entrou.
+  if (!receipt) {
+    return { ledgerId: null, alreadyExisted: false };
+  }
+
+  const grossRefund = Number((receipt as any).amount ?? input.gross);
+  const netRefund = Number((receipt as any).net_amount ?? input.gross);
+  const feeRefund = Number((receipt as any).fee_amount ?? 0);
 
   const { data: created } = await admin
     .from("dojo_wallet_transactions")

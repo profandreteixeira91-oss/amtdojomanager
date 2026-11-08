@@ -553,10 +553,15 @@ export async function asaasListSubscriptionPayments(
 }
 
 // ============ TRANSFERS (PIX out) ============
+/**
+ * Transferência PIX. A chave é obrigatória e deve ser a da subconta do dojo:
+ * sem ela o cliente usaria a conta central da AMT.
+ */
 export async function asaasCreateTransfer(
   input: AsaasTransferInput,
-  apiKey?: string,
+  apiKey: string,
 ): Promise<AsaasTransfer> {
+  if (!cleanSecret(apiKey)) throw new Error("Transferência sem chave da subconta — bloqueada.");
   return asaasFetch<AsaasTransfer>("/transfers", {
     method: "POST",
     body: JSON.stringify({

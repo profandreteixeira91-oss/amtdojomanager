@@ -44,17 +44,31 @@ function mapAsaasTransferStatus(status: string | undefined | null):
   return "processing";
 }
 
-async function loadOwnerKey(admin: Admin, ownerId: string): Promise<string | null> {
-  // Fase 3 — Carteira nativa: se o dojo tem subconta Asaas aprovada, o saque
-  // sai da subconta do próprio dono. Caso contrário, cai no fluxo central AMT.
+/**
+ * Chave Asaas da subconta APROVADA do dono — a única de onde um saque pode sair.
+ *
+ * Nunca cai para a conta central da AMT: o saldo de um dojo sem subconta vem
+ * do ledger interno, que o próprio dono consegue gravar (RLS), e um PIX pela
+ * conta central pagaria esse saldo com dinheiro da AMT.
+ */
+async function loadOwnerKey(_admin: Admin, ownerId: string): Promise<string | null> {
   try {
     const { getDojoAsaasCredentials } = await import("@/lib/asaas/dojo-credentials.server");
-    const { apiKey } = await getDojoAsaasCredentials(ownerId);
-    if (apiKey) return apiKey;
+    const { apiKey, mode } = await getDojoAsaasCredentials(ownerId);
+    if (mode === "subaccount" && apiKey) return apiKey;
   } catch (err) {
     console.warn("[withdrawals] falha ao resolver chave da subconta", err);
   }
-  return process.env.ASAAS_PRODUCTION_API_KEY?.trim() || null;
+  return null;
+}
+
+/**
+ * Só para CONSULTAR transferências antigas (conciliação): subconta, ou a conta
+ * central para saques legados criados antes do modelo de subconta. Nunca use
+ * para criar transferências.
+ */
+async function loadReadOnlyKey(admin: Admin, ownerId: string): Promise<string | undefined> {
+  return (await loadOwnerKey(admin, ownerId)) ?? undefined;
 }
 
 async function insertReversal(admin: Admin, wd: any, reason: string) {
@@ -118,6 +132,19 @@ export async function dispatchWithdrawal(
     return { dispatched: false, reason: "no-asaas-key" };
   }
 
+  // Reserva o saque antes de chamar o Asaas: duas chamadas simultâneas
+  // (clique duplo em "tentar novamente") não podem criar duas transferências.
+  const { data: claimed } = await admin
+    .from("dojo_withdrawals")
+    .update({ status: "processing" } as never)
+    .eq("id", withdrawalId)
+    .eq("status", "requested")
+    .is("asaas_transfer_id", null)
+    .select("id");
+  if (!claimed?.length) {
+    return { dispatched: false, reason: "already-dispatching" };
+  }
+
   let transfer: AsaasTransfer;
   try {
     transfer = await asaasCreateTransfer(
@@ -134,6 +161,8 @@ export async function dispatchWithdrawal(
     await admin
       .from("dojo_withdrawals")
       .update({
+        // Libera a reserva para poder tentar de novo.
+        status: "requested",
         metadata: {
           ...((wd as any).metadata ?? {}),
           last_dispatch_error: String(err?.message ?? err),
@@ -252,11 +281,13 @@ export async function reconcileWithdrawals(admin: Admin): Promise<{ checked: num
   let updated = 0;
   const list = (rows ?? []) as any[];
   for (const wd of list) {
-    const apiKey = await loadOwnerKey(admin, wd.owner_id);
-    if (!apiKey) continue;
+    // Consulta é só leitura: sem subconta, o cliente usa a conta central
+    // (saques legados). Nada é criado aqui.
+    const apiKey = await loadReadOnlyKey(admin, wd.owner_id);
     try {
       const transfer = await asaasGetTransfer(wd.asaas_transfer_id, apiKey);
       const before = wd.status;
+      const after = mapAsaasTransferStatus(transfer.status);
       await applyTransferEvent(
         admin,
         transfer.status === "DONE" ? "TRANSFER_DONE"
@@ -265,7 +296,7 @@ export async function reconcileWithdrawals(admin: Admin): Promise<{ checked: num
           : "TRANSFER_PENDING",
         transfer,
       );
-      if (before !== wd.status) updated++;
+      if (before !== after) updated++;
     } catch {
       // ignora — segue para próxima; será tentado no próximo ciclo
     }

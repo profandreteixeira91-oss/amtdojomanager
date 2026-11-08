@@ -213,9 +213,9 @@ export const Route = createFileRoute("/api/public/hooks/mercadopago")({
           if (status === "approved") {
             invPatch.status = "paid";
             invPatch.paid_at = new Date().toISOString();
-          } else if (["cancelled", "rejected"].includes(status)) {
-            invPatch.status = "canceled";
           }
+          // "rejected"/"cancelled" é a TENTATIVA de pagamento (cartão recusado,
+          // PIX expirado): a mensalidade continua em aberto para nova tentativa.
           if (Object.keys(invPatch).length) {
             const { data: invRow } = await supabaseAdmin
               .from("dojo_invoices")

@@ -19,12 +19,21 @@ import { z } from "zod";
  * escopo do Asaas em que o charge vive.
  */
 async function resolveOwnerAsaasKey(
-  supabaseAdmin: any,
+  _supabaseAdmin: any,
   ownerId: string,
 ): Promise<string | undefined> {
-  const { getDojoAsaasCredentials } = await import("@/lib/asaas/dojo-credentials.server");
+  // Cobranças AMT Pay só são criadas na subconta da academia. Mesmo que a
+  // aprovação mude depois, as cobranças já emitidas continuam vivendo lá.
+  const { getDojoAsaasCredentials, getDojoAsaasApiKey } = await import(
+    "@/lib/asaas/dojo-credentials.server"
+  );
   const { apiKey } = await getDojoAsaasCredentials(ownerId);
-  return apiKey;
+  return apiKey ?? (await getDojoAsaasApiKey(ownerId)) ?? undefined;
+}
+
+/** `dojo_invoices.status` usa "cancelled"; "canceled" ficou em linhas antigas. */
+function isCancelledStatus(s: string | null | undefined) {
+  return s === "cancelled" || s === "canceled";
 }
 
 async function loadInvoiceForPayment(supabaseAdmin: any, invoiceId: string) {
@@ -37,7 +46,7 @@ async function loadInvoiceForPayment(supabaseAdmin: any, invoiceId: string) {
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Cobrança não encontrada");
-  if (data.status === "canceled") throw new Error("Esta cobrança foi cancelada");
+  if (isCancelledStatus(data.status)) throw new Error("Esta cobrança foi cancelada");
   if (!data.asaas_charge_id) {
     throw new Error(
       "Cobrança ainda não foi processada. Peça ao dojo para reenviar o link.",
