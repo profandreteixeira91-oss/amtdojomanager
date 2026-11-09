@@ -539,7 +539,7 @@ function StudentPickerModal({ onClose, onPick }: { onClose: () => void; onPick: 
   });
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-4">
       <Card className="w-full max-w-md border-slate-200 bg-white shadow-2xl">
         <CardContent className="space-y-4 pt-6">
           <div className="flex items-center justify-between">

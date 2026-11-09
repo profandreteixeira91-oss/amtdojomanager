@@ -43,7 +43,7 @@ export function StepIdentity({ academy, onNext, onBusy }: { academy: SetupState[
     <div className="grid grid-cols-[1fr_80px] gap-3"><div className="space-y-2"><Label htmlFor="setup-city">Cidade</Label><Input id="setup-city" maxLength={120} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></div><div className="space-y-2"><Label htmlFor="setup-state">UF</Label><Input id="setup-state" maxLength={2} pattern="[A-Za-z]{2}" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value.toUpperCase() })} /></div></div>
     <fieldset>
       <legend className="mb-1 text-sm font-medium">Modalidades</legend>
-      <p className="mb-3 text-xs text-muted-foreground">As faixas de cada modalidade já vêm prontas no sistema.</p>
+      <p className="mb-3 text-xs text-muted-foreground">As faixas das modalidades com graduação já vêm prontas no sistema (Boxe e MMA não têm graduação).</p>
       <div className="grid grid-cols-2 gap-3">
         {MODALITY_CATALOG.map((m) => (
           <label key={m.id} className="flex items-center gap-2 text-sm">

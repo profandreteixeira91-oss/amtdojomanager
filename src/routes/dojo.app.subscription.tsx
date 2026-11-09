@@ -384,7 +384,7 @@ function SubscriptionPage() {
 
           {/* Seção PIX aberta manualmente */}
           {showPix && (
-             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-300">
+             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-in fade-in duration-200">
                <Card className="w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-300">
                  <CardHeader className="flex flex-row items-center justify-between pb-2">
                    <CardTitle>Pagamento PIX</CardTitle>

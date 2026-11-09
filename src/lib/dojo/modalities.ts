@@ -3,9 +3,10 @@
 //
 // O banco guarda o `id` (ex.: "judo", "muay-thai"). Valores antigos gravados de
 // outro jeito ("judô", "Jiu-Jitsu", "Muay Thai") são reconhecidos por
-// `normalizeModality`, então nada precisa ser regravado. Cada modalidade do
-// catálogo tem faixas pré-definidas pelo sistema (dojo_belts com owner_id nulo).
-// "Outra" deixa o dono digitar uma modalidade própria, sem faixas pré-definidas.
+// `normalizeModality`, então nada precisa ser regravado. As modalidades com
+// graduação têm faixas pré-definidas pelo sistema (dojo_belts com owner_id nulo);
+// Boxe e MMA não têm graduação. "Outra" deixa o dono digitar uma modalidade
+// própria, sem faixas pré-definidas.
 
 export type ModalityId =
   | "judo"
@@ -17,18 +18,21 @@ export type ModalityId =
   | "mma"
   | "kickboxing";
 
-export const MODALITY_CATALOG: { id: ModalityId; label: string }[] = [
-  { id: "judo", label: "Judô" },
-  { id: "jiu-jitsu", label: "Jiu-Jitsu" },
-  { id: "karate", label: "Karatê" },
-  { id: "taekwondo", label: "Taekwondo" },
-  { id: "boxe", label: "Boxe" },
-  { id: "muay-thai", label: "Muay-Thai" },
-  { id: "mma", label: "MMA" },
-  { id: "kickboxing", label: "Kickboxing" },
+export const MODALITY_CATALOG: { id: ModalityId; label: string; hasBelts: boolean }[] = [
+  { id: "judo", label: "Judô", hasBelts: true },
+  { id: "jiu-jitsu", label: "Jiu-Jitsu", hasBelts: true },
+  { id: "karate", label: "Karatê", hasBelts: true },
+  { id: "taekwondo", label: "Taekwondo", hasBelts: true },
+  { id: "boxe", label: "Boxe", hasBelts: false },
+  { id: "muay-thai", label: "Muay-Thai", hasBelts: true },
+  { id: "mma", label: "MMA", hasBelts: false },
+  { id: "kickboxing", label: "Kickboxing", hasBelts: true },
 ];
 
 export const MODALITY_IDS: ModalityId[] = MODALITY_CATALOG.map((m) => m.id);
+
+/** Modalidades com graduação (faixas pré-definidas): Modalidades e Faixas, Belt Studio. */
+export const GRADED_MODALITIES = MODALITY_CATALOG.filter((m) => m.hasBelts);
 
 /** Opção "Outra" do cadastro: a pessoa digita o nome da modalidade. */
 export const OTHER_MODALITY_LABEL = "Outra";

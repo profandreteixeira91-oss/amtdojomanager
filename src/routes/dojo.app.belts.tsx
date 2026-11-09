@@ -33,15 +33,15 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { DojoPageHero } from "@/components/dojo/DojoPageHero";
-import { MODALITY_CATALOG, modalityLabel, normalizeModality, sameModality } from "@/lib/dojo/modalities";
+import { GRADED_MODALITIES, modalityLabel, normalizeModality, sameModality } from "@/lib/dojo/modalities";
 
 export const Route = createFileRoute("/dojo/app/belts")({
   head: () => ({ meta: [{ title: "Modalidades e Faixas — AMT Dojo Manager" }] }),
   component: BeltsPage,
 });
 
-// Modalidades com faixas pré-definidas pelo sistema (catálogo único).
-const KNOWN_MODALITIES: Array<{ id: string; label: string }> = MODALITY_CATALOG;
+// Modalidades com graduação (faixas pré-definidas pelo sistema). Boxe e MMA não têm faixas.
+const KNOWN_MODALITIES: Array<{ id: string; label: string }> = GRADED_MODALITIES;
 
 type BeltRow = {
   id: string;

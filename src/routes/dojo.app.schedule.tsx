@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -174,6 +174,42 @@ function SchedulePage() {
     return cursor.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
   }, [view, cursor]);
 
+  // Calendário e tabela memorizados: abrir/fechar a janela de turma ou o painel
+  // lateral não redesenha a semana inteira (isso travava a animação de abertura).
+  const onSelectEvent = useCallback((classId: string, date?: string) => setPanel({ classId, date }), []);
+  const calendarView = useMemo(
+    () => (
+      <>
+        {view === "week" && (
+          isMobile ? (
+            <MobileWeekAgenda
+              weekStart={range.start}
+              events={events}
+              onSelect={onSelectEvent}
+            />
+          ) : (
+            <WeekCalendar
+              weekStart={range.start}
+              events={events}
+              onSelect={onSelectEvent}
+            />
+          )
+        )}
+        {view === "day" && (
+          <DayView events={events} onSelect={onSelectEvent} />
+        )}
+        {view === "month" && (
+          <MonthView cursor={cursor} events={events} onSelect={onSelectEvent} />
+        )}
+      </>
+    ),
+    [view, isMobile, range.start, events, cursor, onSelectEvent],
+  );
+  const classesTable = useMemo(
+    () => <ClassesTable classes={filtered} onOpen={(c) => onSelectEvent(c.id)} />,
+    [filtered, onSelectEvent],
+  );
+
   const openNew = () => { setEditing(null); setFormOpen(true); };
   const openEdit = (c: any) => { setEditing(c); setFormOpen(true); setPanel(null); };
 
@@ -294,31 +330,11 @@ function SchedulePage() {
             </Filter>
           </div>
 
-          {view === "week" && (
-            isMobile ? (
-              <MobileWeekAgenda
-                weekStart={range.start}
-                events={events}
-                onSelect={(classId, date) => setPanel({ classId, date })}
-              />
-            ) : (
-              <WeekCalendar
-                weekStart={range.start}
-                events={events}
-                onSelect={(classId, date) => setPanel({ classId, date })}
-              />
-            )
-          )}
-          {view === "day" && (
-            <DayView events={events} onSelect={(classId, date) => setPanel({ classId, date })} />
-          )}
-          {view === "month" && (
-            <MonthView cursor={cursor} events={events} onSelect={(classId, date) => setPanel({ classId, date })} />
-          )}
+          {calendarView}
         </TabsContent>
 
         <TabsContent value="classes">
-          <ClassesTable classes={filtered} onOpen={(c) => setPanel({ classId: c.id })} />
+          {classesTable}
         </TabsContent>
 
         <TabsContent value="spaces">

@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plus, Trash2, ChevronUp, ChevronDown, Copy, Save, Beaker } from "lucide-react";
-import { MODALITY_CATALOG, sameModality } from "@/lib/dojo/modalities";
+import { GRADED_MODALITIES, sameModality } from "@/lib/dojo/modalities";
 
 /**
  * Rota oculta (não vinculada no menu) para edição avançada de faixas:
@@ -117,8 +117,8 @@ type BeltVariant = {
 };
 
 
-// Catálogo único de modalidades (todas com faixas pré-definidas).
-const MODALITY_OPTIONS = MODALITY_CATALOG;
+// Modalidades com graduação (Boxe e MMA não têm faixas).
+const MODALITY_OPTIONS = GRADED_MODALITIES;
 
 function newBeltDraft(modality = "jiu-jitsu"): BeltRow {
   return {
