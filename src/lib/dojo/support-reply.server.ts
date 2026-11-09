@@ -70,13 +70,43 @@ export async function recordSupportReply(args: {
     await sb.from("dojo_support_tickets").update({ status: nextStatus }).eq("id", args.ticket.id);
   }
 
-  const { sendPushToDojoOwner } = await import("@/lib/push/dojo-owner-push.server");
-  await sendPushToDojoOwner(args.ticket.owner_id, "support", {
-    title: "Suporte AMT respondeu",
-    body: `${args.ticket.subject}: ${args.body.slice(0, 120)}`,
-    url: "/dojo/app/support",
-    tag: `support-${args.ticket.id}`,
-  });
+  await notifyOwnerSupportReply(args.ticket, args.body);
+  if (nextStatus !== args.ticket.status && (nextStatus === "resolvido" || nextStatus === "fechado")) {
+    await notifyOwnerSupportStatus(args.ticket, nextStatus);
+  }
 
   return { messageId: msg.id as string, status: nextStatus };
+}
+
+/**
+ * Push para o dono quando o suporte AMT responde um chamado (categoria
+ * "support" das notificações do painel). Vale para todo caminho de resposta:
+ * caixa do AMT Sistemas / Control Center (support-reply) e resposta dada dentro
+ * do próprio Dojo Manager por um admin AMT. Nunca lança.
+ */
+export async function notifyOwnerSupportReply(
+  ticket: { id: string; owner_id: string; subject: string },
+  body: string,
+): Promise<void> {
+  const { sendPushToDojoOwner } = await import("@/lib/push/dojo-owner-push.server");
+  await sendPushToDojoOwner(ticket.owner_id, "support", {
+    title: "Suporte AMT respondeu seu chamado",
+    body: `${ticket.subject}: ${body.slice(0, 120)}`,
+    url: "/dojo/app/support",
+    tag: `support-${ticket.id}`,
+  });
+}
+
+/** Push quando o suporte AMT conclui o chamado (resolvido/fechado). Nunca lança. */
+export async function notifyOwnerSupportStatus(
+  ticket: { id: string; owner_id: string; subject: string },
+  status: "resolvido" | "fechado",
+): Promise<void> {
+  const { sendPushToDojoOwner } = await import("@/lib/push/dojo-owner-push.server");
+  await sendPushToDojoOwner(ticket.owner_id, "support", {
+    title: status === "resolvido" ? "Chamado resolvido pelo suporte AMT" : "Chamado encerrado pelo suporte AMT",
+    body: ticket.subject,
+    url: "/dojo/app/support",
+    tag: `support-${ticket.id}`,
+  });
 }

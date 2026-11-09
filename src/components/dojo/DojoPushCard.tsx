@@ -43,7 +43,7 @@ const CATEGORY_META: Array<{ key: CategoryKey; title: string; desc: string }> = 
   { key: "enrollments", title: "Matrículas & Alunos", desc: "Novos alunos, planos assinados e cancelamentos." },
   { key: "graduations", title: "Graduações & Presenças", desc: "Alunos aptos, aniversários e marcos técnicos." },
   { key: "store_orders", title: "Pedidos AMT Store", desc: "Novos pedidos e mudanças de status na loja." },
-  { key: "support", title: "Suporte", desc: "Respostas do time AMT nos seus chamados." },
+  { key: "support", title: "Suporte", desc: "Quando o time AMT responder ou resolver seus chamados." },
   { key: "system", title: "Sistema & AMT Pay", desc: "Saques, integrações e avisos importantes da conta." },
 ];
 

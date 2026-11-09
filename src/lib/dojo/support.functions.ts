@@ -144,6 +144,20 @@ export const postMessage = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
 
+    // Resposta do suporte AMT dada aqui dentro: avisa o dono por push.
+    if (role === "support") {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: ticket } = await supabaseAdmin
+        .from("dojo_support_tickets")
+        .select("id, owner_id, subject")
+        .eq("id", data.ticketId)
+        .maybeSingle();
+      if (ticket) {
+        const { notifyOwnerSupportReply } = await import("@/lib/dojo/support-reply.server");
+        await notifyOwnerSupportReply(ticket, data.body);
+      }
+    }
+
     // Se for mensagem do CLIENTE, notificar admin
     if (role === "client") {
       try {
@@ -174,11 +188,28 @@ export const setTicketStatus = createServerFn({ method: "POST" })
       .parse(i),
   )
   .handler(async ({ data, context }) => {
+    const { data: before } = await context.supabase
+      .from("dojo_support_tickets")
+      .select("id, owner_id, subject, status")
+      .eq("id", data.ticketId)
+      .maybeSingle();
     const { error } = await context.supabase
       .from("dojo_support_tickets")
       .update({ status: data.status })
       .eq("id", data.ticketId);
     if (error) throw new Error(error.message);
+
+    // Suporte AMT concluiu o chamado: avisa o dono (não quando o próprio dono fecha).
+    if (
+      before &&
+      before.status !== data.status &&
+      (data.status === "resolvido" || data.status === "fechado") &&
+      before.owner_id !== context.userId &&
+      (await isAdmin(context))
+    ) {
+      const { notifyOwnerSupportStatus } = await import("@/lib/dojo/support-reply.server");
+      await notifyOwnerSupportStatus(before, data.status);
+    }
     return { ok: true };
   });
 
