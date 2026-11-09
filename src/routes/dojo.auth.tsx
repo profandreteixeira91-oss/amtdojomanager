@@ -11,6 +11,7 @@ import {
   Loader2,
   Lock,
   Mail,
+  MessageCircle,
   ShieldCheck,
   Smartphone,
   User as UserIcon,
@@ -19,7 +20,7 @@ import {
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
-import { authService } from "@/services/authService";
+import { maskPhone } from "@/lib/br-masks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,7 +39,11 @@ import { PasswordInput } from "@/components/auth/PasswordInput";
 import { isEmailTeamMember, checkTeamMemberGate } from "@/lib/dojo/team.functions";
 import { getStaffSession } from "@/lib/dojo/staff-portal.functions";
 import { registerDojoOwner } from "@/lib/dojo/owner-register.functions";
-import { createDojoOwnerAccount, releasePendingDojoOwner } from "@/lib/dojo/owner-signup.functions";
+import {
+  releasePendingDojoOwner,
+  requestDojoSignupCode,
+  verifyDojoSignupCode,
+} from "@/lib/dojo/owner-signup.functions";
 
 const searchSchema = z.object({ redirect: z.string().optional() });
 
@@ -94,7 +99,17 @@ function DojoAuthPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const [whatsapp, setWhatsapp] = useState("");
+  const [codeStep, setCodeStep] = useState<{ codeId: string; phoneMasked: string } | null>(null);
+  const [code, setCode] = useState("");
+  const [resendAt, setResendAt] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!codeStep) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [codeStep]);
+  const resendIn = Math.max(0, Math.ceil((resendAt - now) / 1000));
   const [showStudentConflict, setShowStudentConflict] = useState(false);
   const [conflictDojoName, setConflictDojoName] = useState("");
   const [checking, setChecking] = useState(true);
@@ -313,19 +328,48 @@ function DojoAuthPage() {
         return;
       }
     } catch { /* segue em caso de falha na checagem */ }
-    await createAccountAndEnter();
+    await sendSignupCode();
   };
 
-  // Conta criada já confirmada pelo servidor (sem e-mail de confirmação) e
-  // login na sequência com a senha que a pessoa acabou de definir.
-  const createAccountAndEnter = async () => {
+  // Passo 1 do cadastro: código de 6 dígitos pelo WhatsApp (sem e-mail).
+  const sendSignupCode = async () => {
     setLoading(true);
     try {
-      await createDojoOwnerAccount({ data: { name: name.trim(), email: email.trim(), password } });
+      const res = await requestDojoSignupCode({
+        data: { name: name.trim(), email: email.trim(), phone: whatsapp },
+      });
+      setCodeStep({ codeId: res.codeId, phoneMasked: res.phoneMasked });
+      setCode("");
+      setResendAt(Date.now() + 60_000);
+      toast.success("Código enviado pelo WhatsApp", { description: `Confira as mensagens em ${res.phoneMasked}.` });
     } catch (e) {
-      setLoading(false);
       const msg = e instanceof Error ? e.message : String(e);
-      return toast.error("Falha ao criar conta", { description: translateAuthError(msg) });
+      toast.error("Não foi possível enviar o código", { description: translateAuthError(msg) });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Passo 2: confere o código, cria a conta já confirmada e entra.
+  const confirmCodeAndEnter = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!codeStep) return;
+    setLoading(true);
+    try {
+      await verifyDojoSignupCode({
+        data: {
+          codeId: codeStep.codeId,
+          code,
+          name: name.trim(),
+          email: email.trim(),
+          phone: whatsapp,
+          password,
+        },
+      });
+    } catch (err) {
+      setLoading(false);
+      const msg = err instanceof Error ? err.message : String(err);
+      return toast.error("Não foi possível confirmar", { description: translateAuthError(msg) });
     }
     const { error, data } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     setLoading(false);
@@ -352,23 +396,6 @@ function DojoAuthPage() {
   };
 
 
-  const handleGoogle = async () => {
-    setGoogleLoading(true);
-    try {
-      const { error } = await authService.signInWithGoogle(`${window.location.origin}/dojo/auth`);
-      if (error) {
-        toast.error("Falha no Google", { description: error.message });
-        setGoogleLoading(false);
-        return;
-      }
-      // Sucesso: o navegador segue para o Google; a sessão volta em /dojo/auth.
-    } catch (e: any) {
-      toast.error("Falha no Google", { description: e?.message ?? String(e) });
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-
   const handleForgotPassword = async () => {
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
       return toast.error("Informe seu e-mail no campo acima.");
@@ -392,7 +419,7 @@ function DojoAuthPage() {
 
   const handleSignUpDirect = async () => {
     setShowStudentConflict(false);
-    await createAccountAndEnter();
+    await sendSignupCode();
   };
 
   const highlights = [
@@ -501,7 +528,10 @@ function DojoAuthPage() {
                     type="button"
                     role="tab"
                     aria-selected={mode === m}
-                    onClick={() => setMode(m)}
+                    onClick={() => {
+                      setMode(m);
+                      setCodeStep(null);
+                    }}
                     className={
                       "h-9 rounded-lg text-sm font-bold transition-all " +
                       (mode === m ? "bg-white text-[#dc2626] shadow-sm" : "text-[#111111]/55 hover:text-[#111111]")
@@ -512,32 +542,60 @@ function DojoAuthPage() {
                 ))}
               </div>
 
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleGoogle}
-                disabled={googleLoading || loading}
-                className="h-11 w-full gap-3 rounded-xl border-black/15 bg-white font-semibold text-[#111111] hover:bg-black/[0.03]"
-              >
-                {googleLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden>
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.25 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#FBBC05" d="M5.84 14.1a6.7 6.7 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/>
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.65l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38z"/>
-                  </svg>
-                )}
-                {isSignup ? "Cadastrar com Google" : "Entrar com Google"}
-              </Button>
-
-              <div className="my-5 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#111111]/40">
-                <span className="h-px flex-1 bg-black/10" />
-                ou com e-mail
-                <span className="h-px flex-1 bg-black/10" />
-              </div>
-
+              {isSignup && codeStep ? (
+                <form onSubmit={confirmCodeAndEnter} className="space-y-4">
+                  <div className="flex items-start gap-3 rounded-xl bg-emerald-50 p-3.5 text-sm text-emerald-900">
+                    <MessageCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                    <p>
+                      Enviamos um código de 6 números para o WhatsApp <b>{codeStep.phoneMasked}</b>. Digite abaixo
+                      para criar sua conta.
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="code" className="text-xs font-semibold text-[#111111]/75">
+                      Código de confirmação
+                    </Label>
+                    <Input
+                      id="code"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      autoFocus
+                      required
+                      pattern="\d{6}"
+                      placeholder="000000"
+                      className="h-12 rounded-xl border-black/10 bg-[#fafafa] text-center text-2xl font-bold tracking-[0.5em] focus-visible:bg-white focus-visible:ring-[#dc2626]/25"
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={loading || code.length !== 6}
+                    className="h-12 w-full rounded-xl bg-[#dc2626] text-[15px] font-bold text-white shadow-[0_12px_24px_-12px_rgba(220,38,38,0.9)] hover:bg-[#b91c1c]"
+                  >
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Confirmar e entrar
+                    {!loading && <ArrowRight className="ml-1.5 h-4 w-4" />}
+                  </Button>
+                  <div className="flex items-center justify-between text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setCodeStep(null)}
+                      className="text-[#111111]/60 hover:text-[#111111]"
+                    >
+                      Alterar dados
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void sendSignupCode()}
+                      disabled={loading || resendIn > 0}
+                      className="text-[#dc2626] hover:underline disabled:text-[#111111]/35 disabled:no-underline"
+                    >
+                      {resendIn > 0 ? `Reenviar em ${resendIn}s` : "Reenviar código"}
+                    </button>
+                  </div>
+                </form>
+              ) : (
               <form onSubmit={isSignup ? handleSignUp : handleSignIn} className="space-y-4">
                 {isSignup && (
                   <div className="space-y-1.5">
@@ -578,6 +636,29 @@ function DojoAuthPage() {
                   </div>
                 </div>
 
+                {isSignup && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="whatsapp" className="text-xs font-semibold text-[#111111]/75">
+                      WhatsApp
+                    </Label>
+                    <div className="relative">
+                      <MessageCircle className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#111111]/40" />
+                      <Input
+                        id="whatsapp"
+                        type="tel"
+                        inputMode="tel"
+                        value={whatsapp}
+                        onChange={(e) => setWhatsapp(maskPhone(e.target.value))}
+                        required
+                        autoComplete="tel-national"
+                        className="h-11 rounded-xl border-black/10 bg-[#fafafa] pl-9 focus-visible:bg-white focus-visible:ring-[#dc2626]/25"
+                        placeholder="(11) 91234-5678"
+                      />
+                    </div>
+                    <p className="text-[11px] text-[#111111]/50">Vamos enviar um código de confirmação para este número.</p>
+                  </div>
+                )}
+
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="password" className="text-xs font-semibold text-[#111111]/75">
@@ -611,14 +692,15 @@ function DojoAuthPage() {
 
                 <Button
                   type="submit"
-                  disabled={loading || googleLoading}
+                  disabled={loading}
                   className="h-12 w-full rounded-xl bg-[#dc2626] text-[15px] font-bold text-white shadow-[0_12px_24px_-12px_rgba(220,38,38,0.9)] hover:bg-[#b91c1c]"
                 >
                   {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  {isSignup ? "Criar conta grátis" : "Entrar no painel"}
+                  {isSignup ? "Receber código no WhatsApp" : "Entrar no painel"}
                   {!loading && <ArrowRight className="ml-1.5 h-4 w-4" />}
                 </Button>
               </form>
+              )}
             </div>
 
             {/* Outros acessos */}
