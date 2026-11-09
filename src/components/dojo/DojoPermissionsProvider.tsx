@@ -3,6 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMyTeamPermissions } from "@/lib/dojo/team.functions";
 import { canAccess, type AccessLevel, type PermissionMap } from "@/lib/dojo/permissions";
+import { getMyPlan } from "@/lib/dojo/subscription.functions";
+import { planHasFeature, type PlanCode, type PlanFeature } from "@/lib/dojo/saas-plans";
 import { supabase } from "@/integrations/supabase/client";
 
 type Ctx = {
@@ -10,6 +12,10 @@ type Ctx = {
   permissions: PermissionMap | null;
   loading: boolean;
   can: (moduleKey: string, need?: AccessLevel) => boolean;
+  /** Plano que vale agora (legacy = tudo liberado). */
+  plan: PlanCode;
+  /** O plano do dojo libera o recurso? Vale para dono e equipe. */
+  hasFeature: (feature: PlanFeature) => boolean;
 };
 
 const PermissionContext = createContext<Ctx | null>(null);
@@ -29,6 +35,16 @@ export function DojoPermissionsProvider({ children }: { children: ReactNode }) {
   const isOwner = q.data?.isOwner ?? q.isError;
   const permissions = (q.data?.permissions ?? null) as PermissionMap | null;
   const memberId = q.data?.member?.id;
+
+  const planFn = useServerFn(getMyPlan);
+  const planQ = useQuery({
+    queryKey: ["dojo-my-plan"],
+    queryFn: () => planFn(),
+    staleTime: 60_000,
+  });
+  // Enquanto carrega ou com erro, não bloqueia nada (mesma regra do `can`).
+  const plan: PlanCode = planQ.data?.effective ?? "legacy";
+  const hasFeature = (feature: PlanFeature) => planHasFeature(plan, feature);
 
   useEffect(() => {
     if (!memberId) return;
@@ -59,7 +75,7 @@ export function DojoPermissionsProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <PermissionContext.Provider value={{ isOwner, permissions, loading: q.isLoading, can }}>
+    <PermissionContext.Provider value={{ isOwner, permissions, loading: q.isLoading, can, plan, hasFeature }}>
       {children}
     </PermissionContext.Provider>
   );
@@ -69,7 +85,14 @@ export function useDojoPermissions() {
   const ctx = useContext(PermissionContext);
   if (!ctx) {
     // fallback fora do provider: libera tudo (evita crashes em rotas legadas)
-    return { isOwner: true, permissions: null, loading: false, can: () => true } as Ctx;
+    return {
+      isOwner: true,
+      permissions: null,
+      loading: false,
+      can: () => true,
+      plan: "legacy",
+      hasFeature: () => true,
+    } as Ctx;
   }
   return ctx;
 }

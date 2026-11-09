@@ -50,6 +50,7 @@ import {
   LifeBuoy,
   ShieldAlert,
   MessageCircle,
+  Lock,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -65,6 +66,8 @@ import { TrialBadge, AccountTrialInline, TrialDropdownCard, TrialBanner, TrialEx
 import { UnsavedChangesProvider } from "@/components/common/UnsavedChangesGuard";
 import { DojoPermissionsProvider, useDojoPermissions } from "@/components/dojo/DojoPermissionsProvider";
 import { findModuleForPath } from "@/lib/dojo/permissions";
+import { featureForPath } from "@/lib/dojo/saas-plans";
+import { PlanUpgradeGate } from "@/components/dojo/PlanUpgradeGate";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMyAcademyBranding } from "@/lib/dojo/academy-public.functions";
@@ -359,9 +362,12 @@ function DojoLayoutInner({
   onLogout: () => void;
   isActive: (to: string, exact?: boolean) => boolean;
 }) {
-  const { can, isOwner, loading } = useDojoPermissions();
+  const { can, isOwner, loading, hasFeature } = useDojoPermissions();
   const currentModule = findModuleForPath(pathname);
   const blocked = !loading && !isOwner && currentModule ? !can(currentModule.key, "read") : false;
+  // Módulo fora do plano do dojo (contas novas): mostra o convite de upgrade.
+  const currentFeature = featureForPath(pathname);
+  const planLocked = currentFeature && !hasFeature(currentFeature) ? currentFeature : null;
   const fetchBranding = useServerFn(getMyAcademyBranding);
   const { data: branding } = useQuery({
     queryKey: ["dojo", "branding", "me"],
@@ -501,12 +507,15 @@ function DojoLayoutInner({
                   {group.items.map((item) => {
                     const active = isActive(item.to, item.exact);
                     const Icon = item.icon;
+                    const feature = featureForPath(item.to);
+                    const locked = !!feature && !hasFeature(feature);
                     return (
                       <SidebarMenuItem key={item.to}>
                         <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
                           <Link to={item.to}>
                             <Icon className="h-4 w-4" />
                             <span>{item.label}</span>
+                            {locked && <Lock className="ml-auto h-3 w-3 opacity-60" aria-label="Fora do seu plano" />}
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
@@ -659,6 +668,8 @@ function DojoLayoutInner({
                   Você não tem acesso ao módulo <b className="text-foreground">{currentModule?.label}</b>. Fale com o administrador do dojo para liberar.
                 </p>
               </div>
+            ) : planLocked ? (
+              <PlanUpgradeGate feature={planLocked} isOwner={isOwner} />
             ) : (
               <Outlet />
             )}

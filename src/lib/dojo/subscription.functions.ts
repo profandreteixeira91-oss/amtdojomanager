@@ -1,11 +1,23 @@
 // Assinatura SaaS do AMT Dojo Manager — Mercado Pago Assinaturas (preapproval).
-// Plano fixo: R$ 69,90/mês, 14 dias de trial para novos cadastros.
+// Planos (saas-plans.ts): Essencial, Profissional e Premium para contas novas,
+// com 14 dias de teste no Premium. Contas anteriores aos planos ficam em
+// `legacy` e continuam cobradas exatamente como antes (PLAN_AMOUNT).
 // Usa o MERCADOPAGO_ACCESS_TOKEN da própria AMT (não o do dono).
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { DOJO_HOST, dojoOriginFromRequest } from "@/lib/dojo-hosts";
+import { resolveDojoIdentity } from "@/lib/dojo/owner-scope";
+import {
+  SAAS_PLANS,
+  effectivePlanCode,
+  isSaasPlanCode,
+  planLimits,
+  type SaasPlanCode,
+} from "@/lib/dojo/saas-plans";
+
+const planCodeSchema = z.enum(["essencial", "profissional", "premium"]);
 
 const MP_BASE = "https://api.mercadopago.com";
 
@@ -30,8 +42,163 @@ function mpNotificationUrl(origin: string): string {
     : `${origin}/api/public/hooks/mercadopago`;
 }
 
+/** Valor das contas `legacy` (anteriores aos planos) — não mudar. */
 export const PLAN_AMOUNT = 99.9;
 export const TRIAL_DAYS = 14;
+
+/** Valor mensal de uma assinatura: legacy mantém o valor antigo. */
+export function subscriptionAmount(sub: { plan_code?: string | null }): number {
+  return isSaasPlanCode(sub.plan_code) ? SAAS_PLANS[sub.plan_code].price : PLAN_AMOUNT;
+}
+
+function subscriptionReason(planCode: string | null | undefined): string {
+  return isSaasPlanCode(planCode)
+    ? `AMT Dojo Manager — Plano ${SAAS_PLANS[planCode].name}`
+    : "AMT Dojo Manager — Assinatura mensal";
+}
+
+/**
+ * Plano da cobrança que está sendo iniciada. Conta legacy ignora a escolha e
+ * segue no valor antigo; conta nova precisa escolher um plano, gravado pelo
+ * servidor (o dono não altera plano/valor — trigger no banco).
+ */
+async function preparePlanForCheckout(
+  sub: { id: string; plan_code?: string | null },
+  planCode: SaasPlanCode | undefined,
+): Promise<{ amount: number; planCode: string }> {
+  if (!isSaasPlanCode(sub.plan_code)) {
+    return { amount: PLAN_AMOUNT, planCode: "legacy" };
+  }
+  const chosen = planCode ?? sub.plan_code;
+  const price = SAAS_PLANS[chosen].price;
+  if (chosen !== sub.plan_code) {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("dojo_subscriptions")
+      .update({ plan_code: chosen, plan_amount: price } as never)
+      .eq("id", sub.id);
+    if (error) throw new Error(error.message);
+  }
+  return { amount: price, planCode: chosen };
+}
+
+/** Quantos alunos ativos, unidades ativas e logins de equipe o dojo usa hoje. */
+async function countPlanUsage(ownerId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const [students, units, users] = await Promise.all([
+    supabaseAdmin
+      .from("dojo_students")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", ownerId)
+      .eq("status", "active"),
+    supabaseAdmin
+      .from("dojo_units")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", ownerId)
+      .eq("active", true),
+    supabaseAdmin
+      .from("dojo_team_members")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", ownerId)
+      .eq("status", "active")
+      .not("user_id", "is", null),
+  ]);
+  return {
+    students: students.count ?? 0,
+    units: units.count ?? 0,
+    systemUsers: users.count ?? 0,
+  };
+}
+
+/**
+ * Plano que vale para o dojo de quem está logado (dono ou equipe — a equipe
+ * herda o plano do dono). Usado para liberar/bloquear módulos no painel.
+ */
+export const getMyPlan = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const identity = await resolveDojoIdentity(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: sub } = await supabaseAdmin
+      .from("dojo_subscriptions")
+      .select("plan_code, plan_amount, status")
+      .eq("owner_id", identity.ownerId)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const effective = effectivePlanCode(sub);
+    const usage = identity.isOwner ? await countPlanUsage(identity.ownerId) : null;
+    return {
+      planCode: (sub?.plan_code ?? "premium") as string,
+      effective,
+      status: (sub?.status ?? "trialing") as string,
+      isLegacy: effective === "legacy",
+      limits: planLimits(effective),
+      usage,
+    };
+  });
+
+/**
+ * Troca de plano de uma assinatura já paga (conta nova). Vale na hora; o valor
+ * novo entra na próxima cobrança (cartão: atualiza o preapproval no MP; PIX: a
+ * próxima renovação já sai com o valor do plano).
+ */
+export const changeMyPlan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((i: unknown) => z.object({ planCode: planCodeSchema }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { data: sub } = await context.supabase
+      .from("dojo_subscriptions")
+      .select("id, plan_code, status, mp_preapproval_id, subscription_type")
+      .eq("owner_id", context.userId)
+      .maybeSingle();
+    if (!sub) throw new Error("Assinatura não encontrada.");
+    if (!isSaasPlanCode(sub.plan_code)) {
+      throw new Error("Sua conta tem uma condição especial e não usa os novos planos.");
+    }
+    if (sub.status !== "active") {
+      throw new Error("Escolha o plano ao ativar a assinatura.");
+    }
+    if (sub.plan_code === data.planCode) return { ok: true as const, planCode: data.planCode };
+
+    // Downgrade só se o uso atual cabe no plano novo.
+    const target = SAAS_PLANS[data.planCode];
+    const usage = await countPlanUsage(context.userId);
+    const over: string[] = [];
+    if (target.limits.students !== null && usage.students > target.limits.students)
+      over.push(`${usage.students} alunos ativos (limite ${target.limits.students})`);
+    if (target.limits.units !== null && usage.units > target.limits.units)
+      over.push(`${usage.units} unidades ativas (limite ${target.limits.units})`);
+    if (target.limits.systemUsers !== null && usage.systemUsers > target.limits.systemUsers)
+      over.push(`${usage.systemUsers} usuários do sistema (limite ${target.limits.systemUsers})`);
+    if (over.length) {
+      throw new Error(`O plano ${target.name} não comporta o uso atual: ${over.join(", ")}.`);
+    }
+
+    if (sub.mp_preapproval_id && sub.subscription_type !== "pix") {
+      await mpAmt(`/preapproval/${sub.mp_preapproval_id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          reason: subscriptionReason(data.planCode),
+          auto_recurring: { transaction_amount: target.price, currency_id: "BRL" },
+        }),
+      });
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("dojo_subscriptions")
+      .update({ plan_code: data.planCode, plan_amount: target.price } as never)
+      .eq("id", sub.id);
+    if (error) throw new Error(error.message);
+
+    await context.supabase.from("dojo_account_audit").insert({
+      owner_id: context.userId,
+      action: "saas_plan_changed",
+      meta: { from: sub.plan_code, to: data.planCode },
+    });
+    return { ok: true as const, planCode: data.planCode };
+  });
 
 async function mpAmt<T = any>(path: string, init?: RequestInit): Promise<T> {
   // Prioriza a conta comercial da AMT Fight Wear para assinaturas do sistema
@@ -97,13 +264,17 @@ export const getMySubscription = createServerFn({ method: "GET" })
 /** Cria (ou reaproveita) um preapproval no MP e retorna init_point para checkout externo (fallback). */
 export const startMySubscription = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .validator((i: unknown) =>
+    z.object({ planCode: planCodeSchema.optional() }).parse(i ?? {}),
+  )
+  .handler(async ({ data, context }) => {
     const { data: sub } = await context.supabase
       .from("dojo_subscriptions")
       .select("*")
       .eq("owner_id", context.userId)
       .maybeSingle();
     if (!sub) throw new Error("Assinatura não inicializada");
+    const checkout = await preparePlanForCheckout(sub, data.planCode);
 
     const { data: user } = await context.supabase.auth.getUser();
     const email = user.user?.email;
@@ -117,7 +288,7 @@ export const startMySubscription = createServerFn({ method: "POST" })
     const preapproval = await mpAmt<any>("/preapproval", {
       method: "POST",
       body: JSON.stringify({
-        reason: "AMT Dojo Manager — Assinatura mensal",
+        reason: subscriptionReason(checkout.planCode),
         external_reference: `dojo_sub:${sub.id}`,
         payer_email: email,
         back_url: backUrl,
@@ -125,7 +296,7 @@ export const startMySubscription = createServerFn({ method: "POST" })
         auto_recurring: {
           frequency: 1,
           frequency_type: "months",
-          transaction_amount: PLAN_AMOUNT,
+          transaction_amount: checkout.amount,
           currency_id: "BRL",
         },
         // Reforço da customização visual (identidade do Dojo Manager)
@@ -180,6 +351,7 @@ export const subscribeWithCardToken = createServerFn({ method: "POST" })
       .object({
         cardTokenId: z.string().min(4),
         payerEmail: z.string().email().optional(),
+        planCode: planCodeSchema.optional(),
       })
       .parse(i),
   )
@@ -190,6 +362,7 @@ export const subscribeWithCardToken = createServerFn({ method: "POST" })
       .eq("owner_id", context.userId)
       .maybeSingle();
     if (!sub) throw new Error("Assinatura não inicializada");
+    const checkout = await preparePlanForCheckout(sub, data.planCode);
 
     const { data: userRes } = await context.supabase.auth.getUser();
     const email = data.payerEmail || userRes.user?.email;
@@ -203,7 +376,7 @@ export const subscribeWithCardToken = createServerFn({ method: "POST" })
     const preapproval = await mpAmt<any>("/preapproval", {
       method: "POST",
       body: JSON.stringify({
-        reason: "AMT Dojo Manager — Assinatura mensal",
+        reason: subscriptionReason(checkout.planCode),
         external_reference: `dojo_sub:${sub.id}`,
         payer_email: email,
         card_token_id: data.cardTokenId,
@@ -212,7 +385,7 @@ export const subscribeWithCardToken = createServerFn({ method: "POST" })
         auto_recurring: {
           frequency: 1,
           frequency_type: "months",
-          transaction_amount: PLAN_AMOUNT,
+          transaction_amount: checkout.amount,
           currency_id: "BRL",
         },
         notification_url: notification,
@@ -369,6 +542,7 @@ export const subscribeWithPix = createServerFn({ method: "POST" })
     z
       .object({
         payerEmail: z.string().email(),
+        planCode: planCodeSchema.optional(),
       })
       .parse(i),
   )
@@ -379,6 +553,7 @@ export const subscribeWithPix = createServerFn({ method: "POST" })
       .eq("owner_id", context.userId)
       .maybeSingle();
     if (!sub) throw new Error("Assinatura não inicializada");
+    const checkout = await preparePlanForCheckout(sub, data.planCode);
 
     const notification = mpNotificationUrl(dojoOriginFromRequest(getRequest()));
 
@@ -386,8 +561,8 @@ export const subscribeWithPix = createServerFn({ method: "POST" })
     const payment = await mpAmt<any>("/v1/payments", {
       method: "POST",
       body: JSON.stringify({
-        transaction_amount: PLAN_AMOUNT,
-        description: "AMT Dojo Manager — Assinatura mensal (PIX)",
+        transaction_amount: checkout.amount,
+        description: `${subscriptionReason(checkout.planCode)} (PIX)`,
         payment_method_id: "pix",
         external_reference: `dojo_sub_pix_payment:${sub.id}`,
         notification_url: notification,

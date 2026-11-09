@@ -8056,6 +8056,7 @@ export type Database = {
           owner_id: string
           payment_method: string | null
           plan_amount: number
+          plan_code: string
           status: string
           subscription_type: string | null
           trial_ends_at: string | null
@@ -8082,6 +8083,7 @@ export type Database = {
           owner_id: string
           payment_method?: string | null
           plan_amount?: number
+          plan_code?: string
           status?: string
           subscription_type?: string | null
           trial_ends_at?: string | null
@@ -8108,6 +8110,7 @@ export type Database = {
           owner_id?: string
           payment_method?: string | null
           plan_amount?: number
+          plan_code?: string
           status?: string
           subscription_type?: string | null
           trial_ends_at?: string | null
@@ -13725,6 +13728,12 @@ export type Database = {
         }[]
       }
       dojo_next_contract_number: { Args: { _owner: string }; Returns: string }
+      dojo_plan_effective: { Args: { p_owner: string }; Returns: string }
+      dojo_plan_limit: {
+        Args: { p_owner: string; p_resource: string }
+        Returns: number
+      }
+      dojo_plan_price: { Args: { p_plan: string }; Returns: number }
       dojo_recompute_current_belt: {
         Args: { _student_id: string }
         Returns: undefined

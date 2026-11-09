@@ -111,7 +111,7 @@ export const Route = createFileRoute("/api/public/hooks/apply-scheduled-graduati
 
         const { data: subsToRenew } = await (supabaseAdmin as any)
           .from("dojo_subscriptions")
-          .select("id, owner_id, status, subscription_type, next_due_date, current_payment_status")
+          .select("id, owner_id, status, subscription_type, next_due_date, current_payment_status, plan_code")
           .eq("subscription_type", "pix")
           .eq("status", "active")
           .lte("next_due_date", threeDaysAheadISO)
@@ -120,7 +120,8 @@ export const Route = createFileRoute("/api/public/hooks/apply-scheduled-graduati
 
         let pixRenewals = 0;
         if (subsToRenew?.length) {
-          const { PLAN_AMOUNT } = await import("@/lib/dojo/subscription.functions");
+          // Legacy renova no valor antigo; contas novas, no valor do plano.
+          const { subscriptionAmount } = await import("@/lib/dojo/subscription.functions");
           const mpToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
 
           for (const sub of subsToRenew) {
@@ -139,7 +140,7 @@ export const Route = createFileRoute("/api/public/hooks/apply-scheduled-graduati
                   "X-Idempotency-Key": `renew-${sub.id}-${sub.next_due_date}`,
                 },
                 body: JSON.stringify({
-                  transaction_amount: PLAN_AMOUNT,
+                  transaction_amount: subscriptionAmount(sub),
                   description: "Renovação AMT Dojo Manager — PIX",
                   payment_method_id: "pix",
                   external_reference: `dojo_sub_pix_payment:${sub.id}`,

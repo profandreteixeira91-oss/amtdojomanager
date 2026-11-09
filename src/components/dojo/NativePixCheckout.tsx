@@ -6,13 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { subscribeWithPix, PLAN_AMOUNT } from "@/lib/dojo/subscription.functions";
+import type { SaasPlanCode } from "@/lib/dojo/saas-plans";
 
 interface Props {
   defaultEmail?: string;
   onSuccess?: () => void;
+  /** Plano escolhido (contas novas). Contas legacy não enviam. */
+  planCode?: SaasPlanCode;
+  /** Valor exibido; padrão = valor das contas legacy. */
+  amount?: number;
 }
 
-export function NativePixCheckout({ defaultEmail, onSuccess }: Props) {
+export function NativePixCheckout({ defaultEmail, onSuccess, planCode, amount = PLAN_AMOUNT }: Props) {
   const subscribePix = useServerFn(subscribeWithPix);
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState(defaultEmail ?? "");
@@ -32,7 +37,7 @@ export function NativePixCheckout({ defaultEmail, onSuccess }: Props) {
     }
     setBusy(true);
     try {
-      const res = await subscribePix({ data: { payerEmail: email } });
+      const res = await subscribePix({ data: { payerEmail: email, planCode } });
       setPixResult({
         paymentId: res.paymentId,
         status: res.status,
@@ -65,7 +70,7 @@ export function NativePixCheckout({ defaultEmail, onSuccess }: Props) {
           <h3 className="text-lg font-bold text-neutral-900">Pague com PIX</h3>
           <p className="text-sm text-neutral-500">
             Escaneie o QR Code ou copie o código abaixo para finalizar sua assinatura de 
-            <span className="font-semibold text-neutral-900"> R$ {PLAN_AMOUNT.toFixed(2).replace(".", ",")}</span>.
+            <span className="font-semibold text-neutral-900"> R$ {amount.toFixed(2).replace(".", ",")}</span>.
           </p>
         </div>
 
@@ -139,7 +144,7 @@ export function NativePixCheckout({ defaultEmail, onSuccess }: Props) {
       <div className="flex items-center justify-between rounded-lg bg-neutral-50 px-4 py-3 text-sm">
         <span className="text-neutral-600">Total mensal</span>
         <span className="text-lg font-bold text-neutral-900">
-          R$ {PLAN_AMOUNT.toFixed(2).replace(".", ",")}
+          R$ {amount.toFixed(2).replace(".", ",")}
         </span>
       </div>
 
