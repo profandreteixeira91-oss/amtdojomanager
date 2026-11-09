@@ -128,6 +128,16 @@ function DojoAuthPage() {
     const go = async (userId: string) => {
       if (redirected) return;
       redirected = true;
+      // A sessão do evento vem do armazenamento local e pode estar inválida
+      // (conta excluída, token revogado). Só segue para o painel se o servidor
+      // confirmar o usuário — senão o painel devolve para cá, em loop.
+      const { data: checked, error: checkErr } = await supabase.auth.getUser();
+      if (checkErr || !checked.user || checked.user.id !== userId) {
+        await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+        redirected = false;
+        setChecking(false);
+        return;
+      }
       // Team-member gate: bloqueia acesso caso o e-mail exista em
       // dojo_team_members sem vínculo ativo com este user_id.
       try {

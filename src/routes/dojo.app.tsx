@@ -88,6 +88,9 @@ export const Route = createFileRoute("/dojo/app")({
   beforeLoad: async ({ location }) => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) {
+      // Sessão salva que o servidor recusa (conta excluída, token revogado):
+      // limpa antes de ir ao login, senão o login a reaproveita e devolve para cá.
+      await supabase.auth.signOut({ scope: "local" }).catch(() => {});
       throw redirect({ to: "/dojo/auth", search: { redirect: location.href } });
     }
     // Bloqueia contas de aluno: e-mails vinculados a dojo_students só

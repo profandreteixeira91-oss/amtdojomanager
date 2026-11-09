@@ -17,7 +17,11 @@ export const Route = createFileRoute("/dojo/onboarding")({
   }),
   beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/dojo/auth" });
+    if (error || !data.user) {
+      // Sessão recusada pelo servidor: limpa para o login não reaproveitá-la (loop).
+      await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+      throw redirect({ to: "/dojo/auth" });
+    }
     return { user: data.user };
   },
   component: OnboardingPage,

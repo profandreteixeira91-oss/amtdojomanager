@@ -22,6 +22,8 @@ export const Route = createFileRoute("/dojo/staff/_portal")({
   beforeLoad: async ({ location }) => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) {
+      // Sessão recusada pelo servidor: limpa para o login não reaproveitá-la (loop).
+      await supabase.auth.signOut({ scope: "local" }).catch(() => {});
       throw redirect({ to: "/dojo/staff/auth", search: { redirect: location.href } });
     }
     return { user: data.user };
