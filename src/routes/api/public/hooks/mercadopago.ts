@@ -173,22 +173,16 @@ export const Route = createFileRoute("/api/public/hooks/mercadopago")({
         if (isDojoSubPix) {
           const subId = String(orderId).includes(":") ? String(orderId).split(":")[1] : null;
           if (subId && status === "approved") {
-            const nextMonth = new Date();
-            nextMonth.setMonth(nextMonth.getMonth() + 1);
-            
-            await supabaseAdmin.from("dojo_subscriptions").update({
-              status: "active",
-              current_payment_status: "approved",
-              current_period_end: nextMonth.toISOString(),
-              next_due_date: nextMonth.toISOString().split("T")[0],
-              last_event: payment,
-            } as never).eq("id", subId);
+            // Ativa e avança um mês a partir do vencimento do ciclo; idempotente.
+            const { applyApprovedSubscriptionPix } = await import("@/lib/dojo/subscription-pix.server");
+            await applyApprovedSubscriptionPix(supabaseAdmin, subId, payment);
           } else if (subId) {
-            // Atualiza status pendente/falho se necessário
+            // Pendente/vencido: só atualiza se for a cobrança atual (não sobrescreve
+            // o status do ciclo com o de uma cobrança antiga).
             await supabaseAdmin.from("dojo_subscriptions").update({
               current_payment_status: status,
               last_event: payment,
-            } as never).eq("id", subId);
+            } as never).eq("id", subId).eq("last_payment_id", String(payment.id));
           }
           return new Response("ok");
         }

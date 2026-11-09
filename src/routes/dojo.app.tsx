@@ -62,7 +62,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DojoLogo } from "@/components/dojo/DojoLogo";
-import { TrialBadge, AccountTrialInline, TrialDropdownCard, TrialBanner, TrialExpiredOverlay } from "@/components/dojo/TrialBadge";
+import { TrialBadge, AccountTrialInline, TrialDropdownCard, TrialBanner, TrialExpiredOverlay, PixDueBanner } from "@/components/dojo/TrialBadge";
 import { UnsavedChangesProvider } from "@/components/common/UnsavedChangesGuard";
 import { DojoPermissionsProvider, useDojoPermissions } from "@/components/dojo/DojoPermissionsProvider";
 import { findModuleForPath } from "@/lib/dojo/permissions";
@@ -480,6 +480,7 @@ function DojoLayoutInner({
   return (
     <>
       <TrialBanner />
+      <PixDueBanner pathname={pathname} />
       <TrialExpiredOverlay pathname={pathname} onLogout={onLogout} />
       <DojoCommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} groups={visibleNav} />
       <Sidebar

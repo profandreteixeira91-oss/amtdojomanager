@@ -111,7 +111,7 @@ export const Route = createFileRoute("/api/public/hooks/apply-scheduled-graduati
 
         const { data: subsToRenew } = await (supabaseAdmin as any)
           .from("dojo_subscriptions")
-          .select("id, owner_id, status, subscription_type, next_due_date, current_payment_status, plan_code")
+          .select("id, owner_id, status, subscription_type, next_due_date, current_payment_status, plan_code, last_payment_id")
           .eq("subscription_type", "pix")
           .eq("status", "active")
           .lte("next_due_date", threeDaysAheadISO)
@@ -122,48 +122,28 @@ export const Route = createFileRoute("/api/public/hooks/apply-scheduled-graduati
         if (subsToRenew?.length) {
           // Legacy renova no valor antigo; contas novas, no valor do plano.
           const { subscriptionAmount } = await import("@/lib/dojo/subscription.functions");
-          const mpToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+          const { createSubscriptionPixCharge } = await import("@/lib/dojo/subscription-pix.server");
+          const { SAAS_PLANS, isSaasPlanCode } = await import("@/lib/dojo/saas-plans");
+          type SaasPlanCode = keyof typeof SAAS_PLANS;
 
           for (const sub of subsToRenew) {
             try {
-              // Busca e-mail do dono
               const { data: owner } = await supabaseAdmin.auth.admin.getUserById(sub.owner_id);
               const email = owner.user?.email;
-              if (!email || !mpToken) continue;
-
-              // Gera novo pagamento PIX
-              const res = await fetch("https://api.mercadopago.com/v1/payments", {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${mpToken}`,
-                  "Content-Type": "application/json",
-                  "X-Idempotency-Key": `renew-${sub.id}-${sub.next_due_date}`,
-                },
-                body: JSON.stringify({
-                  transaction_amount: subscriptionAmount(sub),
-                  description: "Renovação AMT Dojo Manager — PIX",
-                  payment_method_id: "pix",
-                  external_reference: `dojo_sub_pix_payment:${sub.id}`,
-                  payer: { email },
-                }),
+              if (!email) continue;
+              // PIX recorrente: a cobrança do ciclo fica salva e o QR Code aparece no
+              // painel do dono (Assinatura e aviso no topo) — sem depender de e-mail.
+              await createSubscriptionPixCharge(supabaseAdmin, sub, {
+                amount: subscriptionAmount(sub),
+                payerEmail: email,
+                description: isSaasPlanCode(sub.plan_code)
+                  ? `AMT Dojo Manager — Plano ${SAAS_PLANS[sub.plan_code as SaasPlanCode].name} (PIX)`
+                  : "Renovação AMT Dojo Manager — PIX",
               });
-
-              if (res.ok) {
-                const payment = await res.json();
-                await (supabaseAdmin as any)
-                  .from("dojo_subscriptions")
-                  .update({
-                    last_payment_id: String(payment.id),
-                    current_payment_status: "pending",
-                    last_qr_code: payment.point_of_interaction?.transaction_data?.qr_code_base64,
-                    last_copy_paste: payment.point_of_interaction?.transaction_data?.qr_code,
-                  })
-                  .eq("id", sub.id);
-                pixRenewals++;
-                
-                // Notifica o dono via push ou similar (opcional, já vai receber o e-mail do MP)
-              }
-            } catch (err) {}
+              pixRenewals++;
+            } catch (err) {
+              console.error("[renovação PIX]", sub.id, (err as Error)?.message ?? err);
+            }
           }
         }
 

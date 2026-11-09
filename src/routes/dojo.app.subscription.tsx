@@ -18,6 +18,7 @@ import {
   syncMySubscription,
   changeMyPlan,
   getMyPlan,
+  getMyPixCharge,
   PLAN_AMOUNT,
 } from "@/lib/dojo/subscription.functions";
 import {
@@ -27,7 +28,7 @@ import {
   isSaasPlanCode,
   type SaasPlanCode,
 } from "@/lib/dojo/saas-plans";
-import { NativePixCheckout } from "@/components/dojo/NativePixCheckout";
+import { NativePixCheckout, PixChargeView } from "@/components/dojo/NativePixCheckout";
 
 export const Route = createFileRoute("/dojo/app/subscription")({
   head: () => ({ meta: [{ title: "Assinatura — AMT Dojo Manager" }] }),
@@ -56,7 +57,6 @@ function SubscriptionPage() {
   const [busy, setBusy] = useState(false);
   const startSubscription = useServerFn(startMySubscription);
   const [ownerEmail, setOwnerEmail] = useState<string | undefined>(undefined);
-  const [showPix, setShowPix] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setOwnerEmail(data.user?.email ?? undefined));
@@ -65,7 +65,7 @@ function SubscriptionPage() {
   // Sincronização automática para refletir status de pagamento
   useEffect(() => {
     const url = new URL(window.location.href);
-    if (url.searchParams.get("mp") === "return" || showPix) {
+    if (url.searchParams.get("mp") === "return") {
       const interval = setInterval(() => {
         void sync({ data: {} })
           .then((res) => {
@@ -78,7 +78,20 @@ function SubscriptionPage() {
       }, 5000);
       return () => clearInterval(interval);
     }
-  }, [sync, qc, showPix]);
+  }, [sync, qc]);
+
+  // PIX recorrente: cobrança do mês gerada pelo sistema, mostrada aqui na tela.
+  const getPixCharge = useServerFn(getMyPixCharge);
+  const { data: pixCharge } = useQuery({
+    queryKey: ["dojo", "pix-charge"],
+    queryFn: () => getPixCharge(),
+    enabled: sub?.subscription_type === "pix",
+  });
+  const refreshAfterPayment = () => {
+    qc.invalidateQueries({ queryKey: ["dojo", "subscription"] });
+    qc.invalidateQueries({ queryKey: ["dojo", "pix-charge"] });
+    qc.invalidateQueries({ queryKey: ["dojo", "my-subscription"] });
+  };
 
   const status = sub?.status ?? "pending";
   const s = statusLabel[status] ?? statusLabel.pending;
@@ -352,13 +365,34 @@ function SubscriptionPage() {
                       defaultEmail={ownerEmail}
                       planCode={isLegacy ? undefined : selected}
                       amount={amount}
-                      onSuccess={() => {
-                        setShowPix(false);
-                        qc.invalidateQueries({ queryKey: ["dojo", "subscription"] });
-                      }}
+                      onSuccess={refreshAfterPayment}
                     />
                   </TabsContent>
                 </Tabs>
+              </CardContent>
+            </Card>
+          ) : pixCharge?.state === "open" ? (
+            <Card className="shadow-2xl border-none ring-1 ring-emerald-200 overflow-hidden">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl">Mensalidade em aberto</CardTitle>
+                <CardDescription>PIX recorrente: o código deste mês já está pronto.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <PixChargeView charge={pixCharge.charge} onPaid={refreshAfterPayment} />
+              </CardContent>
+            </Card>
+          ) : pixCharge?.state === "expired" ? (
+            <Card className="shadow-2xl border-none ring-1 ring-amber-200 overflow-hidden">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl">O PIX deste mês venceu</CardTitle>
+                <CardDescription>Gere um novo código para pagar a mensalidade.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <NativePixCheckout
+                  planCode={currentPlan ?? undefined}
+                  amount={amount}
+                  onSuccess={refreshAfterPayment}
+                />
               </CardContent>
             </Card>
           ) : (
@@ -372,39 +406,15 @@ function SubscriptionPage() {
                   <p className="text-xs text-emerald-700">
                     Sua assinatura está ativa e seu acesso está liberado.
                   </p>
+                  {sub?.subscription_type === "pix" && (
+                    <p className="text-xs text-emerald-700">
+                      PIX recorrente: o código da próxima mensalidade aparece aqui
+                      {sub?.next_due_date ? ` 3 dias antes de ${new Date(`${sub.next_due_date}T12:00:00`).toLocaleDateString("pt-BR")}` : " 3 dias antes do vencimento"}.
+                    </p>
+                  )}
                 </div>
-                {sub?.subscription_type === 'pix' && sub?.last_qr_code && status === 'pending' && (
-                  <Button variant="outline" className="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-100" onClick={() => setShowPix(true)}>
-                    Ver QR Code do PIX
-                  </Button>
-                )}
               </CardContent>
             </Card>
-          )}
-
-          {/* Seção PIX aberta manualmente */}
-          {showPix && (
-             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-in fade-in duration-200">
-               <Card className="w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-300">
-                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                   <CardTitle>Pagamento PIX</CardTitle>
-                   <Button variant="ghost" size="icon" onClick={() => setShowPix(false)}>
-                     <XCircle className="h-5 w-5 text-neutral-400" />
-                   </Button>
-                 </CardHeader>
-                 <CardContent>
-                   <NativePixCheckout 
-                      defaultEmail={ownerEmail}
-                      planCode={isLegacy ? undefined : selected}
-                      amount={amount}
-                      onSuccess={() => {
-                        setShowPix(false);
-                        qc.invalidateQueries({ queryKey: ["dojo", "subscription"] });
-                      }}
-                    />
-                 </CardContent>
-               </Card>
-             </div>
           )}
         </div>
       </div>

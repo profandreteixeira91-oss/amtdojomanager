@@ -532,19 +532,66 @@ export const listMySubscriptionPayments = createServerFn({ method: "GET" })
   });
 
 /**
- * Inicia uma assinatura via PIX.
- * Para PIX, usamos a API de Pagamentos (/v1/payments) para gerar um QR Code.
- * A recorrência é gerida internamente pelo sistema (Dojo Manager).
+ * Cobrança PIX em aberto da assinatura (PIX recorrente): o QR Code é mostrado
+ * no próprio painel. Todo mês a rotina diária gera a cobrança do ciclo, 3 dias
+ * antes do vencimento; não depende de e-mail.
+ */
+export const getMyPixCharge = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: sub } = await supabaseAdmin
+      .from("dojo_subscriptions")
+      .select("id, plan_code, subscription_type, last_payment_id, current_payment_status, last_qr_code, last_copy_paste, next_due_date, plan_amount")
+      .eq("owner_id", context.userId)
+      .maybeSingle();
+    if (!sub || sub.subscription_type !== "pix" || !sub.last_payment_id || sub.current_payment_status === "approved") {
+      return { state: "none" as const };
+    }
+    const { fetchMpPayment, applyApprovedSubscriptionPix } = await import("@/lib/dojo/subscription-pix.server");
+    let payment: any = null;
+    try {
+      payment = await fetchMpPayment(sub.last_payment_id);
+    } catch {
+      return { state: "none" as const };
+    }
+    if (payment.status === "approved") {
+      await applyApprovedSubscriptionPix(supabaseAdmin, sub.id, payment);
+      return { state: "paid" as const };
+    }
+    const expiresAt: string | null = payment.date_of_expiration ?? null;
+    const expired = expiresAt ? new Date(expiresAt).getTime() < Date.now() : false;
+    if (!["pending", "in_process"].includes(String(payment.status)) || expired) {
+      return { state: "expired" as const, dueDate: sub.next_due_date };
+    }
+    const qr = payment.point_of_interaction?.transaction_data ?? {};
+    return {
+      state: "open" as const,
+      charge: {
+        paymentId: String(payment.id),
+        status: String(payment.status),
+        qrCodeBase64: (qr.qr_code_base64 ?? sub.last_qr_code ?? null) as string | null,
+        qrCodeCopyPaste: (qr.qr_code ?? sub.last_copy_paste ?? null) as string | null,
+        amount: Number(payment.transaction_amount ?? sub.plan_amount ?? PLAN_AMOUNT),
+        expiresAt,
+        dueDate: sub.next_due_date as string | null,
+      },
+    };
+  });
+
+/**
+ * Gera (ou reaproveita) a cobrança PIX da assinatura e devolve o QR Code para a
+ * tela. O e-mail do pagador é o da própria conta: nada é pedido ao dono.
  */
 export const subscribeWithPix = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((i: unknown) =>
     z
       .object({
-        payerEmail: z.string().email(),
+        payerEmail: z.string().email().optional(),
         planCode: planCodeSchema.optional(),
       })
-      .parse(i),
+      .parse(i ?? {}),
   )
   .handler(async ({ data, context }) => {
     const { data: sub } = await context.supabase
@@ -555,27 +602,41 @@ export const subscribeWithPix = createServerFn({ method: "POST" })
     if (!sub) throw new Error("Assinatura não inicializada");
     const checkout = await preparePlanForCheckout(sub, data.planCode);
 
-    const notification = mpNotificationUrl(dojoOriginFromRequest(getRequest()));
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { createSubscriptionPixCharge, fetchMpPayment } = await import("@/lib/dojo/subscription-pix.server");
 
-    // Criamos um pagamento PIX via API de Pagamentos do MP
-    const payment = await mpAmt<any>("/v1/payments", {
-      method: "POST",
-      body: JSON.stringify({
-        transaction_amount: checkout.amount,
-        description: `${subscriptionReason(checkout.planCode)} (PIX)`,
-        payment_method_id: "pix",
-        external_reference: `dojo_sub_pix_payment:${sub.id}`,
-        notification_url: notification,
-        payer: {
-          email: data.payerEmail,
-        },
-      }),
+    // Já existe um PIX em aberto, ainda válido e com o mesmo valor: mostra o mesmo.
+    if (sub.subscription_type === "pix" && sub.last_payment_id && sub.current_payment_status !== "approved") {
+      try {
+        const p = await fetchMpPayment(sub.last_payment_id);
+        const valid = p.status === "pending" && (!p.date_of_expiration || new Date(p.date_of_expiration).getTime() > Date.now());
+        if (valid && Number(p.transaction_amount) === checkout.amount) {
+          const qr = p.point_of_interaction?.transaction_data ?? {};
+          return {
+            paymentId: String(p.id),
+            status: String(p.status),
+            qrCodeBase64: qr.qr_code_base64 ?? sub.last_qr_code ?? null,
+            qrCodeCopyPaste: qr.qr_code ?? sub.last_copy_paste ?? null,
+            expiresAt: p.date_of_expiration ?? null,
+          };
+        }
+      } catch {
+        /* gera um novo abaixo */
+      }
+    }
+
+    const { data: userRes } = await context.supabase.auth.getUser();
+    const email = data.payerEmail || userRes.user?.email;
+    if (!email) throw new Error("E-mail da conta indisponível");
+
+    const charge = await createSubscriptionPixCharge(supabaseAdmin, sub, {
+      amount: checkout.amount,
+      payerEmail: email,
+      description: `${subscriptionReason(checkout.planCode)} (PIX)`,
+      notificationUrl: mpNotificationUrl(dojoOriginFromRequest(getRequest())),
     });
 
-    const qrCodeBase64 = payment.point_of_interaction?.transaction_data?.qr_code_base64;
-    const qrCodeCopyPaste = payment.point_of_interaction?.transaction_data?.qr_code;
-
-    // Se o usuário está migrando de cartão para PIX, cancelamos o preapproval anterior
+    // Quem troca o cartão pelo PIX: cancela o preapproval do cartão.
     if (sub.subscription_type === "card" && sub.mp_preapproval_id) {
       try {
         await mpAmt(`/preapproval/${sub.mp_preapproval_id}`, {
@@ -585,63 +646,35 @@ export const subscribeWithPix = createServerFn({ method: "POST" })
       } catch (e) {
         console.warn("Falha ao cancelar assinatura anterior durante migração para PIX", e);
       }
+      await supabaseAdmin.from("dojo_subscriptions").update({ mp_preapproval_id: null } as never).eq("id", sub.id);
     }
 
-    const patch: Record<string, any> = {
-      subscription_type: "pix",
-      payment_method: "pix",
-      last_payment_id: String(payment.id),
-      current_payment_status: payment.status,
-      last_qr_code: qrCodeBase64,
-      last_copy_paste: qrCodeCopyPaste,
-      mp_preapproval_id: null, // Remove o ID de assinatura MP se houver
-    };
-
-    await context.supabase
-      .from("dojo_subscriptions")
-      .update(patch as never)
-      .eq("id", sub.id);
-
     return {
-      paymentId: String(payment.id),
-      status: payment.status,
-      qrCodeBase64,
-      qrCodeCopyPaste,
+      paymentId: charge.paymentId,
+      status: charge.status,
+      qrCodeBase64: charge.qrCodeBase64,
+      qrCodeCopyPaste: charge.qrCodeCopyPaste,
+      expiresAt: charge.expiresAt,
     };
   });
 
-/**
- * Sincroniza um pagamento PIX específico.
- */
+/** Confere um pagamento PIX da própria assinatura (a tela consulta enquanto o QR Code está aberto). */
 export const syncPixPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((i: unknown) => z.object({ paymentId: z.string() }).parse(i))
+  .validator((i: unknown) => z.object({ paymentId: z.string().min(1).max(40) }).parse(i))
   .handler(async ({ data, context }) => {
-    const payment = await mpAmt<any>(`/v1/payments/${data.paymentId}`);
-    
+    const { data: sub } = await context.supabase
+      .from("dojo_subscriptions")
+      .select("id, last_payment_id")
+      .eq("owner_id", context.userId)
+      .maybeSingle();
+    if (!sub || sub.last_payment_id !== data.paymentId) return { status: "unknown" };
+    const { fetchMpPayment, applyApprovedSubscriptionPix } = await import("@/lib/dojo/subscription-pix.server");
+    const payment = await fetchMpPayment(data.paymentId);
     if (payment.status === "approved") {
-      const { data: sub } = await context.supabase
-        .from("dojo_subscriptions")
-        .select("id")
-        .eq("last_payment_id", data.paymentId)
-        .maybeSingle();
-
-      if (sub) {
-        const nextDue = new Date();
-        nextDue.setMonth(nextDue.getMonth() + 1);
-
-        await context.supabase
-          .from("dojo_subscriptions")
-          .update({
-            status: "active",
-            current_payment_status: "approved",
-            current_period_end: nextDue.toISOString(),
-            next_due_date: nextDue.toISOString().split("T")[0],
-          } as never)
-          .eq("id", sub.id);
-      }
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await applyApprovedSubscriptionPix(supabaseAdmin, sub.id, payment);
     }
-
     return { status: payment.status };
   });
 

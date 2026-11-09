@@ -163,6 +163,53 @@ export function TrialBanner() {
 }
 
 /**
+ * PIX recorrente: avisa no topo do painel que o PIX da mensalidade do mês está
+ * disponível (gerado pelo sistema 3 dias antes do vencimento) e leva ao QR Code.
+ */
+export function PixDueBanner({ pathname }: { pathname: string }) {
+  const fn = useServerFn(getMySubscription);
+  const { data } = useQuery({
+    queryKey: ["dojo", "my-subscription"],
+    queryFn: () => fn({}),
+    staleTime: 5 * 60 * 1000,
+  });
+  const sub = data as any;
+  if (!sub || pathname.startsWith("/dojo/app/subscription")) return null;
+  const open =
+    sub.subscription_type === "pix" &&
+    sub.current_payment_status === "pending" &&
+    !!sub.last_copy_paste &&
+    (sub.status === "active" || sub.status === "suspended");
+  if (!open) return null;
+  const due = sub.next_due_date ? new Date(`${sub.next_due_date}T12:00:00`) : null;
+  const overdue = due ? due.getTime() < Date.now() - 24 * 60 * 60 * 1000 : false;
+  return (
+    <div
+      className={
+        "sticky top-0 z-[60] px-4 py-2 text-center text-xs font-semibold shadow-sm " +
+        (overdue ? "bg-destructive text-destructive-foreground" : "bg-emerald-600 text-white")
+      }
+    >
+      <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
+        <span>
+          {overdue ? "A mensalidade do Dojo Manager está atrasada" : "O PIX da mensalidade do Dojo Manager está disponível"}
+          {due ? ` (vencimento ${due.toLocaleDateString("pt-BR")})` : ""}.
+        </span>
+        <Link
+          to="/dojo/app/subscription"
+          className={
+            "rounded-full bg-white px-3 py-1 shadow-sm transition-colors hover:bg-white/90 " +
+            (overdue ? "text-destructive" : "text-emerald-700")
+          }
+        >
+          Pagar com PIX
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Janela exibida quando o período de testes terminou (ou não há assinatura vigente).
  * O sistema permanece visível ao fundo, borrado e não interativo.
  * Não aparece na própria tela de assinatura, para permitir o pagamento.
