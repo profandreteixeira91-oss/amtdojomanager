@@ -12,6 +12,7 @@ import { RealScreenshots } from "@/components/dojo/landing/RealScreenshots";
 import { Differentiators } from "@/components/dojo/landing/Differentiators";
 import { Integrations } from "@/components/dojo/landing/Integrations";
 import { Plans } from "@/components/dojo/landing/Plans";
+import { SAAS_PLANS, SAAS_PLAN_ORDER } from "@/lib/dojo/saas-plans";
 import { FAQ } from "@/components/dojo/landing/FAQ";
 import { FreeTools } from "@/components/dojo/landing/FreeTools";
 import { FinalCTA } from "@/components/dojo/landing/FinalCTA";
@@ -49,7 +50,19 @@ export const Route = createFileRoute("/dojo/")({
           operatingSystem: "Web",
           description:
             "Software de gestão completo para academias de artes marciais — alunos, financeiro, graduações, certificados e competições.",
-          offers: { "@type": "Offer", priceCurrency: "BRL" },
+          offers: {
+            "@type": "AggregateOffer",
+            priceCurrency: "BRL",
+            lowPrice: Math.min(...SAAS_PLAN_ORDER.map((c) => SAAS_PLANS[c].price)).toFixed(2),
+            highPrice: Math.max(...SAAS_PLAN_ORDER.map((c) => SAAS_PLANS[c].price)).toFixed(2),
+            offerCount: SAAS_PLAN_ORDER.length,
+            offers: SAAS_PLAN_ORDER.map((c) => ({
+              "@type": "Offer",
+              name: `Plano ${SAAS_PLANS[c].name}`,
+              price: SAAS_PLANS[c].price.toFixed(2),
+              priceCurrency: "BRL",
+            })),
+          },
         }),
       },
     ],

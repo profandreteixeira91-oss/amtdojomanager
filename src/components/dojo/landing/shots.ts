@@ -1,16 +1,16 @@
 // Capturas REAIS do sistema (public/dojo-shots). Nenhuma imagem ilustrativa.
 export const SHOT = {
-  dashboard: "/dojo-shots/dashboard.png",
-  students: "/dojo-shots/students.png",
-  finance: "/dojo-shots/finance.png",
-  schedule: "/dojo-shots/schedule.png",
-  graduations: "/dojo-shots/graduations.png",
-  checkin: "/dojo-shots/checkin.png",
-  competitions: "/dojo-shots/competitions.png",
-  evaluations: "/dojo-shots/evaluations.png",
-  announcements: "/dojo-shots/announcements.png",
-  store: "/dojo-shots/store.png",
-  studentApp: "/dojo-shots/app-login.png",
+  dashboard: "/dojo-shots/dashboard.webp",
+  students: "/dojo-shots/students.webp",
+  finance: "/dojo-shots/finance.webp",
+  schedule: "/dojo-shots/schedule.webp",
+  graduations: "/dojo-shots/graduations.webp",
+  checkin: "/dojo-shots/checkin.webp",
+  competitions: "/dojo-shots/competitions.webp",
+  evaluations: "/dojo-shots/evaluations.webp",
+  announcements: "/dojo-shots/announcements.webp",
+  store: "/dojo-shots/store.webp",
+  studentApp: "/dojo-shots/app-login.webp",
 } as const;
 
 export type ShotKey = keyof typeof SHOT;
