@@ -76,7 +76,6 @@ import { syncBeltTerms } from "@/lib/dojo/belt-terms";
 import { UnitScopeProvider } from "@/components/dojo/UnitScope";
 import { UnitSwitcher } from "@/components/dojo/UnitSwitcher";
 import { DojoSplash } from "@/components/dojo/DojoSplash";
-import { EmailVerificationBanner } from "@/components/dojo/EmailVerificationBanner";
 import { DojoCommandPalette } from "@/components/dojo/DojoCommandPalette";
 import { attachPushRotationListener, subscriptionToPayload, syncPushSubscription } from "@/lib/pwa/push-client";
 import { getOwnerPushPublicKey, subscribeOwnerPush } from "@/lib/dojo/owner-push.functions";
@@ -479,7 +478,6 @@ function DojoLayoutInner({
     <>
       <TrialBanner />
       <TrialExpiredOverlay pathname={pathname} onLogout={onLogout} />
-      <EmailVerificationBanner />
       <DojoCommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} groups={visibleNav} />
       <Sidebar
         collapsible="icon"

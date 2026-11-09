@@ -38,6 +38,7 @@ import { PasswordInput } from "@/components/auth/PasswordInput";
 import { isEmailTeamMember, checkTeamMemberGate } from "@/lib/dojo/team.functions";
 import { getStaffSession } from "@/lib/dojo/staff-portal.functions";
 import { registerDojoOwner } from "@/lib/dojo/owner-register.functions";
+import { createDojoOwnerAccount, releasePendingDojoOwner } from "@/lib/dojo/owner-signup.functions";
 
 const searchSchema = z.object({ redirect: z.string().optional() });
 
@@ -223,13 +224,24 @@ function DojoAuthPage() {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
+    let { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
+    // Conta de dono criada no fluxo antigo e nunca confirmada: libera e entra
+    // (o Dojo Manager não usa mais e-mail de confirmação).
+    if (error && /email not confirmed/i.test(error.message)) {
+      try {
+        const r = await releasePendingDojoOwner({ data: { email: email.trim() } });
+        if (r.released) {
+          ({ data: signInData, error } = await supabase.auth.signInWithPassword({ email, password }));
+        }
+      } catch {
+        /* cai na mensagem abaixo */
+      }
+    }
     if (error) {
       setLoading(false);
       if (/email not confirmed/i.test(error.message)) {
-        return toast.error("E-mail ainda não confirmado", {
-          description: "Abra o link que enviamos ao seu e-mail para ativar a conta.",
-          action: { label: "Reenviar link", onClick: () => void resendConfirmation() },
+        return toast.error("Não foi possível liberar sua conta", {
+          description: "Fale com o suporte AMT para ativar seu acesso.",
           duration: 15000,
         });
       }
@@ -301,29 +313,32 @@ function DojoAuthPage() {
         return;
       }
     } catch { /* segue em caso de falha na checagem */ }
+    await createAccountAndEnter();
+  };
+
+  // Conta criada já confirmada pelo servidor (sem e-mail de confirmação) e
+  // login na sequência com a senha que a pessoa acabou de definir.
+  const createAccountAndEnter = async () => {
     setLoading(true);
-    const { error, data } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/dojo/auth`,
-        data: { full_name: name, account_type: "dojo_manager" },
-      },
-    });
+    try {
+      await createDojoOwnerAccount({ data: { name: name.trim(), email: email.trim(), password } });
+    } catch (e) {
+      setLoading(false);
+      const msg = e instanceof Error ? e.message : String(e);
+      return toast.error("Falha ao criar conta", { description: translateAuthError(msg) });
+    }
+    const { error, data } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     setLoading(false);
-    if (error) return toast.error("Falha ao criar conta", { description: translateAuthError(error.message) });
+    if (error) return toast.error("Conta criada, mas não foi possível entrar", { description: translateAuthError(error.message) });
     await finishSignUp(data.user, data.session);
   };
 
-  // Sem sessão = confirmação de e-mail pendente. Redirecionar para /dojo/app
-  // nesse estado devolvia o cliente à tela de login sem explicação.
+  // A conta já nasce confirmada; sem sessão (falha rara no login logo após o
+  // cadastro) a pessoa entra pela aba "Entrar" com a senha que acabou de criar.
   const finishSignUp = async (user: { id: string } | null, session: unknown) => {
     if (!user) return;
     if (!session) {
-      toast.success("Conta criada! Confirme seu e-mail", {
-        description: `Enviamos um link de confirmação para ${email}. Abra-o (verifique também o spam) para acessar o sistema.`,
-        duration: 15000,
-      });
+      toast.success("Conta criada!", { description: "Entre com seu e-mail e a senha que você definiu." });
       setMode("signin");
       return;
     }
@@ -334,16 +349,6 @@ function DojoAuthPage() {
     }
     toast.success("Conta criada! Bem-vindo ao AMT Dojo Manager.");
     window.location.assign("/dojo/app");
-  };
-
-  const resendConfirmation = async () => {
-    const { error } = await supabase.auth.resend({
-      type: "signup",
-      email,
-      options: { emailRedirectTo: `${window.location.origin}/dojo/auth` },
-    });
-    if (error) return toast.error("Não foi possível reenviar", { description: translateAuthError(error.message) });
-    toast.success("Link de confirmação reenviado", { description: "Verifique sua caixa de entrada e o spam." });
   };
 
 
@@ -387,18 +392,7 @@ function DojoAuthPage() {
 
   const handleSignUpDirect = async () => {
     setShowStudentConflict(false);
-    setLoading(true);
-    const { error, data } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/dojo/auth`,
-        data: { full_name: name, account_type: "dojo_manager" },
-      },
-    });
-    setLoading(false);
-    if (error) return toast.error("Falha ao criar conta", { description: translateAuthError(error.message) });
-    await finishSignUp(data.user, data.session);
+    await createAccountAndEnter();
   };
 
   const highlights = [
