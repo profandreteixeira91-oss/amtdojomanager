@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { listDojoBelts, saveDojoStudent, bulkImportDojoStudents } from "@/lib/dojo/dojo.functions";
 import { parseStudentsFile, type ParsedStudentRow, STUDENT_IMPORT_COLUMNS, STUDENT_IMPORT_EXAMPLE } from "@/lib/dojo/students-xlsx";
 import { maskPhone } from "@/lib/br-masks";
+import { modalityLabel, normalizeModality } from "@/lib/dojo/modalities";
 import type { SetupState } from "@/lib/dojo/setup.functions";
 import { validateSetupRows, setupStudentSchema } from "@/lib/dojo/setup-validation";
 
@@ -36,7 +37,7 @@ export function StepStudents({ state, refresh, onBusy }: { state: SetupState; re
       <Label htmlFor="setup-student-name">Nome completo</Label><Input id="setup-student-name" required minLength={2} maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
       <Label htmlFor="setup-student-phone">WhatsApp / celular</Label><Input id="setup-student-phone" type="tel" value={phone} onChange={(e) => setPhone(maskPhone(e.target.value))} />
       <Label htmlFor="setup-birth">Data de nascimento</Label><Input id="setup-birth" type="date" max={today} value={birth} onChange={(e) => setBirth(e.target.value)} />
-      <Label htmlFor="setup-belt">Faixa inicial</Label><select id="setup-belt" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={belt} onChange={(e) => setBelt(e.target.value)}><option value="">Sem faixa informada</option>{(belts.data ?? []).map((b: { id: string; name: string; modality?: string | null }) => <option key={b.id} value={b.id}>{b.name} · {b.modality}</option>)}</select>
+      <Label htmlFor="setup-belt">Faixa inicial</Label><select id="setup-belt" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={belt} onChange={(e) => setBelt(e.target.value)}><option value="">Sem faixa informada</option>{(belts.data ?? []).filter((b: { modality?: string | null }) => { const mine = (state.academy?.modalities ?? []).map(normalizeModality); return mine.length === 0 || mine.includes(normalizeModality(b.modality)); }).map((b: { id: string; name: string; modality?: string | null }) => <option key={b.id} value={b.id}>{b.name} · {modalityLabel(b.modality)}</option>)}</select>
       <Button className="w-full" disabled={busy}>{busy ? "Salvando…" : "Salvar e adicionar outro"}</Button>
       <Button asChild variant="link"><Link to="/dojo/app/students">Cadastro completo e matrícula</Link></Button>
     </form>}

@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plus, Trash2, ChevronUp, ChevronDown, Copy, Save, Beaker } from "lucide-react";
+import { MODALITY_CATALOG, sameModality } from "@/lib/dojo/modalities";
 
 /**
  * Rota oculta (não vinculada no menu) para edição avançada de faixas:
@@ -116,13 +117,8 @@ type BeltVariant = {
 };
 
 
-const MODALITY_OPTIONS = [
-  { id: "jiu-jitsu", label: "Jiu-Jitsu" },
-  { id: "judo", label: "Judô" },
-  { id: "karate", label: "Karatê" },
-  { id: "taekwondo", label: "Taekwondo" },
-  { id: "muay-thai", label: "Muay Thai" },
-];
+// Catálogo único de modalidades (todas com faixas pré-definidas).
+const MODALITY_OPTIONS = MODALITY_CATALOG;
 
 function newBeltDraft(modality = "jiu-jitsu"): BeltRow {
   return {
@@ -165,7 +161,7 @@ function BeltStudio() {
   
 
   const scoped = useMemo(
-    () => belts.filter((b) => b.modality === modality).sort((a, b) => a.sort_order - b.sort_order),
+    () => belts.filter((b) => sameModality(b.modality, modality)).sort((a, b) => a.sort_order - b.sort_order),
     [belts, modality],
   );
 

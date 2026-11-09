@@ -13,6 +13,7 @@ import { saveClass, listSpaces } from "@/lib/dojo/schedule.functions";
 import { listDojoUnits } from "@/lib/dojo/dojo.functions";
 import { listTeamMembers } from "@/lib/dojo/team.functions";
 import { WEEKDAYS, MODALITIES, LEVELS, CLASS_COLORS } from "./constants";
+import { modalityLabel, normalizeModality } from "@/lib/dojo/modalities";
 
 type Schedule = { weekday: number; start_time: string; end_time: string };
 
@@ -59,7 +60,7 @@ export function ClassFormDialog({
           id: initial.id,
           name: initial.name ?? "",
           description: initial.description ?? "",
-          modality: initial.modality ?? "jiu-jitsu",
+          modality: normalizeModality(initial.modality) || "jiu-jitsu",
           level: initial.level ?? "todos",
           color: initial.color ?? "#dc2626",
           max_students: initial.max_students ?? 20,
@@ -173,7 +174,7 @@ export function ClassFormDialog({
                   <Select value={form.modality} onValueChange={(v) => setForm({ ...form, modality: v })}>
                     <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {MODALITIES.map((m) => <SelectItem key={m} value={m} className="capitalize">{m}</SelectItem>)}
+                      {(MODALITIES.includes(form.modality) || !form.modality ? MODALITIES : [...MODALITIES, form.modality]).map((m) => <SelectItem key={m} value={m}>{modalityLabel(m)}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>

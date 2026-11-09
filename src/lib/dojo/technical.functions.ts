@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { normalizeModality } from "@/lib/dojo/modalities";
 
 async function assertOwnership(supabase: any, userId: string, studentId: string) {
   const { data } = await supabase
@@ -116,8 +117,10 @@ export const seedDefaultFundamentals = createServerFn({ method: "POST" })
       "mma": ["Striking", "Wrestling", "Jiu-jitsu", "Clinch", "Ground and pound", "Condicionamento"],
       "karate": ["Kihon", "Kata", "Kumite", "Chutes", "Socos", "Bloqueios", "Deslocamento"],
       "taekwondo": ["Chutes", "Poomsae", "Kyorugi", "Deslocamento", "Defesa", "Condicionamento"],
+      "kickboxing": ["Jab", "Direto", "Chutes", "Joelhadas", "Esquivas", "Footwork", "Condicionamento"],
     };
-    const key = data.modality.toLowerCase().trim();
+    // "Judô", "Muay Thai" etc. caem no id do catálogo.
+    const key = normalizeModality(data.modality);
     const list = presets[key] ?? ["Técnica", "Defesa", "Ataque", "Deslocamento", "Condicionamento"];
 
     const rows = list.map((name, i) => ({

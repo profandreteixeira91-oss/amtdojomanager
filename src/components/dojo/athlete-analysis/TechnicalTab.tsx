@@ -23,20 +23,10 @@ import {
   deleteFundamental,
   seedDefaultFundamentals,
 } from "@/lib/dojo/technical.functions";
+import { MODALITY_CATALOG, modalityLabel } from "@/lib/dojo/modalities";
 
-const MODALITIES: { value: string; label: string }[] = [
-  { value: "jiu-jitsu", label: "Jiu-Jitsu" },
-  { value: "judo", label: "Judô" },
-  { value: "muay-thai", label: "Muay Thai" },
-  { value: "boxe", label: "Boxe" },
-  { value: "mma", label: "MMA" },
-  { value: "karate", label: "Karatê" },
-  { value: "taekwondo", label: "Taekwondo" },
-];
-
-function modalityLabel(v: string) {
-  return MODALITIES.find((m) => m.value === v)?.label ?? v;
-}
+// Catálogo único de modalidades do sistema.
+const MODALITIES: { value: string; label: string }[] = MODALITY_CATALOG.map((m) => ({ value: m.id, label: m.label }));
 
 export function TechnicalTab({ studentId }: { studentId: string }) {
   const qc = useQueryClient();

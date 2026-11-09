@@ -1,3 +1,5 @@
+import { MODALITY_IDS } from "@/lib/dojo/modalities";
+
 export const WEEKDAYS = [
   { value: 0, short: "Dom", label: "Domingo" },
   { value: 1, short: "Seg", label: "Segunda" },
@@ -8,16 +10,8 @@ export const WEEKDAYS = [
   { value: 6, short: "Sáb", label: "Sábado" },
 ];
 
-export const MODALITIES = [
-  "jiu-jitsu",
-  "judô",
-  "nogi",
-  "kids",
-  "open mat",
-  "muay-thai",
-  "mma",
-  "boxe",
-];
+/** Modalidades das turmas: o catálogo único do sistema (src/lib/dojo/modalities.ts). */
+export const MODALITIES: string[] = MODALITY_IDS;
 
 export const LEVELS = ["iniciante", "intermediário", "avançado", "todos"];
 

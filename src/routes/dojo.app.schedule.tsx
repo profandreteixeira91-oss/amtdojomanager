@@ -19,6 +19,7 @@ import { SpacesManager } from "@/components/dojo/schedule/SpacesManager";
 import { WEEKDAYS, MODALITIES, fmtTime, ymd } from "@/components/dojo/schedule/constants";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { SlidersHorizontal } from "lucide-react";
+import { modalityLabel, sameModality } from "@/lib/dojo/modalities";
 
 export const Route = createFileRoute("/dojo/app/schedule")({
   head: () => ({ meta: [{ title: "Agenda — AMT Dojo Manager" }] }),
@@ -92,7 +93,7 @@ function SchedulePage() {
   const filtered = useMemo(() => {
     return (classes.data ?? []).filter((c: any) => {
       if (filters.status !== "all" && c.status !== filters.status) return false;
-      if (filters.modality !== "all" && c.modality !== filters.modality) return false;
+      if (filters.modality !== "all" && !sameModality(c.modality, filters.modality)) return false;
       if (filters.space_id !== "all" && c.space_id !== filters.space_id) return false;
       if (filters.unit_id !== "all" && c.unit_id !== filters.unit_id) return false;
       if (filters.teacher && !(c.teacher_name ?? "").toLowerCase().includes(filters.teacher.toLowerCase())) return false;
@@ -251,7 +252,7 @@ function SchedulePage() {
                 <SelectTrigger className="h-8 w-full sm:w-[160px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas</SelectItem>
-                  {MODALITIES.map((m) => <SelectItem key={m} value={m} className="capitalize">{m}</SelectItem>)}
+                  {MODALITIES.map((m) => <SelectItem key={m} value={m}>{modalityLabel(m)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </Filter>
@@ -481,7 +482,7 @@ function ClassesTable({ classes, onOpen }: { classes: any[]; onOpen: (c: any) =>
                   <span className="font-medium">{c.name}</span>
                 </div>
               </td>
-              <td className="p-2 capitalize">{c.modality}</td>
+              <td className="p-2">{modalityLabel(c.modality)}</td>
               <td className="p-2">{c.teacher_name || "—"}</td>
               <td className="p-2">{c.dojo_spaces?.name || "—"}</td>
               <td className="p-2 text-xs">

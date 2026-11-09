@@ -23,6 +23,7 @@ import { CheckCircle2, Award, Eye, Printer, GraduationCap, Users, ScrollText, Se
 import { todayISO } from "@/lib/dates";
 import { currentBeltEntries, rankedBelts, beltLabel, beltEntryKey } from "@/lib/dojo/current-belts";
 import { DojoPageHero } from "@/components/dojo/DojoPageHero";
+import { modalityLabel, normalizeModality } from "@/lib/dojo/modalities";
 
 export const Route = createFileRoute("/dojo/app/graduations")({
   head: () => ({ meta: [{ title: "Graduações — AMT Dojo Manager" }] }),
@@ -35,23 +36,6 @@ export const Route = createFileRoute("/dojo/app/graduations")({
 
 type Step = "select" | "grad" | "payment" | "cert";
 
-const MODALITY_LABELS: Record<string, string> = {
-  "jiu-jitsu": "Jiu-Jitsu",
-  "muay-thai": "Muay Thai",
-  judo: "Judô",
-  karate: "Karatê",
-  "taekwondo": "Taekwondo",
-  boxe: "Boxe",
-  mma: "MMA",
-  capoeira: "Capoeira",
-  "kung-fu": "Kung Fu",
-  "krav-maga": "Krav Magá",
-  wrestling: "Wrestling",
-};
-function modalityLabel(v: string) {
-  if (MODALITY_LABELS[v]) return MODALITY_LABELS[v];
-  return String(v).replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 function NewGraduationPage() {
   const routeSearch = Route.useSearch();
@@ -756,9 +740,10 @@ function NewGraduationPage() {
             </div>
           </CardHeader>
           {showPricing && (() => {
-            const acadMods = (academyModalities.data ?? []).map((m) => m.toLowerCase());
+            // Modalidades do perfil podem estar gravadas como "Judô"/"judô": compara pelo id do catálogo.
+            const acadMods = (academyModalities.data ?? []).map((m) => normalizeModality(m));
             const filteredByAcademy = acadMods.length > 0
-              ? (belts.data ?? []).filter((b: any) => acadMods.includes(String(b.modality ?? "jiu-jitsu").toLowerCase()))
+              ? (belts.data ?? []).filter((b: any) => acadMods.includes(normalizeModality(b.modality ?? "jiu-jitsu")))
               : (belts.data ?? []);
             const modalityOptions = Array.from(new Set(filteredByAcademy.map((b: any) => String(b.modality ?? "jiu-jitsu")))) as string[];
             const beltsToShow = pricingModality === "all"
@@ -956,7 +941,7 @@ function NewGraduationPage() {
                   {filterBeltOptions.map((b: any) => (
                     <option key={b.id} value={b.id}>
                       {b.name}
-                      {filterModality === "all" ? ` (${b.modality ?? "jiu-jitsu"})` : ""}
+                      {filterModality === "all" ? ` (${modalityLabel(b.modality ?? "jiu-jitsu")})` : ""}
                     </option>
                   ))}
                 </select>

@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { calendarISO, todayISO, utcCalendarISO } from "@/lib/dates";
 import { normalizeCurrentBelts } from "@/lib/dojo/current-belts";
 import { resolveDojoOwnerId } from "@/lib/dojo/owner-scope";
+import { normalizeModality } from "@/lib/dojo/modalities";
 
 // Owner-scoped helper: every user manages their own dojo. RLS enforces
 // `owner_id = auth.uid()` for reads/writes, so we only need to inject
@@ -220,7 +221,7 @@ async function attachCurrentBeltsByModality(
   const byStudentGrads = new Map<string, Map<string, any>>();
   for (const g of grads) {
     if (!g.belt) continue;
-    const modality = (g.belt as any).modality ?? "jiu-jitsu";
+    const modality = normalizeModality((g.belt as any).modality) || "jiu-jitsu";
     let m = byStudentGrads.get(g.student_id);
     if (!m) { m = new Map(); byStudentGrads.set(g.student_id, m); }
     if (!m.has(modality)) {
@@ -235,7 +236,8 @@ async function attachCurrentBeltsByModality(
 
   const byStudentClasses = new Map<string, Map<string, string[]>>();
   for (const cs of classStudents) {
-    const mod = (cs.dojo_classes as any)?.modality ?? "jiu-jitsu";
+    // Turmas gravadas como "judô" contam para as faixas de "judo".
+    const mod = normalizeModality((cs.dojo_classes as any)?.modality) || "jiu-jitsu";
     let m = byStudentClasses.get(cs.student_id);
     if (!m) { m = new Map(); byStudentClasses.set(cs.student_id, m); }
     let cls = m.get(mod);
@@ -305,7 +307,7 @@ export const getDojoStudent = createServerFn({ method: "GET" })
     // Classes by modality
     const classIdsByMod = new Map<string, string[]>();
     for (const cs of classStudentsRes.data ?? []) {
-      const mod = (cs.dojo_classes as any)?.modality ?? "jiu-jitsu";
+      const mod = normalizeModality((cs.dojo_classes as any)?.modality) || "jiu-jitsu";
       let list = classIdsByMod.get(mod);
       if (!list) { list = []; classIdsByMod.set(mod, list); }
       list.push(cs.class_id);
@@ -315,7 +317,7 @@ export const getDojoStudent = createServerFn({ method: "GET" })
     const currentByModality = new Map<string, any>();
     for (const g of grads.data ?? []) {
       if (!g.belt) continue;
-      const mod = (g.belt as any).modality ?? "jiu-jitsu";
+      const mod = normalizeModality((g.belt as any).modality) || "jiu-jitsu";
       if (!currentByModality.has(mod)) {
         currentByModality.set(mod, { 
           modality: mod, 

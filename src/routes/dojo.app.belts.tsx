@@ -33,19 +33,15 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { DojoPageHero } from "@/components/dojo/DojoPageHero";
+import { MODALITY_CATALOG, modalityLabel, normalizeModality, sameModality } from "@/lib/dojo/modalities";
 
 export const Route = createFileRoute("/dojo/app/belts")({
   head: () => ({ meta: [{ title: "Modalidades e Faixas — AMT Dojo Manager" }] }),
   component: BeltsPage,
 });
 
-const KNOWN_MODALITIES: Array<{ id: string; label: string }> = [
-  { id: "jiu-jitsu", label: "Jiu-Jitsu" },
-  { id: "karate", label: "Karatê" },
-  { id: "taekwondo", label: "Taekwondo" },
-  { id: "muay-thai", label: "Muay Thai" },
-  { id: "judo", label: "Judô" },
-];
+// Modalidades com faixas pré-definidas pelo sistema (catálogo único).
+const KNOWN_MODALITIES: Array<{ id: string; label: string }> = MODALITY_CATALOG;
 
 type BeltRow = {
   id: string;
@@ -98,16 +94,16 @@ export function BeltsPage() {
 
   const modalities = useMemo(() => {
     const set = new Set<string>(KNOWN_MODALITIES.map((m) => m.id));
-    (q.data ?? []).forEach((b: any) => set.add(b.modality));
+    (q.data ?? []).forEach((b: any) => set.add(normalizeModality(b.modality)));
     return Array.from(set);
   }, [q.data]);
 
-  const label = (id: string) => KNOWN_MODALITIES.find((m) => m.id === id)?.label ?? id;
+  const label = (id: string) => modalityLabel(id);
 
   const belts: BeltRow[] = useMemo(
     () =>
       ((q.data ?? []) as BeltRow[])
-        .filter((b) => b.modality === modality)
+        .filter((b) => sameModality(b.modality, modality))
         .sort((a, b) => a.sort_order - b.sort_order),
     [q.data, modality]
   );

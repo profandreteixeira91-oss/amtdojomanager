@@ -37,6 +37,7 @@ import { ClassSidePanel } from "@/components/dojo/schedule/ClassSidePanel";
 import { ClassStudentsDialog } from "@/components/dojo/schedule/ClassStudentsDialog";
 import { WEEKDAYS, MODALITIES, fmtTime } from "@/components/dojo/schedule/constants";
 import { Link } from "@tanstack/react-router";
+import { modalityLabel, sameModality } from "@/lib/dojo/modalities";
 
 export const Route = createFileRoute("/dojo/app/classes")({
   head: () => ({
@@ -91,7 +92,7 @@ function ClassesPage() {
     const term = q.trim().toLowerCase();
     return (classes.data ?? []).filter((c: any) => {
       if (filters.status !== "all" && c.status !== filters.status) return false;
-      if (filters.modality !== "all" && c.modality !== filters.modality) return false;
+      if (filters.modality !== "all" && !sameModality(c.modality, filters.modality)) return false;
       if (filters.space_id !== "all" && c.space_id !== filters.space_id) return false;
       if (filters.unit_id !== "all" && c.unit_id !== filters.unit_id) return false;
       if (!term) return true;
@@ -187,7 +188,7 @@ function ClassesPage() {
           <SelectTrigger className="h-9 w-full min-w-0 text-sm sm:w-auto sm:min-w-[160px]"><SelectValue placeholder="Modalidade" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas modalidades</SelectItem>
-            {MODALITIES.map((m) => <SelectItem key={m} value={m} className="capitalize">{m}</SelectItem>)}
+            {MODALITIES.map((m) => <SelectItem key={m} value={m}>{modalityLabel(m)}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filters.space_id} onValueChange={(v) => setFilters({ ...filters, space_id: v })}>
@@ -246,7 +247,7 @@ function ClassesPage() {
                   <button className="min-w-0 text-left" onClick={() => setPanelId(c.id)}>
                     <div className="font-semibold break-words">{c.name}</div>
                     <div className="mt-0.5 text-xs capitalize text-muted-foreground break-words">
-                      {c.modality} · {c.level || "todos"}
+                      {modalityLabel(c.modality)} · {c.level || "todos"}
                     </div>
                   </button>
                   <span

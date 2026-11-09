@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { isCatalogModality, normalizeModality } from "@/lib/dojo/modalities";
 
 export const getSetupState = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -38,7 +39,9 @@ export const saveSetupIdentity = createServerFn({ method: "POST" })
   }).parse(input))
   .handler(async ({ context, data }) => {
     // Do not touch onboarding_completed: it belongs to AMT Pay.
-    const { error } = await context.supabase.from("dojo_academy_profile").upsert({ owner_id: context.userId, ...data, state: data.state.toUpperCase() }, { onConflict: "owner_id" });
+    // Modalidades do catálogo gravadas pelo id ("judo", "muay-thai"); "Outra" fica como digitada.
+    const modalities = Array.from(new Set(data.modalities.map((m) => (isCatalogModality(m) ? normalizeModality(m) : m.trim()))));
+    const { error } = await context.supabase.from("dojo_academy_profile").upsert({ owner_id: context.userId, ...data, modalities, state: data.state.toUpperCase() }, { onConflict: "owner_id" });
     if (error) throw new Error(error.message);
     return { ok: true };
   });
