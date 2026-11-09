@@ -9,7 +9,7 @@ const faqs = [
   { q: "Posso cancelar quando quiser?", a: "Sim. Não existe fidelidade nem multa. Você cancela quando quiser, direto no painel." },
   { q: "Os dados ficam seguros?", a: "Sim. Cada academia tem seus dados totalmente isolados, com criptografia, backups automáticos e regras de acesso por permissão." },
   { q: "Serve para qualquer modalidade?", a: "Sim. Jiu-Jitsu, Judô, Muay Thai, Boxe, Karatê, MMA, Taekwondo e outras. Você configura as modalidades, faixas, graus e a terminologia da sua arte (Dan, grau, kyu)." },
-  { q: "Como funciona o teste gratuito?", a: "São 14 dias com acesso total a todos os módulos do plano Premium, sem cartão de crédito. Você cadastra a academia, importa alunos, testa tudo de verdade e só depois escolhe o plano." },
+  { q: "Como funciona o teste gratuito?", a: "Você escolhe o plano e usa tudo o que ele inclui por 14 dias, sem cartão de crédito. Cadastra a academia, importa alunos, testa de verdade e pode trocar de plano quando quiser." },
   { q: "Existe suporte?", a: "Sim. Suporte humano por WhatsApp e e-mail, além de tutorial guiado dentro do próprio sistema para você começar sozinho." },
   { q: "Posso importar meus alunos?", a: "Sim. Você pode importar sua planilha de alunos e graduações ou cadastrar pelo wizard guiado, com máscaras de CPF, CEP e busca de endereço automática." },
   { q: "Posso controlar várias unidades?", a: "Sim, no plano Premium. É possível gerenciar múltiplas unidades e filiais com dados isolados e visão consolidada da rede." },

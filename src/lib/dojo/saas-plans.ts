@@ -2,8 +2,8 @@
 // bloqueio de módulos e cobrança). Funções puras: rodam no cliente e no servidor.
 //
 // Contas criadas antes dos planos ficam em `legacy`: tudo liberado, mesmo valor
-// e mesma cobrança de antes. Contas novas testam o Premium por 14 dias e
-// escolhem um plano ao assinar.
+// e mesma cobrança de antes. Contas novas escolhem o plano em /dojo/planos,
+// testam esse plano por 14 dias e podem trocar ao assinar.
 //
 // Os limites (alunos ativos, unidades, usuários do sistema) são garantidos no
 // banco por `dojo_plan_limit()` (migration `dojo_planos_saas` no amtfightwear):
@@ -163,8 +163,8 @@ export function featureForPath(pathname: string): PlanFeature | null {
 /**
  * Plano que vale agora para os recursos:
  * - `legacy` (contas anteriores aos planos) → tudo liberado;
- * - em teste grátis → Premium;
- * - sem assinatura ainda (antes da primeira leitura criar o teste) → Premium.
+ * - conta nova (em teste ou paga) → o plano escolhido;
+ * - sem assinatura ainda (antes do cadastro criar a linha) → Premium.
  * Bloqueio por falta de pagamento é outro controle (TrialExpiredOverlay).
  */
 export function effectivePlanCode(
@@ -173,9 +173,103 @@ export function effectivePlanCode(
   if (!sub) return "premium";
   const code = sub.plan_code ?? "legacy";
   if (code === "legacy") return "legacy";
-  if (sub.status === "trialing") return "premium";
   return isSaasPlanCode(code) ? code : "legacy";
 }
+
+/** Linha da comparação detalhada (/dojo/planos). */
+export type ComparisonRow = {
+  label: string;
+  hint?: string;
+  /** Recurso que define em quais planos aparece; sem ele = todos os planos. */
+  feature?: PlanFeature;
+  /** Valor por plano (limites); substitui o ✓/✗. */
+  values?: Record<SaasPlanCode, string>;
+};
+
+const limitText = (v: number | null) => (v === null ? "Ilimitados" : `Até ${v}`);
+
+export const PLAN_COMPARISON: { group: string; rows: ComparisonRow[] }[] = [
+  {
+    group: "Limites",
+    rows: [
+      {
+        label: "Alunos ativos",
+        values: {
+          essencial: limitText(SAAS_PLANS.essencial.limits.students),
+          profissional: limitText(SAAS_PLANS.profissional.limits.students),
+          premium: "Ilimitados",
+        },
+      },
+      {
+        label: "Unidades",
+        values: { essencial: "1", profissional: "1", premium: "Ilimitadas" },
+      },
+      {
+        label: "Usuários do sistema",
+        hint: "Logins da equipe com permissões por módulo",
+        values: {
+          essencial: String(SAAS_PLANS.essencial.limits.systemUsers),
+          profissional: String(SAAS_PLANS.profissional.limits.systemUsers),
+          premium: "Ilimitados",
+        },
+      },
+    ],
+  },
+  {
+    group: "Gestão do dia a dia",
+    rows: [
+      { label: "Alunos e matrículas", hint: "Ficha completa, anamnese, importação por planilha" },
+      { label: "Agenda e turmas", hint: "Horários, espaços, professores e ocupação" },
+      { label: "Check-in", hint: "QR Code, PIN e quiosque em tela cheia" },
+      { label: "Quadro de avisos", hint: "Comunicados no App do Aluno" },
+      { label: "Modalidades, faixas e graus", hint: "Belt Studio com ilustrações por modalidade" },
+      { label: "Graduações", hint: "Cerimônias, critérios e histórico" },
+    ],
+  },
+  {
+    group: "Financeiro",
+    rows: [
+      { label: "Planos de mensalidade e matrículas" },
+      { label: "Financeiro completo", hint: "Contas a receber e a pagar, fluxo de caixa, relatórios" },
+      { label: "AMT Pay", hint: "PIX, cartão e boleto com 2% por transação" },
+      { label: "Vendas avulsas", hint: "Produtos, taxas e serviços" },
+      { label: "AMT Store integrada", hint: "Faixas, kimonos e patches com preço de atacado" },
+    ],
+  },
+  {
+    group: "App do Aluno",
+    rows: [
+      { label: "App do Aluno (PWA)", hint: "Carteirinha digital, faturas e agenda" },
+      { label: "Notificações push" },
+      { label: "WhatsApp da academia", hint: "Lembretes e avisos pelo número da academia", feature: "whatsapp" },
+    ],
+  },
+  {
+    group: "Ensino e competição",
+    rows: [
+      { label: "Avaliações", hint: "Provas teóricas e práticas por fundamento", feature: "evaluations" },
+      { label: "Certificados", hint: "Editor de modelos e PDF A4", feature: "certificates" },
+      { label: "Planos de aula", hint: "Biblioteca e banco de técnicas", feature: "lesson_plans" },
+      { label: "Vídeos", hint: "Biblioteca de conteúdos por categoria", feature: "videos" },
+      { label: "Ranking", hint: "Classificação por check-ins", feature: "ranking" },
+      { label: "Competições", hint: "Calendário, atletas, medalhas e finanças", feature: "competitions" },
+    ],
+  },
+  {
+    group: "Equipe e jurídico",
+    rows: [
+      { label: "Central de contratos", hint: "Modelos, emissão e histórico", feature: "contracts" },
+      { label: "Equipe", hint: "Colaboradores, folha e escalas", feature: "team" },
+    ],
+  },
+  {
+    group: "Rede",
+    rows: [
+      { label: "Unidades e filiais", hint: "Rede de afiliados com visão consolidada", feature: "units" },
+      { label: "Benefícios corporativos", hint: "Gympass, TotalPass e parceiros", feature: "corporate_benefits" },
+    ],
+  },
+];
 
 export function planHasFeature(plan: PlanCode, feature: PlanFeature): boolean {
   if (plan === "legacy") return true;

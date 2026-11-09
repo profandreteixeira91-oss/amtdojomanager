@@ -21,6 +21,7 @@ import {
 
 import { supabase } from "@/integrations/supabase/client";
 import { maskPhone } from "@/lib/br-masks";
+import { SAAS_PLANS, SAAS_PLAN_ORDER, formatBRL, type SaasPlanCode } from "@/lib/dojo/saas-plans";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,7 +46,11 @@ import {
   verifyDojoSignupCode,
 } from "@/lib/dojo/owner-signup.functions";
 
-const searchSchema = z.object({ redirect: z.string().optional() });
+const searchSchema = z.object({
+  redirect: z.string().optional(),
+  mode: z.enum(["signin", "signup"]).optional().catch(undefined),
+  plan: z.enum(["essencial", "profissional", "premium"]).optional().catch(undefined),
+});
 
 
 export const Route = createFileRoute("/dojo/auth")({
@@ -94,7 +99,11 @@ function translateAuthError(message: string): string {
 function DojoAuthPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup">(
+    search.mode ?? (search.plan ? "signup" : "signin"),
+  );
+  // Plano escolhido em /dojo/planos: o teste grátis já começa nele.
+  const [planCode, setPlanCode] = useState<SaasPlanCode>(search.plan ?? "profissional");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -364,6 +373,7 @@ function DojoAuthPage() {
           email: email.trim(),
           phone: whatsapp,
           password,
+          planCode,
         },
       });
     } catch (err) {
@@ -597,6 +607,38 @@ function DojoAuthPage() {
                 </form>
               ) : (
               <form onSubmit={isSignup ? handleSignUp : handleSignIn} className="space-y-4">
+                {isSignup && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-[#111111]/75">Plano do teste grátis</span>
+                      <Link to="/dojo/planos" className="text-xs font-semibold text-[#dc2626] hover:underline">
+                        Comparar planos
+                      </Link>
+                    </div>
+                    <div role="radiogroup" aria-label="Plano" className="grid grid-cols-3 gap-1.5">
+                      {SAAS_PLAN_ORDER.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          role="radio"
+                          aria-checked={planCode === c}
+                          onClick={() => setPlanCode(c)}
+                          className={
+                            "rounded-xl border px-2 py-2 text-left transition " +
+                            (planCode === c
+                              ? "border-[#dc2626] bg-red-50 ring-2 ring-[#dc2626]/15"
+                              : "border-black/10 bg-[#fafafa] hover:border-black/20")
+                          }
+                        >
+                          <span className="block text-[13px] font-bold leading-tight">{SAAS_PLANS[c].name}</span>
+                          <span className="block text-[11px] text-[#111111]/55">R$ {formatBRL(SAAS_PLANS[c].price)}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-[#111111]/50">14 dias grátis neste plano, sem cartão. Você pode trocar depois.</p>
+                  </div>
+                )}
+
                 {isSignup && (
                   <div className="space-y-1.5">
                     <Label htmlFor="name" className="text-xs font-semibold text-[#111111]/75">

@@ -13,7 +13,7 @@ export function Plans() {
       id="planos"
       eyebrow="Planos"
       title="Um plano para cada fase da sua academia."
-      description="Comece com 14 dias grátis no Premium, sem cartão. Depois escolha o plano que cabe na sua academia — e mude quando quiser."
+      description="Escolha o plano que cabe na sua academia e teste 14 dias grátis, sem cartão — e mude quando quiser."
       className="bg-white"
     >
       <FadeIn>
@@ -95,7 +95,7 @@ export function Plans() {
                       : "mt-8 min-h-12 w-full rounded-full bg-[#111111] text-white hover:bg-black"
                   }
                 >
-                  <a href="#cta">Testar 14 dias grátis</a>
+                  <a href={`/dojo/planos?plan=${code}`}>Testar 14 dias grátis</a>
                 </Button>
               </div>
             );
@@ -109,7 +109,7 @@ export function Plans() {
             <p className="text-[11px] font-bold uppercase tracking-wider text-[#111111]/50">
               Teste grátis
             </p>
-            <p className="mt-1 text-lg font-semibold">14 dias no Premium</p>
+            <p className="mt-1 text-lg font-semibold">14 dias grátis</p>
           </div>
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wider text-[#111111]/50">

@@ -28,6 +28,7 @@ import { Route as DojoAppRouteImport } from './routes/dojo.app'
 import { Route as DojoAuthRouteImport } from './routes/dojo.auth'
 import { Route as DojoCheckoutRouteImport } from './routes/dojo.checkout'
 import { Route as DojoOnboardingRouteImport } from './routes/dojo.onboarding'
+import { Route as DojoPlanosRouteImport } from './routes/dojo.planos'
 import { Route as FerramentasCalculadoraTicketMedioRouteImport } from './routes/ferramentas.calculadora-ticket-medio'
 import { Route as MatriculaSlugRouteImport } from './routes/matricula.$slug'
 import { Route as PayInvoiceIdRouteImport } from './routes/pay.$invoiceId'
@@ -264,6 +265,11 @@ const DojoCheckoutRoute = DojoCheckoutRouteImport.update({
 const DojoOnboardingRoute = DojoOnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => DojoRoute,
+} as any)
+const DojoPlanosRoute = DojoPlanosRouteImport.update({
+  id: '/planos',
+  path: '/planos',
   getParentRoute: () => DojoRoute,
 } as any)
 const FerramentasCalculadoraTicketMedioRoute =
@@ -1047,6 +1053,7 @@ export interface FileRoutesByFullPath {
   '/dojo/auth': typeof DojoAuthRoute
   '/dojo/checkout': typeof DojoCheckoutRoute
   '/dojo/onboarding': typeof DojoOnboardingRoute
+  '/dojo/planos': typeof DojoPlanosRoute
   '/ferramentas/calculadora-ticket-medio': typeof FerramentasCalculadoraTicketMedioRoute
   '/matricula/$slug': typeof MatriculaSlugRoute
   '/pay/$invoiceId': typeof PayInvoiceIdRoute
@@ -1208,6 +1215,7 @@ export interface FileRoutesByTo {
   '/dojo/auth': typeof DojoAuthRoute
   '/dojo/checkout': typeof DojoCheckoutRoute
   '/dojo/onboarding': typeof DojoOnboardingRoute
+  '/dojo/planos': typeof DojoPlanosRoute
   '/ferramentas/calculadora-ticket-medio': typeof FerramentasCalculadoraTicketMedioRoute
   '/matricula/$slug': typeof MatriculaSlugRoute
   '/pay/$invoiceId': typeof PayInvoiceIdRoute
@@ -1361,6 +1369,7 @@ export interface FileRoutesById {
   '/dojo/auth': typeof DojoAuthRoute
   '/dojo/checkout': typeof DojoCheckoutRoute
   '/dojo/onboarding': typeof DojoOnboardingRoute
+  '/dojo/planos': typeof DojoPlanosRoute
   '/ferramentas/calculadora-ticket-medio': typeof FerramentasCalculadoraTicketMedioRoute
   '/matricula/$slug': typeof MatriculaSlugRoute
   '/pay/$invoiceId': typeof PayInvoiceIdRoute
@@ -1526,6 +1535,7 @@ export interface FileRouteTypes {
     | '/dojo/auth'
     | '/dojo/checkout'
     | '/dojo/onboarding'
+    | '/dojo/planos'
     | '/ferramentas/calculadora-ticket-medio'
     | '/matricula/$slug'
     | '/pay/$invoiceId'
@@ -1687,6 +1697,7 @@ export interface FileRouteTypes {
     | '/dojo/auth'
     | '/dojo/checkout'
     | '/dojo/onboarding'
+    | '/dojo/planos'
     | '/ferramentas/calculadora-ticket-medio'
     | '/matricula/$slug'
     | '/pay/$invoiceId'
@@ -1839,6 +1850,7 @@ export interface FileRouteTypes {
     | '/dojo/auth'
     | '/dojo/checkout'
     | '/dojo/onboarding'
+    | '/dojo/planos'
     | '/ferramentas/calculadora-ticket-medio'
     | '/matricula/$slug'
     | '/pay/$invoiceId'
@@ -2150,6 +2162,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/dojo/onboarding'
       preLoaderRoute: typeof DojoOnboardingRouteImport
+      parentRoute: typeof DojoRoute
+    }
+    '/dojo/planos': {
+      id: '/dojo/planos'
+      path: '/planos'
+      fullPath: '/dojo/planos'
+      preLoaderRoute: typeof DojoPlanosRouteImport
       parentRoute: typeof DojoRoute
     }
     '/ferramentas/calculadora-ticket-medio': {
@@ -3601,6 +3620,7 @@ interface DojoRouteChildren {
   DojoAuthRoute: typeof DojoAuthRoute
   DojoCheckoutRoute: typeof DojoCheckoutRoute
   DojoOnboardingRoute: typeof DojoOnboardingRoute
+  DojoPlanosRoute: typeof DojoPlanosRoute
   DojoIndexRoute: typeof DojoIndexRoute
   DojoCertificateEditorIdRoute: typeof DojoCertificateEditorIdRoute
   DojoMatriculaSlugRoute: typeof DojoMatriculaSlugRoute
@@ -3614,6 +3634,7 @@ const DojoRouteChildren: DojoRouteChildren = {
   DojoAuthRoute: DojoAuthRoute,
   DojoCheckoutRoute: DojoCheckoutRoute,
   DojoOnboardingRoute: DojoOnboardingRoute,
+  DojoPlanosRoute: DojoPlanosRoute,
   DojoIndexRoute: DojoIndexRoute,
   DojoCertificateEditorIdRoute: DojoCertificateEditorIdRoute,
   DojoMatriculaSlugRoute: DojoMatriculaSlugRoute,

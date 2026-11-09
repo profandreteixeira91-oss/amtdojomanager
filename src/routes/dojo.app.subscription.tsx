@@ -228,9 +228,9 @@ function SubscriptionPage() {
                   <Zap className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
                   <div className="text-sm text-blue-900 leading-relaxed">
                     Você está aproveitando o <strong>período de teste gratuito</strong>
-                    {!isLegacy && <> com tudo do plano <strong>Premium</strong></>}.
+                    {currentPlan && <> no plano <strong>{SAAS_PLANS[currentPlan].name}</strong></>}.
                     Sua conta expira em <strong>{trialEnds.toLocaleDateString("pt-BR")}</strong>
-                    {!isLegacy && <> — escolha um plano acima para continuar</>}.
+                    {!isLegacy && <> — ative a assinatura para continuar (você pode trocar de plano acima)</>}.
                   </div>
                 </div>
               )}

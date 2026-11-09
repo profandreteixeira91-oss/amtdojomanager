@@ -27,7 +27,7 @@ export function CTABand({ title = "Comece hoje a organizar sua academia.", class
         size="lg"
         className="group min-h-12 rounded-full bg-[#C1121F] px-7 text-base font-bold text-white shadow-lg shadow-[#C1121F]/25 hover:bg-[#a30f1a]"
       >
-        <a href="/dojo/auth">
+        <a href="/dojo/planos">
           COMEÇAR TESTE GRATUITO
           <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
         </a>

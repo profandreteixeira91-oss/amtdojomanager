@@ -19,7 +19,7 @@ export function Hero() {
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Button asChild size="lg" className="group min-h-12 rounded-full bg-[#C1121F] px-7 text-base font-bold text-white shadow-lg shadow-[#C1121F]/25 hover:bg-[#a30f1a]">
-              <a href="/dojo/auth">
+              <a href="/dojo/planos">
                 Conhecer o Dojo Manager
                 <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
               </a>
@@ -28,7 +28,7 @@ export function Hero() {
               Explorar funcionalidades
             </a>
           </div>
-          <p className="mt-5 text-sm text-[#111111]/50">14 dias de teste com acesso completo.</p>
+          <p className="mt-5 text-sm text-[#111111]/50">14 dias grátis no plano que você escolher.</p>
         </motion.div>
 
         <motion.figure

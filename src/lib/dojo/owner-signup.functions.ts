@@ -202,6 +202,7 @@ export const verifyDojoSignupCode = createServerFn({ method: "POST" })
         codeId: z.string().uuid(),
         code: z.string().trim().regex(/^\d{6}$/, "O código tem 6 números."),
         password: z.string().min(8).max(72),
+        planCode: z.enum(["essencial", "profissional", "premium"]),
       })
       .parse(i),
   )
@@ -237,13 +238,33 @@ export const verifyDojoSignupCode = createServerFn({ method: "POST" })
     if (!claimed?.length) throw new Error("Código já utilizado. Peça um novo código.");
 
     await assertCanCreateOwner(data.email);
-    const { error } = await db.auth.admin.createUser({
+    const { data: created, error } = await db.auth.admin.createUser({
       email: data.email,
       password: data.password,
       email_confirm: true,
-      user_metadata: { full_name: data.name, account_type: "dojo_manager", whatsapp: phone },
+      user_metadata: {
+        full_name: data.name,
+        account_type: "dojo_manager",
+        whatsapp: phone,
+        plan_code: data.planCode,
+      },
     });
     if (error) throw new Error(error.message);
+
+    // Teste grátis já no plano escolhido (gravado pelo servidor: o dono não
+    // altera plano/valor — trigger no banco).
+    const { SAAS_PLANS } = await import("@/lib/dojo/saas-plans");
+    const { TRIAL_DAYS } = await import("@/lib/dojo/subscription.functions");
+    const { error: subErr } = await db.from("dojo_subscriptions").insert({
+      owner_id: created.user.id,
+      plan_code: data.planCode,
+      plan_amount: SAAS_PLANS[data.planCode].price,
+      currency: "BRL",
+      status: "trialing",
+      trial_ends_at: new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString(),
+      current_period_end: null,
+    });
+    if (subErr) console.error("[dojo-signup] assinatura de teste não criada:", subErr.message);
     return { ok: true as const };
   });
 

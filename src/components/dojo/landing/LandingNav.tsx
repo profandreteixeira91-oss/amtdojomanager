@@ -33,7 +33,7 @@ export function LandingNav() {
             <Link to="/dojo/auth">Entrar</Link>
           </Button>
           <Button asChild size="sm" className="rounded-full bg-[#C1121F] px-5 text-white shadow-sm hover:bg-[#a30f1a]">
-            <a href="#cta">Teste Grátis</a>
+            <Link to="/dojo/planos">Teste Grátis</Link>
           </Button>
         </div>
         <button aria-label="Abrir menu" aria-expanded={open} className="-mr-2 grid h-11 w-11 place-items-center rounded-lg text-[#111111] md:hidden" onClick={() => setOpen((v) => !v)}>
@@ -53,7 +53,7 @@ export function LandingNav() {
                 <Link to="/dojo/auth">Entrar</Link>
               </Button>
               <Button asChild size="sm" className="flex-1 rounded-full bg-[#C1121F] text-white hover:bg-[#a30f1a]">
-                <a href="#cta">Teste Grátis</a>
+                <Link to="/dojo/planos">Teste Grátis</Link>
               </Button>
             </div>
           </div>
