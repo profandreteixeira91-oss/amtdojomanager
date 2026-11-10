@@ -813,11 +813,12 @@ async function site(req: Request, sb: SupabaseClient, body: Record<string, unkno
     const token = [...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, "0")).join("");
     const { error } = await sb.from("support_site_sessions").insert({ chat_id: chatId, token_hash: await sha256Hex(token), ip_hash: ipHash, visitor_name: name });
     if (error) throw new Error(error.message);
-    return { token, messages: await siteMessages(sb, chatId) };
+    return { token, chat_id: chatId, messages: await siteMessages(sb, chatId) };
   }
 
   const session = await siteSession(sb, body.token);
-  if (action === "site_poll") return { messages: await siteMessages(sb, session.chat_id) };
+  // chat_id: o servidor do site usa para ligar o lead à conversa (/admin/whatsapp?conversa=).
+  if (action === "site_poll") return { chat_id: session.chat_id, messages: await siteMessages(sb, session.chat_id) };
   if (action === "site_send") {
     const text = str(body.text, 1000);
     if (!text) throw new HttpError(400, "Escreva a mensagem.");
