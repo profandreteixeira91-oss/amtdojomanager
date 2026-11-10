@@ -4,7 +4,7 @@ import { renderErrorPage } from "./lib/error-page";
 import { attachScopedSupabaseAuth } from "@/lib/student-auth/bearer-attacher";
 import { attachActiveStudent } from "@/integrations/supabase/active-student-attacher";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
-import { DOJO_HOST, isDojoHostname } from "@/lib/dojo-hosts";
+import { DOJO_HOST, isDojoHostname, isDojoSharedPath } from "@/lib/dojo-hosts";
 
 const domainRoutingMiddleware = createMiddleware().server(async ({ next, request }) => {
   const url = new URL(request.url);
@@ -49,15 +49,19 @@ const domainRoutingMiddleware = createMiddleware().server(async ({ next, request
   // (public student-app endpoints). Keep this in sync with DOMAIN_ROUTING_SCRIPT
   // in src/routes/__root.tsx. Prefixing /app with /dojo makes valid student
   // routes unreachable (for example /app/login -> /dojo/app/login).
+  // Também ficam onde estão as páginas compartilhadas (ferramentas, textos legais, certificado, troca de senha,
+  // sitemap): em /dojo/... elas não existem. Lista em DOJO_SHARED_PATH_PREFIXES (src/lib/dojo-hosts.ts).
   const isDojoArea =
+    isDojoSharedPath(url.pathname) ||
     url.pathname.startsWith("/dojo") ||
     url.pathname.startsWith("/app") ||
     url.pathname.startsWith("/api/public/app");
 
   if (isDojoHost && !isDojoArea) {
     const targetPath = url.pathname === "/" ? "/dojo" : `/dojo${url.pathname}`;
-    // Permanece no domínio acessado (produção ou testes).
-    return Response.redirect(`https://${dojoHost}${targetPath}${url.search}`, 307);
+    // Permanece no domínio acessado (produção ou testes). A raiz é permanente (301): o Google passa a tratar
+    // amtdojomanager.com.br/ e /dojo como o mesmo endereço.
+    return Response.redirect(`https://${dojoHost}${targetPath}${url.search}`, url.pathname === "/" ? 301 : 307);
   }
 
   return next();
