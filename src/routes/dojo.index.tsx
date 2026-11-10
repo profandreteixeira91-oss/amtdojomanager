@@ -12,61 +12,30 @@ import { RealScreenshots } from "@/components/dojo/landing/RealScreenshots";
 import { Differentiators } from "@/components/dojo/landing/Differentiators";
 import { Integrations } from "@/components/dojo/landing/Integrations";
 import { Plans } from "@/components/dojo/landing/Plans";
-import { SAAS_PLANS, SAAS_PLAN_ORDER } from "@/lib/dojo/saas-plans";
 import { FAQ } from "@/components/dojo/landing/FAQ";
 import { FreeTools } from "@/components/dojo/landing/FreeTools";
 import { FinalCTA } from "@/components/dojo/landing/FinalCTA";
 import { Footer } from "@/components/dojo/landing/Footer";
+import { dojoCanonical } from "@/lib/dojo-hosts";
+import { LANDING_FAQS } from "@/lib/dojo/landing-faq";
+import { DOJO_ORGANIZATION, DOJO_SITE_NAME, dojoPageHead, dojoSoftwareApplication } from "@/lib/dojo/seo";
 
 export const Route = createFileRoute("/dojo/")({
-  head: () => ({
-    meta: [
-      { title: "AMT Dojo Manager — Gestão completa para academias de artes marciais" },
-      {
-        name: "description",
-        content:
-          "Software de gestão para academias de Jiu-Jitsu, Judô e artes marciais: alunos, financeiro, graduações, certificados, competições e integração com AMT Fight Wear.",
-      },
-      { property: "og:title", content: "AMT Dojo Manager" },
-      { property: "og:type", content: "website" },
-      {
-        property: "og:description",
-        content:
-          "Gerencie sua academia em um só lugar — alunos, financeiro, graduações, competições e vendas integradas.",
-      },
-      { property: "og:image", content: "https://gudjmkiyprgwgxmzbgji.supabase.co/storage/v1/object/public/site-assets/a13608b2-2d5c-4d53-b64e-78e38c6083e9/dojo-manager-logo.png" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:image", content: "https://gudjmkiyprgwgxmzbgji.supabase.co/storage/v1/object/public/site-assets/a13608b2-2d5c-4d53-b64e-78e38c6083e9/dojo-manager-logo.png" },
-    ],
-    links: [{ rel: "canonical", href: "https://amtdojomanager.com.br/dojo" }],
-    scripts: [
-      {
-        type: "application/ld+json",
-        children: JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "SoftwareApplication",
-          name: "AMT Dojo Manager",
-          applicationCategory: "BusinessApplication",
-          operatingSystem: "Web",
-          description:
-            "Software de gestão completo para academias de artes marciais — alunos, financeiro, graduações, certificados e competições.",
-          offers: {
-            "@type": "AggregateOffer",
-            priceCurrency: "BRL",
-            lowPrice: Math.min(...SAAS_PLAN_ORDER.map((c) => SAAS_PLANS[c].price)).toFixed(2),
-            highPrice: Math.max(...SAAS_PLAN_ORDER.map((c) => SAAS_PLANS[c].price)).toFixed(2),
-            offerCount: SAAS_PLAN_ORDER.length,
-            offers: SAAS_PLAN_ORDER.map((c) => ({
-              "@type": "Offer",
-              name: `Plano ${SAAS_PLANS[c].name}`,
-              price: SAAS_PLANS[c].price.toFixed(2),
-              priceCurrency: "BRL",
-            })),
-          },
-        }),
-      },
-    ],
-  }),
+  head: () =>
+    dojoPageHead({
+      title: "Sistema para academias de artes marciais | AMT Dojo Manager",
+      description:
+        "Sistema para academias de Jiu-Jitsu, Judô, Muay Thai e outras artes marciais: alunos, mensalidades, check-in, graduações e app do aluno. Teste grátis por 14 dias.",
+      path: "/dojo",
+      jsonLd: [
+        { "@type": "WebSite", "@id": dojoCanonical("/dojo#website"), name: DOJO_SITE_NAME, url: dojoCanonical("/dojo"), inLanguage: "pt-BR", publisher: { "@id": DOJO_ORGANIZATION["@id"] } },
+        dojoSoftwareApplication(),
+        {
+          "@type": "FAQPage",
+          mainEntity: LANDING_FAQS.map((item) => ({ "@type": "Question", name: item.q, acceptedAnswer: { "@type": "Answer", text: item.a } })),
+        },
+      ],
+    }),
   component: DojoLanding,
 });
 

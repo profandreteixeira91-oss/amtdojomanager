@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, Check, Minus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DojoLogo } from "@/components/dojo/DojoLogo";
 import { Footer } from "@/components/dojo/landing/Footer";
+import { dojoPageHead, dojoSoftwareApplication } from "@/lib/dojo/seo";
 import {
   PLAN_COMPARISON,
   SAAS_PLANS,
@@ -23,17 +24,17 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute("/dojo/planos")({
   validateSearch: searchSchema,
-  head: () => ({
-    meta: [
-      { title: "Planos e preços — AMT Dojo Manager" },
-      {
-        name: "description",
-        content:
-          "Compare os planos Essencial, Profissional e Premium do AMT Dojo Manager e comece 14 dias grátis no plano escolhido, sem cartão.",
-      },
-    ],
-    links: [{ rel: "canonical", href: "https://amtdojomanager.com.br/dojo/planos" }],
-  }),
+  head: () =>
+    dojoPageHead({
+      title: "Planos e preços do sistema para academias | AMT Dojo Manager",
+      description: `Compare os planos Essencial, Profissional e Premium do AMT Dojo Manager a partir de R$ ${SAAS_PLANS.essencial.price.toFixed(2).replace(".", ",")}/mês. Teste grátis por 14 dias no plano escolhido, sem cartão.`,
+      path: "/dojo/planos",
+      jsonLd: [dojoSoftwareApplication()],
+      breadcrumb: [
+        { name: "AMT Dojo Manager", path: "/dojo" },
+        { name: "Planos e preços", path: "/dojo/planos" },
+      ],
+    }),
   component: PlansPage,
 });
 

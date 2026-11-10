@@ -1,20 +1,23 @@
+# AMT Dojo Manager (amtdojomanager.com.br)
 User-agent: *
-Allow: /
+Allow: /dojo
+Allow: /dojo/planos
+Allow: /ferramentas/
 
-Disallow: /admin
+# Áreas logadas, pagamento, contas e APIs
 Disallow: /dojo/app
-Disallow: /app
-Disallow: /auth
+Disallow: /dojo/staff
 Disallow: /dojo/auth
-Disallow: /loja/conta
-Disallow: /loja/carrinho
-Disallow: /loja/checkout
-Disallow: /loja/pedido
+Disallow: /dojo/onboarding
 Disallow: /dojo/checkout
 Disallow: /dojo/pay
+Disallow: /dojo/certificate-editor
+Disallow: /dojo/matricula
+Disallow: /app
 Disallow: /pay
+Disallow: /matricula
+Disallow: /certificate
 Disallow: /reset-password
-Disallow: /unsubscribe
 Disallow: /api/
 
-Sitemap: https://amtfightwear.com.br/sitemap.xml
+Sitemap: https://amtdojomanager.com.br/sitemap.xml

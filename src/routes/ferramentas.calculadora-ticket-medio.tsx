@@ -4,22 +4,37 @@ import { ArrowLeft, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CurrentTicketPart, computeCurrent, type CurrentValues } from "@/components/dojo/tools/CurrentTicketPart";
 import { IdealTicketPart, EMPTY_IDEAL, type IdealValues } from "@/components/dojo/tools/IdealTicketPart";
+import { dojoCanonical } from "@/lib/dojo-hosts";
+import { DOJO_ORGANIZATION, dojoPageHead } from "@/lib/dojo/seo";
 
 const TITLE = "Calculadora de Ticket Médio para Academias | AMT Dojo Manager";
 const DESC = "Calcule grátis o ticket médio atual da sua academia de artes marciais e quanto cobrar por aluno para cobrir despesas e atingir sua meta de lucro.";
 
 export const Route = createFileRoute("/ferramentas/calculadora-ticket-medio")({
-  head: () => ({
-    meta: [
-      { title: TITLE },
-      { name: "description", content: DESC },
-      { property: "og:title", content: TITLE },
-      { property: "og:description", content: DESC },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
-    links: [{ rel: "canonical", href: "https://amtfightwear.com.br/ferramentas/calculadora-ticket-medio" }],
-  }),
+  head: () =>
+    dojoPageHead({
+      title: TITLE,
+      description: DESC,
+      path: "/ferramentas/calculadora-ticket-medio",
+      jsonLd: [
+        {
+          "@type": "WebApplication",
+          name: "Calculadora de Ticket Médio para Academias",
+          url: dojoCanonical("/ferramentas/calculadora-ticket-medio"),
+          applicationCategory: "BusinessApplication",
+          operatingSystem: "Web",
+          isAccessibleForFree: true,
+          inLanguage: "pt-BR",
+          description: DESC,
+          offers: { "@type": "Offer", price: "0", priceCurrency: "BRL" },
+          publisher: { "@id": DOJO_ORGANIZATION["@id"] },
+        },
+      ],
+      breadcrumb: [
+        { name: "AMT Dojo Manager", path: "/dojo" },
+        { name: "Calculadora de Ticket Médio", path: "/ferramentas/calculadora-ticket-medio" },
+      ],
+    }),
   component: TicketCalculatorPage,
 });
 

@@ -13,6 +13,34 @@ export const DOJO_HOSTS: readonly string[] = [
   "teste.amtsistemas.com.br",
 ];
 
+/**
+ * Páginas fora de /dojo que também existem no domínio do Dojo e não podem ser
+ * mandadas para /dojo/... (lá não existem e dariam 404): ferramentas gratuitas,
+ * textos legais, verificação de certificado, troca de senha e arquivos de SEO.
+ */
+export const DOJO_SHARED_PATH_PREFIXES: readonly string[] = [
+  "/ferramentas/",
+  "/privacy",
+  "/terms",
+  "/data-deletion",
+  "/certificate/",
+  "/reset-password",
+  "/sitemap.xml",
+  "/robots.txt",
+];
+
+export function isDojoSharedPath(pathname: string): boolean {
+  return DOJO_SHARED_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+/** Host de teste (branch 1nov26): nunca deve ser indexado. */
+export const DOJO_TEST_HOST = "teste.amtsistemas.com.br";
+
+/** Endereço público canônico de uma página do Dojo. */
+export function dojoCanonical(path: string): string {
+  return `https://${DOJO_HOST}${path}`;
+}
+
 export function isDojoHostname(hostname: string): boolean {
   return DOJO_HOSTS.includes(hostname);
 }

@@ -7,7 +7,8 @@ export function Hero() {
   return (
     <section id="top" className="px-4 pt-14 pb-20 md:px-6 md:pt-20 md:pb-28">
       <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-        <motion.div className="min-w-0" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+        {/* initial={false}: o topo já chega visível no HTML (melhor LCP e leitura pelo Google). */}
+        <motion.div className="min-w-0" initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <span className="inline-block rounded-full border border-[#C1121F]/20 bg-[#C1121F]/5 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#C1121F]">
             Gestão para academias de artes marciais
           </span>
@@ -32,7 +33,7 @@ export function Hero() {
         </motion.div>
 
         <motion.figure
-          initial={{ opacity: 0, y: 16 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
           className="min-w-0 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-[0_40px_80px_-40px_rgba(0,0,0,0.35)]"

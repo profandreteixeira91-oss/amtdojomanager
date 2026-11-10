@@ -2,7 +2,8 @@ import { Instagram, Facebook, Youtube } from "lucide-react";
 import { DojoLogo } from "@/components/dojo/DojoLogo";
 
 const groups = [
-  { title: "Produto", links: [{ label: "Recursos", href: "#recursos" }, { label: "Módulos", href: "#modulos" }, { label: "Planos", href: "#planos" }] },
+  // Endereços completos: o rodapé também aparece em /dojo/planos, onde as âncoras da landing não existem.
+  { title: "Produto", links: [{ label: "Recursos", href: "/dojo#recursos" }, { label: "Módulos", href: "/dojo#modulos" }, { label: "Planos e preços", href: "/dojo/planos" }, { label: "Calculadora de ticket médio", href: "/ferramentas/calculadora-ticket-medio" }] },
   { title: "Empresa", links: [{ label: "AMT Fight Wear", href: "https://amtfightwear.com.br" }, { label: "Contato", href: "mailto:contato@amtfightwear.com.br" }] },
   { title: "Legal", links: [{ label: "Política de Privacidade", href: "/privacy" }, { label: "Termos de Uso", href: "/terms" }] },
 ];

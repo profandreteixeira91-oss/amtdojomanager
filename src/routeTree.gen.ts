@@ -15,6 +15,7 @@ import { Route as DataDeletionRouteImport } from './routes/data-deletion'
 import { Route as DojoRouteImport } from './routes/dojo'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppSplatRouteImport } from './routes/app.$'
@@ -201,6 +202,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TermsRoute = TermsRouteImport.update({
@@ -1043,6 +1049,7 @@ export interface FileRoutesByFullPath {
   '/dojo': typeof DojoRouteWithChildren
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/app/$': typeof AppSplatRoute
   '/app/install': typeof AppInstallRouteWithChildren
@@ -1205,6 +1212,7 @@ export interface FileRoutesByTo {
   '/data-deletion': typeof DataDeletionRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/app/$': typeof AppSplatRoute
   '/app': typeof AppIndexRoute
@@ -1358,6 +1366,7 @@ export interface FileRoutesById {
   '/dojo': typeof DojoRouteWithChildren
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/app/$': typeof AppSplatRoute
   '/app/_student': typeof AppStudentRouteWithChildren
@@ -1525,6 +1534,7 @@ export interface FileRouteTypes {
     | '/dojo'
     | '/privacy'
     | '/reset-password'
+    | '/sitemap.xml'
     | '/terms'
     | '/app/$'
     | '/app/install'
@@ -1687,6 +1697,7 @@ export interface FileRouteTypes {
     | '/data-deletion'
     | '/privacy'
     | '/reset-password'
+    | '/sitemap.xml'
     | '/terms'
     | '/app/$'
     | '/app'
@@ -1839,6 +1850,7 @@ export interface FileRouteTypes {
     | '/dojo'
     | '/privacy'
     | '/reset-password'
+    | '/sitemap.xml'
     | '/terms'
     | '/app/$'
     | '/app/_student'
@@ -2005,6 +2017,7 @@ export interface RootRouteChildren {
   DojoRoute: typeof DojoRouteWithChildren
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
   CertificateHashRoute: typeof CertificateHashRoute
   FerramentasCalculadoraTicketMedioRoute: typeof FerramentasCalculadoraTicketMedioRoute
@@ -2071,6 +2084,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/terms': {
@@ -3652,6 +3672,7 @@ const rootRouteChildren: RootRouteChildren = {
   DojoRoute: DojoRouteWithChildren,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
   CertificateHashRoute: CertificateHashRoute,
   FerramentasCalculadoraTicketMedioRoute:
