@@ -410,7 +410,10 @@ async function chatById(sb: SupabaseClient, id: string): Promise<Chat> {
   return data as Chat;
 }
 
-type Subscription = { status: string; plan_amount: number | null; trial_ends_at: string | null; current_period_end: string | null; next_due_date: string | null; current_payment_status: string | null; subscription_type: string | null; updated_at: string };
+type Subscription = { status: string; plan_code: string | null; plan_amount: number | null; trial_ends_at: string | null; current_period_end: string | null; next_due_date: string | null; current_payment_status: string | null; subscription_type: string | null; updated_at: string };
+
+// Nomes dos planos (manter igual a SAAS_PLANS em src/lib/dojo/saas-plans.ts).
+const PLAN_NAMES: Record<string, string> = { essencial: "Essencial", profissional: "Profissional", premium: "Premium", legacy: "Legado" };
 
 function subscriptionGroup(s: Subscription | null): string {
   if (!s) return "sem_assinatura";
@@ -425,7 +428,7 @@ async function academySummary(sb: SupabaseClient, ownerId: string) {
   const [profile, owner, subs, students, tickets, auth] = await Promise.all([
     sb.from("dojo_academy_profile").select("trade_name, legal_name, email, phone, whatsapp, city, state, slug").eq("owner_id", ownerId).maybeSingle(),
     sb.from("dojo_users").select("name, email").eq("owner_id", ownerId).eq("role", "owner").limit(1).maybeSingle(),
-    sb.from("dojo_subscriptions").select("status, plan_amount, trial_ends_at, current_period_end, next_due_date, current_payment_status, subscription_type, updated_at").eq("owner_id", ownerId).order("updated_at", { ascending: false }).limit(1),
+    sb.from("dojo_subscriptions").select("status, plan_code, plan_amount, trial_ends_at, current_period_end, next_due_date, current_payment_status, subscription_type, updated_at").eq("owner_id", ownerId).order("updated_at", { ascending: false }).limit(1),
     sb.from("dojo_students").select("status").eq("owner_id", ownerId),
     sb.from("dojo_support_tickets").select("id, subject, status, priority, last_message_at, created_at").eq("owner_id", ownerId).order("last_message_at", { ascending: false, nullsFirst: false }).limit(20),
     sb.auth.admin.getUserById(ownerId),
@@ -442,8 +445,8 @@ async function academySummary(sb: SupabaseClient, ownerId: string) {
     phone: p?.whatsapp || p?.phone || null,
     city: p?.city ? [p.city, p.state].filter(Boolean).join("/") : null,
     subscription: sub
-      ? { status: sub.status, group: subscriptionGroup(sub), amount_monthly: sub.plan_amount === null ? null : Number(sub.plan_amount), trial_ends_at: sub.trial_ends_at, current_period_end: sub.current_period_end, next_due_date: sub.next_due_date }
-      : { status: null, group: "sem_assinatura", amount_monthly: null, trial_ends_at: null, current_period_end: null, next_due_date: null },
+      ? { status: sub.status, group: subscriptionGroup(sub), plan_code: sub.plan_code ?? "legacy", plan_name: PLAN_NAMES[sub.plan_code ?? "legacy"] ?? sub.plan_code, payment_method: sub.subscription_type === "pix" ? "Pix" : sub.subscription_type === "card" ? "Cartão" : null, amount_monthly: sub.plan_amount === null ? null : Number(sub.plan_amount), trial_ends_at: sub.trial_ends_at, current_period_end: sub.current_period_end, next_due_date: sub.next_due_date }
+      : { status: null, group: "sem_assinatura", plan_code: "premium", plan_name: "Premium", payment_method: null, amount_monthly: null, trial_ends_at: null, current_period_end: null, next_due_date: null },
     students: studentRows.length,
     active_students: studentRows.filter((s) => s.status === "active" || s.status === "ativo").length,
     open_tickets: (tickets.data ?? [])

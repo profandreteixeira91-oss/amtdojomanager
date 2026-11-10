@@ -11,15 +11,25 @@ import { adminClient, assertControlCenterAdmin, corsHeaders, errorResponse, Http
 //
 // Deploy: npx supabase functions deploy platform-overview --project-ref gudjmkiyprgwgxmzbgji --no-verify-jwt
 //
-// GET/POST -> { customers, apk, support, amt_fees } com as academias, assinaturas, downloads do app e chamados.
+// GET/POST -> { customers, plans, apk, support, amt_fees } com as academias, assinaturas, downloads do app e chamados.
 // POST { action: "delete_preview", owner_id }          -> prévia da exclusão (registros, logins, arquivos)
 // POST { action: "delete_account", owner_id, confirm } -> exclui a conta; confirm = nome ou e-mail da academia
 // A exclusão é feita por public.platform_dojo_account_deletion (regras e travas descritas na migration).
 
 const CLOSED_TICKET_STATUSES = ["resolvido", "fechado", "concluido", "closed", "resolved"];
 
+// Planos do Dojo Manager. Manter igual a SAAS_PLANS em src/lib/dojo/saas-plans.ts e a dojo_plan_price() no banco.
+const PLANS = [
+  { code: "essencial", name: "Essencial", price: 99.9 },
+  { code: "profissional", name: "Profissional", price: 159.9 },
+  { code: "premium", name: "Premium", price: 229.9 },
+  { code: "legacy", name: "Legado", price: null },
+] as const;
+const PLAN_BY_CODE = new Map<string, (typeof PLANS)[number]>(PLANS.map((plan) => [plan.code, plan]));
+const PAYMENT_METHOD: Record<string, string> = { pix: "Pix", card: "Cartão" };
+
 type Subscription = {
-  owner_id: string; status: string; plan_amount: number | null; trial_ends_at: string | null;
+  owner_id: string; status: string; plan_code: string | null; plan_amount: number | null; trial_ends_at: string | null;
   current_period_end: string | null; next_due_date: string | null; current_payment_status: string | null;
   subscription_type: string | null; cancelled_at: string | null; created_at: string; updated_at: string;
 };
@@ -96,7 +106,7 @@ Deno.serve(async (req: Request) => {
 
     const since30 = new Date(Date.now() - 30 * 86400000).toISOString();
     const [subscriptions, profiles, users, students, apkVersions, apkDownloads, tickets, fees] = await Promise.all([
-      admin.from("dojo_subscriptions").select("owner_id, status, plan_amount, trial_ends_at, current_period_end, next_due_date, current_payment_status, subscription_type, cancelled_at, created_at, updated_at"),
+      admin.from("dojo_subscriptions").select("owner_id, status, plan_code, plan_amount, trial_ends_at, current_period_end, next_due_date, current_payment_status, subscription_type, cancelled_at, created_at, updated_at"),
       admin.from("dojo_academy_profile").select("owner_id, trade_name, legal_name, email, phone, whatsapp, city, state, slug, created_at"),
       admin.from("dojo_users").select("owner_id, role, name, email").eq("role", "owner"),
       admin.from("dojo_students").select("owner_id, status"),
@@ -135,6 +145,9 @@ Deno.serve(async (req: Request) => {
       const user = userByOwner.get(owner);
       const email = profile?.email || user?.email || authEmail.get(owner) || null;
       const ownerStudents = (students.data ?? []).filter((student) => student.owner_id === owner);
+      // Sem assinatura ainda vale o Premium (dojo_plan_effective no banco).
+      const planCode = subscription ? subscription.plan_code ?? "legacy" : "premium";
+      const plan = PLAN_BY_CODE.get(planCode);
       return {
         id: owner,
         name: profile?.trade_name || profile?.legal_name || user?.name || email || "Academia sem nome",
@@ -143,8 +156,9 @@ Deno.serve(async (req: Request) => {
         owner_email: email,
         phone: profile?.whatsapp || profile?.phone || null,
         city: profile?.city ? [profile.city, profile.state].filter(Boolean).join("/") : null,
-        plan: subscription?.subscription_type ?? null,
-        plan_name: subscription?.subscription_type === "pix" ? "Mensal · Pix" : subscription?.subscription_type === "card" ? "Mensal · cartão" : null,
+        plan: planCode,
+        plan_name: plan?.name ?? planCode,
+        payment_method: subscription?.subscription_type ? PAYMENT_METHOD[subscription.subscription_type] ?? subscription.subscription_type : null,
         status: subscription?.status ?? null,
         group: groupOf(subscription, now),
         amount_monthly: subscription?.plan_amount === null || subscription?.plan_amount === undefined ? null : Number(subscription.plan_amount),
@@ -161,11 +175,25 @@ Deno.serve(async (req: Request) => {
     });
 
     const nameById = new Map(customers.map((customer) => [customer.id, customer.name]));
+    const plans = PLANS.map((plan) => {
+      const inPlan = customers.filter((customer) => customer.plan === plan.code);
+      const paying = inPlan.filter((customer) => customer.group === "pagante");
+      return {
+        code: plan.code,
+        name: plan.name,
+        price: plan.price,
+        customers: inPlan.length,
+        paying: paying.length,
+        trial: inPlan.filter((customer) => customer.group === "teste").length,
+        mrr: paying.reduce((sum, customer) => sum + (customer.amount_monthly ?? 0), 0),
+      };
+    });
     const openTickets = (tickets.data ?? []).filter((ticket) => !CLOSED_TICKET_STATUSES.includes(ticket.status));
     return withCors(req, json({
       system: "amt-dojo-manager",
       generated_at: new Date(now).toISOString(),
       customers,
+      plans,
       apk: {
         published_versions: (apkVersions.data ?? []).filter((version) => version.is_published).length,
         academies_with_apk: new Set((apkVersions.data ?? []).filter((version) => version.is_published).map((version) => version.owner_id)).size,
