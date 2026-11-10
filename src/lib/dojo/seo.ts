@@ -18,8 +18,13 @@ export const DOJO_PUBLIC_PAGES: Array<{ path: string; priority: string; changefr
   { path: "/dojo", priority: "1.0", changefreq: "weekly" },
   { path: "/dojo/planos", priority: "0.9", changefreq: "monthly" },
   { path: "/ferramentas/calculadora-ticket-medio", priority: "0.7", changefreq: "monthly" },
-  // /privacy e /terms abrem no domínio do Dojo, mas o texto é o da AMT Fight Wear e o canônico aponta para lá.
+  { path: "/dojo/termos", priority: "0.3", changefreq: "yearly" },
+  { path: "/dojo/privacidade", priority: "0.3", changefreq: "yearly" },
+  // /privacy e /terms são os textos da AMT Fight Wear (canônico lá); os do Dojo são os dois acima.
 ];
+
+/** Perfis oficiais do Dojo Manager (rodapé e sameAs). */
+export const DOJO_SOCIAL_PROFILES = ["https://www.instagram.com/amtdojomanager", "https://www.facebook.com/amtdojomanager"];
 
 export const DOJO_ORGANIZATION = {
   "@type": "Organization",
@@ -63,6 +68,7 @@ export function dojoSoftwareApplication() {
     image: DOJO_OG_IMAGE,
     description: DOJO_SITE_DESCRIPTION,
     inLanguage: "pt-BR",
+    sameAs: DOJO_SOCIAL_PROFILES,
     publisher: { "@id": DOJO_ORGANIZATION["@id"] },
     offers: dojoPlanOffers(),
   };

@@ -30,6 +30,8 @@ import { Route as DojoAuthRouteImport } from './routes/dojo.auth'
 import { Route as DojoCheckoutRouteImport } from './routes/dojo.checkout'
 import { Route as DojoOnboardingRouteImport } from './routes/dojo.onboarding'
 import { Route as DojoPlanosRouteImport } from './routes/dojo.planos'
+import { Route as DojoPrivacidadeRouteImport } from './routes/dojo.privacidade'
+import { Route as DojoTermosRouteImport } from './routes/dojo.termos'
 import { Route as FerramentasCalculadoraTicketMedioRouteImport } from './routes/ferramentas.calculadora-ticket-medio'
 import { Route as MatriculaSlugRouteImport } from './routes/matricula.$slug'
 import { Route as PayInvoiceIdRouteImport } from './routes/pay.$invoiceId'
@@ -276,6 +278,16 @@ const DojoOnboardingRoute = DojoOnboardingRouteImport.update({
 const DojoPlanosRoute = DojoPlanosRouteImport.update({
   id: '/planos',
   path: '/planos',
+  getParentRoute: () => DojoRoute,
+} as any)
+const DojoPrivacidadeRoute = DojoPrivacidadeRouteImport.update({
+  id: '/privacidade',
+  path: '/privacidade',
+  getParentRoute: () => DojoRoute,
+} as any)
+const DojoTermosRoute = DojoTermosRouteImport.update({
+  id: '/termos',
+  path: '/termos',
   getParentRoute: () => DojoRoute,
 } as any)
 const FerramentasCalculadoraTicketMedioRoute =
@@ -1061,6 +1073,8 @@ export interface FileRoutesByFullPath {
   '/dojo/checkout': typeof DojoCheckoutRoute
   '/dojo/onboarding': typeof DojoOnboardingRoute
   '/dojo/planos': typeof DojoPlanosRoute
+  '/dojo/privacidade': typeof DojoPrivacidadeRoute
+  '/dojo/termos': typeof DojoTermosRoute
   '/ferramentas/calculadora-ticket-medio': typeof FerramentasCalculadoraTicketMedioRoute
   '/matricula/$slug': typeof MatriculaSlugRoute
   '/pay/$invoiceId': typeof PayInvoiceIdRoute
@@ -1224,6 +1238,8 @@ export interface FileRoutesByTo {
   '/dojo/checkout': typeof DojoCheckoutRoute
   '/dojo/onboarding': typeof DojoOnboardingRoute
   '/dojo/planos': typeof DojoPlanosRoute
+  '/dojo/privacidade': typeof DojoPrivacidadeRoute
+  '/dojo/termos': typeof DojoTermosRoute
   '/ferramentas/calculadora-ticket-medio': typeof FerramentasCalculadoraTicketMedioRoute
   '/matricula/$slug': typeof MatriculaSlugRoute
   '/pay/$invoiceId': typeof PayInvoiceIdRoute
@@ -1379,6 +1395,8 @@ export interface FileRoutesById {
   '/dojo/checkout': typeof DojoCheckoutRoute
   '/dojo/onboarding': typeof DojoOnboardingRoute
   '/dojo/planos': typeof DojoPlanosRoute
+  '/dojo/privacidade': typeof DojoPrivacidadeRoute
+  '/dojo/termos': typeof DojoTermosRoute
   '/ferramentas/calculadora-ticket-medio': typeof FerramentasCalculadoraTicketMedioRoute
   '/matricula/$slug': typeof MatriculaSlugRoute
   '/pay/$invoiceId': typeof PayInvoiceIdRoute
@@ -1546,6 +1564,8 @@ export interface FileRouteTypes {
     | '/dojo/checkout'
     | '/dojo/onboarding'
     | '/dojo/planos'
+    | '/dojo/privacidade'
+    | '/dojo/termos'
     | '/ferramentas/calculadora-ticket-medio'
     | '/matricula/$slug'
     | '/pay/$invoiceId'
@@ -1709,6 +1729,8 @@ export interface FileRouteTypes {
     | '/dojo/checkout'
     | '/dojo/onboarding'
     | '/dojo/planos'
+    | '/dojo/privacidade'
+    | '/dojo/termos'
     | '/ferramentas/calculadora-ticket-medio'
     | '/matricula/$slug'
     | '/pay/$invoiceId'
@@ -1863,6 +1885,8 @@ export interface FileRouteTypes {
     | '/dojo/checkout'
     | '/dojo/onboarding'
     | '/dojo/planos'
+    | '/dojo/privacidade'
+    | '/dojo/termos'
     | '/ferramentas/calculadora-ticket-medio'
     | '/matricula/$slug'
     | '/pay/$invoiceId'
@@ -2189,6 +2213,20 @@ declare module '@tanstack/react-router' {
       path: '/planos'
       fullPath: '/dojo/planos'
       preLoaderRoute: typeof DojoPlanosRouteImport
+      parentRoute: typeof DojoRoute
+    }
+    '/dojo/privacidade': {
+      id: '/dojo/privacidade'
+      path: '/privacidade'
+      fullPath: '/dojo/privacidade'
+      preLoaderRoute: typeof DojoPrivacidadeRouteImport
+      parentRoute: typeof DojoRoute
+    }
+    '/dojo/termos': {
+      id: '/dojo/termos'
+      path: '/termos'
+      fullPath: '/dojo/termos'
+      preLoaderRoute: typeof DojoTermosRouteImport
       parentRoute: typeof DojoRoute
     }
     '/ferramentas/calculadora-ticket-medio': {
@@ -3641,6 +3679,8 @@ interface DojoRouteChildren {
   DojoCheckoutRoute: typeof DojoCheckoutRoute
   DojoOnboardingRoute: typeof DojoOnboardingRoute
   DojoPlanosRoute: typeof DojoPlanosRoute
+  DojoPrivacidadeRoute: typeof DojoPrivacidadeRoute
+  DojoTermosRoute: typeof DojoTermosRoute
   DojoIndexRoute: typeof DojoIndexRoute
   DojoCertificateEditorIdRoute: typeof DojoCertificateEditorIdRoute
   DojoMatriculaSlugRoute: typeof DojoMatriculaSlugRoute
@@ -3655,6 +3695,8 @@ const DojoRouteChildren: DojoRouteChildren = {
   DojoCheckoutRoute: DojoCheckoutRoute,
   DojoOnboardingRoute: DojoOnboardingRoute,
   DojoPlanosRoute: DojoPlanosRoute,
+  DojoPrivacidadeRoute: DojoPrivacidadeRoute,
+  DojoTermosRoute: DojoTermosRoute,
   DojoIndexRoute: DojoIndexRoute,
   DojoCertificateEditorIdRoute: DojoCertificateEditorIdRoute,
   DojoMatriculaSlugRoute: DojoMatriculaSlugRoute,

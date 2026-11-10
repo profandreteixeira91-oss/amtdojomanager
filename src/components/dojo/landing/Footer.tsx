@@ -1,11 +1,17 @@
-import { Instagram, Facebook, Youtube } from "lucide-react";
+import { Instagram, Facebook } from "lucide-react";
 import { DojoLogo } from "@/components/dojo/DojoLogo";
+
+// Redes do Dojo Manager (também em sameAs do schema.org, src/lib/dojo/seo.ts).
+const socials = [
+  { label: "Instagram do AMT Dojo Manager", href: "https://www.instagram.com/amtdojomanager", Icon: Instagram },
+  { label: "Facebook do AMT Dojo Manager", href: "https://www.facebook.com/amtdojomanager", Icon: Facebook },
+];
 
 const groups = [
   // Endereços completos: o rodapé também aparece em /dojo/planos, onde as âncoras da landing não existem.
   { title: "Produto", links: [{ label: "Recursos", href: "/dojo#recursos" }, { label: "Módulos", href: "/dojo#modulos" }, { label: "Planos e preços", href: "/dojo/planos" }, { label: "Calculadora de ticket médio", href: "/ferramentas/calculadora-ticket-medio" }] },
   { title: "Empresa", links: [{ label: "AMT Fight Wear", href: "https://amtfightwear.com.br" }, { label: "Contato", href: "mailto:contato@amtfightwear.com.br" }] },
-  { title: "Legal", links: [{ label: "Política de Privacidade", href: "/privacy" }, { label: "Termos de Uso", href: "/terms" }] },
+  { title: "Legal", links: [{ label: "Política de Privacidade", href: "/dojo/privacidade" }, { label: "Termos de Uso", href: "/dojo/termos" }] },
 ];
 
 export function Footer() {
@@ -19,8 +25,8 @@ export function Footer() {
               Software de gestão completo para academias de artes marciais.
             </p>
             <div className="mt-5 flex gap-3">
-              {[Instagram, Facebook, Youtube].map((Icon, i) => (
-                <a key={i} href="#" aria-label="Redes sociais AMT Dojo Manager" className="grid h-11 w-11 place-items-center rounded-full border border-black/10 text-[#111111]/70 transition-colors hover:border-[#C1121F] hover:text-[#C1121F]">
+              {socials.map(({ label, href, Icon }) => (
+                <a key={href} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} title={label} className="grid h-11 w-11 place-items-center rounded-full border border-black/10 text-[#111111]/70 transition-colors hover:border-[#C1121F] hover:text-[#C1121F]">
                   <Icon className="h-4 w-4" aria-hidden="true" />
                 </a>
               ))}

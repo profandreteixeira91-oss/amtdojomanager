@@ -785,9 +785,9 @@ function DojoAuthPage() {
 
             <p className="mt-6 text-center text-xs text-[#111111]/45">
               Ao continuar você concorda com nossos{" "}
-              <Link to="/terms" className="underline hover:text-[#111111]/70">Termos</Link>
+              <Link to="/dojo/termos" className="underline hover:text-[#111111]/70">Termos</Link>
               {" "}e{" "}
-              <Link to="/privacy" className="underline hover:text-[#111111]/70">Privacidade</Link>.
+              <Link to="/dojo/privacidade" className="underline hover:text-[#111111]/70">Privacidade</Link>.
             </p>
           </motion.div>
         </main>
