@@ -646,6 +646,14 @@ async function panel(sb: SupabaseClient, body: Record<string, unknown>): Promise
       if (error) throw new Error(error.message);
       return { ok: true };
     }
+    case "counters": {
+      // Contadores do menu do /admin: conversas com mensagem não lida e chamados com mensagem nova.
+      const [chats, tickets] = await Promise.all([
+        sb.from("support_wa_chats").select("id", { count: "exact", head: true }).gt("unread_count", 0).eq("archived", false),
+        sb.from("dojo_support_tickets").select("id", { count: "exact", head: true }).gt("unread_by_admin", 0),
+      ]);
+      return { chats: chats.count ?? 0, tickets: tickets.count ?? 0 };
+    }
     case "tickets_list": {
       let q = sb.from("dojo_support_tickets").select(TICKET_COLUMNS).order("last_message_at", { ascending: false, nullsFirst: false }).limit(300);
       if (body.filter !== "todos") q = q.not("status", "in", `(${CLOSED_TICKET_STATUSES.join(",")})`);
