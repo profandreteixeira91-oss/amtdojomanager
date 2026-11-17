@@ -25,7 +25,7 @@ export function CTABand({ title = "Comece hoje a organizar sua academia.", class
       <Button
         asChild
         size="lg"
-        className="group min-h-12 rounded-full bg-[#C1121F] px-7 text-base font-bold text-white shadow-lg shadow-[#C1121F]/25 hover:bg-[#a30f1a]"
+        className="group min-h-12 w-full rounded-full bg-[#C1121F] px-7 text-base font-bold sm:w-auto text-white shadow-lg shadow-[#C1121F]/25 hover:bg-[#a30f1a]"
       >
         <a href="/dojo/planos">
           COMEÇAR TESTE GRATUITO

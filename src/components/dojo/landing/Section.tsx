@@ -13,14 +13,14 @@ type Props = {
 
 export function Section({ id, eyebrow, title, description, children, className = "", align = "center" }: Props) {
   return (
-    <section id={id} className={`px-4 py-20 md:px-6 md:py-28 ${className}`}>
+    <section id={id} className={`px-4 py-14 md:px-6 md:py-28 ${className}`}>
       <div className="mx-auto max-w-7xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.5 }}
-          className={`mb-12 max-w-3xl ${align === "center" ? "mx-auto text-center" : ""}`}
+          className={`mb-8 max-w-3xl md:mb-12 ${align === "center" ? "mx-auto text-center" : ""}`}
         >
           {eyebrow && (
             <span className="inline-block rounded-full border border-[#C1121F]/20 bg-[#C1121F]/5 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#C1121F]">

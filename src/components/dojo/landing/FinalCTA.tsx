@@ -2,15 +2,15 @@ import { Button } from "@/components/ui/button";
 
 export function FinalCTA() {
   return (
-    <section id="cta" className="px-4 py-20 md:px-6 md:py-24">
+    <section id="cta" className="px-4 py-14 md:px-6 md:py-24">
       <div className="mx-auto max-w-5xl rounded-3xl bg-[#111111] px-6 py-14 text-center text-white md:px-16 md:py-20">
         <h2 className="text-3xl font-bold tracking-tight md:text-5xl">Leve a gestão do seu dojo para outro nível.</h2>
         <p className="mx-auto mt-5 max-w-2xl text-base text-white/65 md:text-lg">
           Escolha seu plano, teste 14 dias grátis e veja a academia organizada em um só lugar.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Button asChild size="lg" className="min-h-12 rounded-full bg-[#C1121F] px-7 text-base font-bold text-white hover:bg-[#a30f1a]">
-            <a href="/dojo/planos">Quero conhecer o Dojo Manager</a>
+          <Button asChild size="lg" className="min-h-14 w-full rounded-full bg-[#C1121F] px-7 text-base font-extrabold uppercase text-white hover:bg-[#a30f1a] sm:w-auto">
+            <a href="/dojo/planos">Começar teste grátis de 14 dias</a>
           </Button>
           <a
             href="mailto:contato@amtfightwear.com.br?subject=Demonstração AMT Dojo Manager"

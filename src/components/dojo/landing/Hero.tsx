@@ -5,31 +5,31 @@ import { SHOT } from "./shots";
 
 export function Hero() {
   return (
-    <section id="top" className="px-4 pt-14 pb-20 md:px-6 md:pt-20 md:pb-28">
+    <section id="top" className="px-4 pt-8 pb-16 md:px-6 md:pt-20 md:pb-28">
       <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
         {/* initial={false}: o topo já chega visível no HTML (melhor LCP e leitura pelo Google). */}
         <motion.div className="min-w-0" initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <span className="inline-block rounded-full border border-[#C1121F]/20 bg-[#C1121F]/5 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#C1121F]">
             Gestão para academias de artes marciais
           </span>
-          <h1 className="mt-5 text-[2rem] font-black leading-[1.08] tracking-tight text-[#111111] sm:text-5xl lg:text-[3.5rem]">
+          <h1 className="mt-4 text-[1.875rem] md:mt-5 md:text-[2rem] font-black leading-[1.08] tracking-tight text-[#111111] sm:text-5xl lg:text-[3.5rem]">
             Seu dojo mais organizado. <span className="text-[#C1121F]">Sua gestão sob controle.</span>
           </h1>
           <p className="mt-6 max-w-xl text-base leading-relaxed text-[#111111]/65 md:text-lg">
             Gerencie alunos, aulas, graduações, frequência e financeiro em uma plataforma criada para a rotina das academias de artes marciais.
           </p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Button asChild size="lg" className="group min-h-12 rounded-full bg-[#C1121F] px-7 text-base font-bold text-white shadow-lg shadow-[#C1121F]/25 hover:bg-[#a30f1a]">
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center md:mt-8">
+            <Button asChild size="lg" className="group min-h-14 w-full rounded-full bg-[#C1121F] px-4 text-[0.9rem] font-extrabold uppercase sm:px-7 sm:text-base sm:tracking-wide text-white shadow-xl shadow-[#C1121F]/30 hover:bg-[#a30f1a] sm:w-auto">
               <a href="/dojo/planos">
-                Conhecer o Dojo Manager
-                <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                Começar teste grátis de 14 dias
+                <ArrowRight className="ml-1 h-5 w-5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
               </a>
             </Button>
-            <a href="#modulos" className="inline-flex min-h-12 items-center justify-center px-4 text-base font-semibold text-[#111111]/75 underline-offset-4 hover:text-[#C1121F] hover:underline">
+            <a href="#modulos" className="inline-flex min-h-11 items-center justify-center px-4 text-base font-semibold text-[#111111]/75 underline-offset-4 hover:text-[#C1121F] hover:underline">
               Explorar funcionalidades
             </a>
           </div>
-          <p className="mt-5 text-sm text-[#111111]/50">14 dias grátis no plano que você escolher.</p>
+          <p className="mt-4 text-center text-sm font-medium text-[#111111]/60 sm:text-left">14 dias grátis • Sem cartão • Sem compromisso</p>
         </motion.div>
 
         <motion.figure

@@ -36,9 +36,14 @@ export function LandingNav() {
             <Link to="/dojo/planos">Teste Grátis</Link>
           </Button>
         </div>
-        <button aria-label="Abrir menu" aria-expanded={open} className="-mr-2 grid h-11 w-11 place-items-center rounded-lg text-[#111111] md:hidden" onClick={() => setOpen((v) => !v)}>
+        <div className="flex items-center gap-1 md:hidden">
+          <Button asChild size="sm" className="h-10 rounded-full bg-[#C1121F] px-4 text-sm font-bold text-white hover:bg-[#a30f1a]">
+            <Link to="/dojo/planos">Teste grátis</Link>
+          </Button>
+        <button aria-label="Abrir menu" aria-expanded={open} className="-mr-2 grid h-11 w-11 place-items-center rounded-lg text-[#111111]" onClick={() => setOpen((v) => !v)}>
           {open ? <X className="h-6 w-6" aria-hidden="true" /> : <Menu className="h-6 w-6" aria-hidden="true" />}
         </button>
+        </div>
       </div>
       {open && (
         <div className="border-t border-black/5 bg-white md:hidden">
