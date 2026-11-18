@@ -8,3 +8,8 @@ verify_jwt = false
 [functions.support-inbox]
 # Painel: token do Control Center (outro projeto Supabase). Webhook da Evolution: ?hook=1 com x-amt-token.
 verify_jwt = false
+
+[functions.implementation]
+# Implantação assistida: chamada pelo /admin de amtsistemas.com.br com o token do Control Center (outro projeto
+# Supabase); a funcao confere token e permissao no amt-sistemas, entao o gateway nao valida JWT daqui.
+verify_jwt = false

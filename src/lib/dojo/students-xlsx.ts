@@ -48,7 +48,7 @@ function normalize(s: string) {
     .trim();
 }
 
-// Voorbeeldrij voor beide modellen (CSV en XLSX)
+// Linha de exemplo dos dois modelos (CSV e XLSX)
 export const STUDENT_IMPORT_EXAMPLE: string[] = [
   "João da Silva",
   "000.000.000-00",
@@ -87,7 +87,38 @@ export function downloadStudentsTemplate() {
 
 export type ParsedStudentRow = Record<string, string>;
 
-export async function parseStudentsFile(file: File, preserveCsvText = false): Promise<ParsedStudentRow[]> {
+// Colunas a mais da planilha da implantação assistida (/dojo/app/implantacao):
+// ligam o aluno ao plano, às turmas e à faixa. O importador comum as ignora.
+export const IMPLEMENTATION_EXTRA_COLUMNS: Array<{ key: string; label: string; aliases: string[] }> = [
+  { key: "plan", label: "Plano", aliases: ["plano de mensalidade"] },
+  { key: "classes", label: "Turmas (separe com ;)", aliases: ["turmas", "turma"] },
+  { key: "modality", label: "Modalidade da faixa", aliases: ["modalidade"] },
+  { key: "belt", label: "Faixa", aliases: ["faixa atual"] },
+  { key: "degree", label: "Grau", aliases: ["graus"] },
+  { key: "due_day", label: "Dia de vencimento", aliases: ["vencimento", "dia vencimento"] },
+];
+
+const IMPLEMENTATION_LABEL_TO_KEY: Record<string, string> = { ...LABEL_TO_KEY };
+for (const c of IMPLEMENTATION_EXTRA_COLUMNS) {
+  for (const label of [c.label, c.key, ...c.aliases]) IMPLEMENTATION_LABEL_TO_KEY[normalize(label)] = c.key;
+}
+
+export function downloadImplementationStudentsTemplate() {
+  const headers = [...STUDENT_IMPORT_COLUMNS.map((c) => c.label), ...IMPLEMENTATION_EXTRA_COLUMNS.map((c) => c.label)];
+  const example = [...STUDENT_IMPORT_EXAMPLE, "Mensal Adulto", "Jiu-Jitsu Noite", "Jiu-Jitsu", "Azul", "2", "10"];
+  const ws = XLSX.utils.aoa_to_sheet([headers, example]);
+  ws["!cols"] = headers.map(() => ({ wch: 22 }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Alunos");
+  XLSX.writeFile(wb, "implantacao-alunos.xlsx");
+}
+
+export async function parseStudentsFile(
+  file: File,
+  preserveCsvText = false,
+  withImplementationColumns = false,
+): Promise<ParsedStudentRow[]> {
+  const labelToKey = withImplementationColumns ? IMPLEMENTATION_LABEL_TO_KEY : LABEL_TO_KEY;
   const buf = await file.arrayBuffer();
   const csv = preserveCsvText && file.name.toLowerCase().endsWith(".csv");
   const wb = csv
@@ -101,7 +132,7 @@ export async function parseStudentsFile(file: File, preserveCsvText = false): Pr
   for (const r of raw) {
     const mapped: ParsedStudentRow = {};
     for (const [k, v] of Object.entries(r)) {
-      const key = LABEL_TO_KEY[normalize(k)];
+      const key = labelToKey[normalize(k)];
       if (!key) continue;
       const val = String(v ?? "").trim();
       if (!val) continue;

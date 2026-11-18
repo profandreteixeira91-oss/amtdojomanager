@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.18"
   }
   public: {
     Tables: {
@@ -1863,40 +1863,70 @@ export type Database = {
       }
       crm_deals: {
         Row: {
+          closed_at: string | null
           created_at: string
           customer_id: string | null
           expected_close_at: string | null
           id: string
+          lost_reason: string | null
+          next_action: string | null
+          next_action_at: string | null
           notes: string | null
+          order_id: string | null
+          origin: string | null
           owner_id: string | null
           probability: number
+          product_interest: string | null
+          quantity: number | null
+          quote_id: string | null
           stage: string
+          stage_changed_at: string
           title: string
           updated_at: string
           value: number
         }
         Insert: {
+          closed_at?: string | null
           created_at?: string
           customer_id?: string | null
           expected_close_at?: string | null
           id?: string
+          lost_reason?: string | null
+          next_action?: string | null
+          next_action_at?: string | null
           notes?: string | null
+          order_id?: string | null
+          origin?: string | null
           owner_id?: string | null
           probability?: number
+          product_interest?: string | null
+          quantity?: number | null
+          quote_id?: string | null
           stage?: string
+          stage_changed_at?: string
           title: string
           updated_at?: string
           value?: number
         }
         Update: {
+          closed_at?: string | null
           created_at?: string
           customer_id?: string | null
           expected_close_at?: string | null
           id?: string
+          lost_reason?: string | null
+          next_action?: string | null
+          next_action_at?: string | null
           notes?: string | null
+          order_id?: string | null
+          origin?: string | null
           owner_id?: string | null
           probability?: number
+          product_interest?: string | null
+          quantity?: number | null
+          quote_id?: string | null
           stage?: string
+          stage_changed_at?: string
           title?: string
           updated_at?: string
           value?: number
@@ -1907,6 +1937,20 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "store_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "store_quotes"
             referencedColumns: ["id"]
           },
         ]
@@ -2183,43 +2227,82 @@ export type Database = {
       customers: {
         Row: {
           city: string | null
+          company: string | null
           created_at: string
+          document: string | null
           email: string | null
+          email_normalized: string | null
+          first_order_at: string | null
           full_name: string
           id: string
+          last_contact_at: string | null
           last_order_at: string | null
+          name_normalized: string | null
+          needs_review: boolean
+          notes: string | null
           orders_count: number
+          origin: string | null
           phone: string | null
+          phone_normalized: string | null
+          potential: string | null
+          quotes_count: number
           segment: string
           state: string | null
+          tags: string[]
           total_spent: number
           updated_at: string
         }
         Insert: {
           city?: string | null
+          company?: string | null
           created_at?: string
+          document?: string | null
           email?: string | null
+          email_normalized?: string | null
+          first_order_at?: string | null
           full_name: string
           id?: string
+          last_contact_at?: string | null
           last_order_at?: string | null
+          name_normalized?: string | null
+          needs_review?: boolean
+          notes?: string | null
           orders_count?: number
+          origin?: string | null
           phone?: string | null
+          phone_normalized?: string | null
+          potential?: string | null
+          quotes_count?: number
           segment?: string
           state?: string | null
+          tags?: string[]
           total_spent?: number
           updated_at?: string
         }
         Update: {
           city?: string | null
+          company?: string | null
           created_at?: string
+          document?: string | null
           email?: string | null
+          email_normalized?: string | null
+          first_order_at?: string | null
           full_name?: string
           id?: string
+          last_contact_at?: string | null
           last_order_at?: string | null
+          name_normalized?: string | null
+          needs_review?: boolean
+          notes?: string | null
           orders_count?: number
+          origin?: string | null
           phone?: string | null
+          phone_normalized?: string | null
+          potential?: string | null
+          quotes_count?: number
           segment?: string
           state?: string | null
+          tags?: string[]
           total_spent?: number
           updated_at?: string
         }
@@ -3082,6 +3165,27 @@ export type Database = {
         }
         Relationships: []
       }
+      dojo_asaas_credentials: {
+        Row: {
+          api_key: string
+          created_at: string
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          api_key: string
+          created_at?: string
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          api_key?: string
+          created_at?: string
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       dojo_athlete_goals: {
         Row: {
           auto_progress: boolean
@@ -3173,10 +3277,13 @@ export type Database = {
           method: string
           notes: string | null
           owner_id: string
+          rejection_reason: string | null
           source: string | null
           status: string
           student_id: string | null
           unit_id: string | null
+          validation_metadata: Json | null
+          validation_result: string | null
           visitor_name: string | null
           visitor_origin: string | null
           visitor_phone: string | null
@@ -3194,10 +3301,13 @@ export type Database = {
           method?: string
           notes?: string | null
           owner_id: string
+          rejection_reason?: string | null
           source?: string | null
           status?: string
           student_id?: string | null
           unit_id?: string | null
+          validation_metadata?: Json | null
+          validation_result?: string | null
           visitor_name?: string | null
           visitor_origin?: string | null
           visitor_phone?: string | null
@@ -3215,10 +3325,13 @@ export type Database = {
           method?: string
           notes?: string | null
           owner_id?: string
+          rejection_reason?: string | null
           source?: string | null
           status?: string
           student_id?: string | null
           unit_id?: string | null
+          validation_metadata?: Json | null
+          validation_result?: string | null
           visitor_name?: string | null
           visitor_origin?: string | null
           visitor_phone?: string | null
@@ -5624,6 +5737,54 @@ export type Database = {
           },
         ]
       }
+      dojo_implementation_requests: {
+        Row: {
+          admin_notes: string | null
+          cancelled_at: string | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          owner_id: string
+          payload: Json
+          result: Json | null
+          started_at: string | null
+          status: string
+          submitted_at: string | null
+          trial_after_implementation: boolean
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          cancelled_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          owner_id: string
+          payload?: Json
+          result?: Json | null
+          started_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          trial_after_implementation?: boolean
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          cancelled_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          owner_id?: string
+          payload?: Json
+          result?: Json | null
+          started_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          trial_after_implementation?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       dojo_invoice_reminders: {
         Row: {
           channel: string
@@ -7931,6 +8092,7 @@ export type Database = {
           unit_id: string | null
           updated_at: string
           user_id: string | null
+          whatsapp_opt_out: boolean
           zip: string | null
         }
         Insert: {
@@ -7991,6 +8153,7 @@ export type Database = {
           unit_id?: string | null
           updated_at?: string
           user_id?: string | null
+          whatsapp_opt_out?: boolean
           zip?: string | null
         }
         Update: {
@@ -8051,6 +8214,7 @@ export type Database = {
           unit_id?: string | null
           updated_at?: string
           user_id?: string | null
+          whatsapp_opt_out?: boolean
           zip?: string | null
         }
         Relationships: [
@@ -9804,6 +9968,110 @@ export type Database = {
           url?: string
         }
         Relationships: []
+      }
+      dojo_whatsapp_instances: {
+        Row: {
+          categories: Json
+          connected_at: string | null
+          created_at: string
+          enabled: boolean
+          instance_name: string
+          instance_token: string | null
+          last_status_at: string | null
+          owner_id: string
+          phone_number: string | null
+          profile_name: string | null
+          status: string
+          templates: Json
+          updated_at: string
+          webhook_secret: string
+        }
+        Insert: {
+          categories?: Json
+          connected_at?: string | null
+          created_at?: string
+          enabled?: boolean
+          instance_name: string
+          instance_token?: string | null
+          last_status_at?: string | null
+          owner_id: string
+          phone_number?: string | null
+          profile_name?: string | null
+          status?: string
+          templates?: Json
+          updated_at?: string
+          webhook_secret: string
+        }
+        Update: {
+          categories?: Json
+          connected_at?: string | null
+          created_at?: string
+          enabled?: boolean
+          instance_name?: string
+          instance_token?: string | null
+          last_status_at?: string | null
+          owner_id?: string
+          phone_number?: string | null
+          profile_name?: string | null
+          status?: string
+          templates?: Json
+          updated_at?: string
+          webhook_secret?: string
+        }
+        Relationships: []
+      }
+      dojo_whatsapp_outbox: {
+        Row: {
+          attempts: number
+          category: string | null
+          created_at: string
+          id: string
+          last_error: string | null
+          message: string
+          next_attempt_at: string
+          owner_id: string
+          phone: string
+          sent_at: string | null
+          status: string
+          student_id: string | null
+        }
+        Insert: {
+          attempts?: number
+          category?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          message: string
+          next_attempt_at?: string
+          owner_id: string
+          phone: string
+          sent_at?: string | null
+          status?: string
+          student_id?: string | null
+        }
+        Update: {
+          attempts?: number
+          category?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          message?: string
+          next_attempt_at?: string
+          owner_id?: string
+          phone?: string
+          sent_at?: string | null
+          status?: string
+          student_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dojo_whatsapp_outbox_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "dojo_students"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       dojo_withdrawals: {
         Row: {
@@ -12334,6 +12602,7 @@ export type Database = {
           channel: string
           created_at: string
           customer_email: string | null
+          customer_id: string | null
           customer_name: string | null
           customer_phone: string | null
           external_id: string
@@ -12346,6 +12615,7 @@ export type Database = {
           channel: string
           created_at?: string
           customer_email?: string | null
+          customer_id?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           external_id: string
@@ -12358,6 +12628,7 @@ export type Database = {
           channel?: string
           created_at?: string
           customer_email?: string | null
+          customer_id?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           external_id?: string
@@ -12366,7 +12637,15 @@ export type Database = {
           status?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sales_conversations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sales_kb_articles: {
         Row: {
@@ -12925,6 +13204,7 @@ export type Database = {
       }
       store_orders: {
         Row: {
+          archived_at: string | null
           asaas_boleto_url: string | null
           asaas_customer_id: string | null
           asaas_invoice_url: string | null
@@ -12938,6 +13218,7 @@ export type Database = {
           currency: string
           customer_document: string | null
           customer_email: string
+          customer_id: string | null
           customer_name: string
           customer_phone: string | null
           discount: number
@@ -12979,6 +13260,7 @@ export type Database = {
           whatsapp_notified: Json
         }
         Insert: {
+          archived_at?: string | null
           asaas_boleto_url?: string | null
           asaas_customer_id?: string | null
           asaas_invoice_url?: string | null
@@ -12992,6 +13274,7 @@ export type Database = {
           currency?: string
           customer_document?: string | null
           customer_email: string
+          customer_id?: string | null
           customer_name: string
           customer_phone?: string | null
           discount?: number
@@ -13033,6 +13316,7 @@ export type Database = {
           whatsapp_notified?: Json
         }
         Update: {
+          archived_at?: string | null
           asaas_boleto_url?: string | null
           asaas_customer_id?: string | null
           asaas_invoice_url?: string | null
@@ -13046,6 +13330,7 @@ export type Database = {
           currency?: string
           customer_document?: string | null
           customer_email?: string
+          customer_id?: string | null
           customer_name?: string
           customer_phone?: string | null
           discount?: number
@@ -13086,7 +13371,15 @@ export type Database = {
           user_id?: string | null
           whatsapp_notified?: Json
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "store_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       store_product_images: {
         Row: {
@@ -13379,6 +13672,7 @@ export type Database = {
           customer_company: string | null
           customer_document: string | null
           customer_email: string | null
+          customer_id: string | null
           customer_name: string
           customer_phone: string | null
           delivery_terms: string | null
@@ -13405,6 +13699,7 @@ export type Database = {
           customer_company?: string | null
           customer_document?: string | null
           customer_email?: string | null
+          customer_id?: string | null
           customer_name?: string
           customer_phone?: string | null
           delivery_terms?: string | null
@@ -13431,6 +13726,7 @@ export type Database = {
           customer_company?: string | null
           customer_document?: string | null
           customer_email?: string | null
+          customer_id?: string | null
           customer_name?: string
           customer_phone?: string | null
           delivery_terms?: string | null
@@ -13451,7 +13747,15 @@ export type Database = {
           updated_at?: string
           valid_until?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "store_quotes_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       store_shipping_settings: {
         Row: {
@@ -13602,6 +13906,157 @@ export type Database = {
           },
         ]
       }
+      support_site_sessions: {
+        Row: {
+          chat_id: string
+          created_at: string
+          id: string
+          ip_hash: string | null
+          last_seen_at: string
+          token_hash: string
+          visitor_name: string | null
+        }
+        Insert: {
+          chat_id: string
+          created_at?: string
+          id?: string
+          ip_hash?: string | null
+          last_seen_at?: string
+          token_hash: string
+          visitor_name?: string | null
+        }
+        Update: {
+          chat_id?: string
+          created_at?: string
+          id?: string
+          ip_hash?: string | null
+          last_seen_at?: string
+          token_hash?: string
+          visitor_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_site_sessions_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "support_wa_chats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_wa_chats: {
+        Row: {
+          academy_owner_id: string | null
+          archived: boolean
+          created_at: string
+          follow_up_at: string | null
+          follow_up_note: string | null
+          id: string
+          last_message_at: string | null
+          last_message_from_me: boolean | null
+          last_message_preview: string | null
+          name: string | null
+          phone_normalized: string | null
+          remote_jid: string
+          tags: string[]
+          unread_count: number
+          updated_at: string
+        }
+        Insert: {
+          academy_owner_id?: string | null
+          archived?: boolean
+          created_at?: string
+          follow_up_at?: string | null
+          follow_up_note?: string | null
+          id?: string
+          last_message_at?: string | null
+          last_message_from_me?: boolean | null
+          last_message_preview?: string | null
+          name?: string | null
+          phone_normalized?: string | null
+          remote_jid: string
+          tags?: string[]
+          unread_count?: number
+          updated_at?: string
+        }
+        Update: {
+          academy_owner_id?: string | null
+          archived?: boolean
+          created_at?: string
+          follow_up_at?: string | null
+          follow_up_note?: string | null
+          id?: string
+          last_message_at?: string | null
+          last_message_from_me?: boolean | null
+          last_message_preview?: string | null
+          name?: string | null
+          phone_normalized?: string | null
+          remote_jid?: string
+          tags?: string[]
+          unread_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      support_wa_messages: {
+        Row: {
+          body: string | null
+          chat_id: string
+          created_at: string
+          from_me: boolean
+          hidden: boolean
+          id: string
+          media_mime: string | null
+          media_name: string | null
+          message_id: string
+          quoted_body: string | null
+          sent_at: string
+          source: string
+          status: string | null
+          type: string
+        }
+        Insert: {
+          body?: string | null
+          chat_id: string
+          created_at?: string
+          from_me: boolean
+          hidden?: boolean
+          id?: string
+          media_mime?: string | null
+          media_name?: string | null
+          message_id: string
+          quoted_body?: string | null
+          sent_at: string
+          source?: string
+          status?: string | null
+          type?: string
+        }
+        Update: {
+          body?: string | null
+          chat_id?: string
+          created_at?: string
+          from_me?: boolean
+          hidden?: boolean
+          id?: string
+          media_mime?: string | null
+          media_name?: string | null
+          message_id?: string
+          quoted_body?: string | null
+          sent_at?: string
+          source?: string
+          status?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_wa_messages_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "support_wa_chats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppressed_emails: {
         Row: {
           created_at: string
@@ -13647,8 +14102,136 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_chats: {
+        Row: {
+          archived: boolean
+          created_at: string
+          customer_id: string | null
+          follow_up_at: string | null
+          follow_up_note: string | null
+          id: string
+          last_message_at: string | null
+          last_message_from_me: boolean | null
+          last_message_preview: string | null
+          name: string | null
+          phone_normalized: string | null
+          remote_jid: string
+          tags: string[]
+          unread_count: number
+          updated_at: string
+        }
+        Insert: {
+          archived?: boolean
+          created_at?: string
+          customer_id?: string | null
+          follow_up_at?: string | null
+          follow_up_note?: string | null
+          id?: string
+          last_message_at?: string | null
+          last_message_from_me?: boolean | null
+          last_message_preview?: string | null
+          name?: string | null
+          phone_normalized?: string | null
+          remote_jid: string
+          tags?: string[]
+          unread_count?: number
+          updated_at?: string
+        }
+        Update: {
+          archived?: boolean
+          created_at?: string
+          customer_id?: string | null
+          follow_up_at?: string | null
+          follow_up_note?: string | null
+          id?: string
+          last_message_at?: string | null
+          last_message_from_me?: boolean | null
+          last_message_preview?: string | null
+          name?: string | null
+          phone_normalized?: string | null
+          remote_jid?: string
+          tags?: string[]
+          unread_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_chats_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_messages: {
+        Row: {
+          body: string | null
+          chat_id: string
+          created_at: string
+          from_me: boolean
+          id: string
+          media_mime: string | null
+          media_name: string | null
+          message_id: string
+          quoted_body: string | null
+          sent_at: string
+          status: string | null
+          type: string
+        }
+        Insert: {
+          body?: string | null
+          chat_id: string
+          created_at?: string
+          from_me: boolean
+          id?: string
+          media_mime?: string | null
+          media_name?: string | null
+          message_id: string
+          quoted_body?: string | null
+          sent_at: string
+          status?: string | null
+          type?: string
+        }
+        Update: {
+          body?: string | null
+          chat_id?: string
+          created_at?: string
+          from_me?: boolean
+          id?: string
+          media_mime?: string | null
+          media_name?: string | null
+          message_id?: string
+          quoted_body?: string | null
+          sent_at?: string
+          status?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_chats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
+      dojo_checkin_stats_v: {
+        Row: {
+          manual_checkins: number | null
+          outside_window_attempts: number | null
+          owner_id: string | null
+          photo_checkins: number | null
+          pin_checkins: number | null
+          qr_checkins: number | null
+          rejected_checkins: number | null
+          valid_checkins: number | null
+        }
+        Relationships: []
+      }
       dojo_team_schedule_view: {
         Row: {
           cancel_reason: string | null
@@ -13744,10 +14327,24 @@ export type Database = {
         Args: { owner_id_to_delete: string }
         Returns: undefined
       }
+      admin_notify: {
+        Args: { p_body: string; p_tag: string; p_title: string; p_url: string }
+        Returns: undefined
+      }
+      app_hook_post: {
+        Args: { _app: string; _body?: Json; _hook: string }
+        Returns: number
+      }
       dojo_announcement_visible_to_student: {
         Args: { _ann: string; _student: string }
         Returns: boolean
       }
+      dojo_apply_implementation: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
+      dojo_hook_post: { Args: { _body?: Json; _hook: string }; Returns: number }
+      dojo_is_account_owner: { Args: { p_uid: string }; Returns: boolean }
       dojo_link_team_member_by_email: {
         Args: { _email: string; _member_id: string }
         Returns: string
@@ -13787,6 +14384,29 @@ export type Database = {
           role: string
           status: string
         }[]
+      }
+      dojo_whatsapp_claim: {
+        Args: { _limit_per_owner?: number }
+        Returns: {
+          attempts: number
+          category: string | null
+          created_at: string
+          id: string
+          last_error: string | null
+          message: string
+          next_attempt_at: string
+          owner_id: string
+          phone: string
+          sent_at: string | null
+          status: string
+          student_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "dojo_whatsapp_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       ensure_my_student_credentials: {
         Args: never
@@ -13939,8 +14559,27 @@ export type Database = {
           unit_id: string
         }[]
       }
+      normalize_br_phone: { Args: { p: string }; Returns: string }
+      normalize_person_name: { Args: { p: string }; Returns: string }
+      platform_dojo_account_deletion: {
+        Args: { p_execute?: boolean; p_owner: string }
+        Returns: Json
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      store_match_customer: {
+        Args: {
+          p_company: string
+          p_document: string
+          p_email: string
+          p_name: string
+          p_origin: string
+          p_phone: string
+        }
+        Returns: string
+      }
+      store_refresh_customer: { Args: { p_id: string }; Returns: undefined }
+      support_wa_normalize_phone: { Args: { p: string }; Returns: string }
     }
     Enums: {
       amtpay_bank_account_type: "checking" | "savings" | "payment"
