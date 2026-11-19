@@ -821,9 +821,39 @@ function groupSchedules(list: ImplementationClass["schedules"]): ScheduleGroup[]
 }
 
 function flattenSchedules(groups: ScheduleGroup[]): ImplementationClass["schedules"] {
+  const seen = new Set<string>();
   return groups.flatMap((g) =>
-    g.days.map((weekday) => ({ weekday, start_time: g.start, end_time: g.end })),
+    g.days
+      .filter((weekday) => {
+        const k = `${weekday}-${g.start}-${g.end}`;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      })
+      .map((weekday) => ({ weekday, start_time: g.start, end_time: g.end })),
   );
+}
+
+const toMinutes = (t: string) => {
+  const [h, m] = t.split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+};
+const toTime = (min: number) =>
+  `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+
+/**
+ * Horário novo que não colide com os da turma. Os horários são guardados por
+ * dia + início + fim, e dois grupos com o mesmo início e fim viram um só: um
+ * "Adicionar horário" sempre em 19:00–20:00 sumia quando a turma já tinha esse
+ * horário. O novo começa quando o último termina (ou 19:00), com 1 h de duração.
+ */
+function nextScheduleGroup(groups: ScheduleGroup[]): ScheduleGroup {
+  const taken = new Set(groups.map((g) => `${g.start}-${g.end}`));
+  const lastEnd = groups.reduce((max, g) => Math.max(max, toMinutes(g.end)), 0);
+  const first = lastEnd > 0 && lastEnd <= 22 * 60 ? lastEnd : 19 * 60;
+  const candidates = [first, ...Array.from({ length: 17 }, (_, i) => (6 + i) * 60)];
+  const start = candidates.find((s) => !taken.has(`${toTime(s)}-${toTime(s + 60)}`)) ?? first;
+  return { days: [1, 3], start: toTime(start), end: toTime(start + 60) };
 }
 
 function ClassesStep({ payload, update }: StepProps) {
@@ -1016,9 +1046,7 @@ function ClassesStep({ payload, update }: StepProps) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() =>
-                  setGroups([...groups, { days: [1, 3], start: "19:00", end: "20:00" }])
-                }
+                onClick={() => setGroups([...groups, nextScheduleGroup(groups)])}
               >
                 <Plus /> Adicionar horário
               </Button>
