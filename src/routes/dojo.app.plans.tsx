@@ -33,6 +33,10 @@ import {
 
 import { DojoPageShell } from "@/components/dojo/DojoPageShell";
 
+// Campos de configuração das formas de pagamento que são valores em dinheiro (os
+// demais são percentuais, dias ou parcelas).
+const MONEY_CONFIG_FIELDS = new Set<string>(["discount_value", "admin_fee"]);
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,6 +56,7 @@ import {
   QrCode, Link as LinkIcon,
   ScrollText,
 } from "lucide-react";
+import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
 
 export const Route = createFileRoute("/dojo/app/plans")({
   head: () => ({ meta: [{ title: "Planos — AMT Dojo Manager" }] }),
@@ -450,23 +455,17 @@ function PlansPage() {
                         rows={2}
                       />
                     </Field>
-                    <Field label="Valor mensal (R$)" required>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
+                    <Field label="Valor mensal" required>
+                      <CurrencyInput
                         value={form.amount}
-                        onChange={(e) => patch({ amount: e.target.value })}
+                        onValueChange={(v) => patch({ amount: currencyText(v) })}
                         className="h-9 sm:h-10 text-sm"
                       />
                     </Field>
-                    <Field label="Taxa de matrícula (R$)" hint="Opcional — cobrada uma única vez">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
+                    <Field label="Taxa de matrícula" hint="Opcional — cobrada uma única vez">
+                      <CurrencyInput
                         value={form.enrollment_fee}
-                        onChange={(e) => patch({ enrollment_fee: e.target.value })}
+                        onValueChange={(v) => patch({ enrollment_fee: currencyText(v) })}
                         className="h-9 sm:h-10 text-sm"
                       />
                     </Field>
@@ -584,19 +583,30 @@ function PlansPage() {
                                     <Label className="text-[11px] text-muted-foreground">
                                       {CONFIG_LABELS[k]}
                                     </Label>
-                                    <Input
-                                      type="number"
-                                      step="0.01"
-                                      className="h-8"
-                                      value={(state.config?.[k] as any) ?? ""}
-                                      onChange={(e) =>
-                                        patchMethodConfig(
-                                          def.code,
-                                          k,
-                                          e.target.value === "" ? undefined : Number(e.target.value),
-                                        )
-                                      }
-                                    />
+                                    {MONEY_CONFIG_FIELDS.has(k) ? (
+                                      <CurrencyInput
+                                        aria-label={CONFIG_LABELS[k]}
+                                        className="h-8"
+                                        value={(state.config?.[k] as number | undefined) ?? ""}
+                                        onValueChange={(v) =>
+                                          patchMethodConfig(def.code, k, v === null ? undefined : v)
+                                        }
+                                      />
+                                    ) : (
+                                      <Input
+                                        type="number"
+                                        step="0.01"
+                                        className="h-8"
+                                        value={(state.config?.[k] as any) ?? ""}
+                                        onChange={(e) =>
+                                          patchMethodConfig(
+                                            def.code,
+                                            k,
+                                            e.target.value === "" ? undefined : Number(e.target.value),
+                                          )
+                                        }
+                                      />
+                                    )}
                                   </div>
                                 ))}
                               </div>

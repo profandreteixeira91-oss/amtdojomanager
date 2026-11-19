@@ -25,6 +25,7 @@ import {
 } from "@/lib/dojo/competitions/rankings.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { scopeLabel, tierLabel } from "@/lib/dojo/competitions/classifier";
+import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
 
 export const Route = createFileRoute("/dojo/app/competitions/$id")({
   head: () => ({ meta: [{ title: "Gestão de Competição — AMT Dojo Manager" }] }),
@@ -425,8 +426,8 @@ function AthleteDialog({ acId, initial, onClose, onSaved }: {
                 <Input value={regNumber} onChange={(e) => setRegNumber(e.target.value)} placeholder="Código do organizador" />
               </div>
               <div>
-                <Label className="text-xs">Valor pago (R$)</Label>
-                <Input type="number" step="0.01" value={amountPaid} onChange={(e) => setAmountPaid(e.target.value)} />
+                <Label className="text-xs">Valor pago</Label>
+                <CurrencyInput value={amountPaid} onValueChange={(v) => setAmountPaid(currencyText(v))} />
               </div>
               <div>
                 <Label className="text-xs">Forma de pagamento</Label>

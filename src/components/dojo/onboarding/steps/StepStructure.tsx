@@ -9,6 +9,7 @@ import { saveClass } from "@/lib/dojo/schedule.functions";
 import { CLASS_COLORS, WEEKDAYS, MODALITIES } from "@/components/dojo/schedule/constants";
 import { modalityLabel, normalizeModality } from "@/lib/dojo/modalities";
 import type { SetupState } from "@/lib/dojo/setup.functions";
+import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
 
 export function StepStructure({ state, onNext, refresh, onBusy }: { state: SetupState; onNext: () => Promise<void>; refresh: () => Promise<void>; onBusy: (value: boolean) => void }) {
   const savePlan = useServerFn(saveDojoPlan); const saveSchedule = useServerFn(saveClass);
@@ -28,7 +29,7 @@ export function StepStructure({ state, onNext, refresh, onBusy }: { state: Setup
       await refresh(); await onNext();
     } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível salvar."); await refresh(); } finally { setBusy(false); onBusy(false); }
   }}>
-    <section className="space-y-3"><h3 className="font-semibold">Plano mensal</h3>{planSaved ? <p className="text-sm text-muted-foreground">Plano cadastrado ✓</p> : <><Label htmlFor="setup-plan">Nome do plano</Label><Input id="setup-plan" required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} /><Label htmlFor="setup-amount">Mensalidade (R$)</Label><Input id="setup-amount" required type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></>}</section>
+    <section className="space-y-3"><h3 className="font-semibold">Plano mensal</h3>{planSaved ? <p className="text-sm text-muted-foreground">Plano cadastrado ✓</p> : <><Label htmlFor="setup-plan">Nome do plano</Label><Input id="setup-plan" required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} /><Label htmlFor="setup-amount">Mensalidade</Label><CurrencyInput id="setup-amount" required value={amount} onValueChange={(v) => setAmount(currencyText(v))} /></>}</section>
     <section className="space-y-3 border-t pt-4"><h3 className="font-semibold">Primeira turma</h3>{classSaved ? <p className="text-sm text-muted-foreground">Turma cadastrada ✓</p> : <>
       <Label htmlFor="setup-class">Nome da turma</Label><Input id="setup-class" required value={className} onChange={(e) => setClassName(e.target.value)} />
       <Label htmlFor="setup-modality">Modalidade</Label><select id="setup-modality" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={modality} onChange={(e) => setModality(e.target.value)}>{Array.from(new Set([...(state.academy?.modalities ?? []).map(normalizeModality), ...MODALITIES])).filter(Boolean).map((m) => <option key={m} value={m}>{modalityLabel(m)}</option>)}</select>

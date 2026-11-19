@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { maskCurrencyBR } from "@/lib/br-masks";
 
 type FieldProps = {
   id: string;
@@ -21,11 +22,18 @@ export function NumField({ id, label, value, onChange, prefix, suffix, error, hi
           id={id}
           inputMode="decimal"
           value={value}
-          onChange={(e) => onChange(e.target.value.replace(/[^\d.,]/g, ""))}
+          // Com prefixo R$: máscara monetária ("15000" → "150,00"); o cálculo lê com parseNum.
+          onChange={(e) =>
+            onChange(
+              prefix === "R$"
+                ? maskCurrencyBR(e.target.value, value)
+                : e.target.value.replace(/[^\d.,]/g, ""),
+            )
+          }
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-err` : undefined}
-          className="h-11 w-full min-w-0 bg-transparent text-base outline-none"
-          placeholder="0"
+          className="h-11 w-full min-w-0 bg-transparent text-base tabular-nums outline-none"
+          placeholder={prefix === "R$" ? "0,00" : "0"}
         />
         {suffix && <span className="ml-2 text-sm text-[#111111]/50">{suffix}</span>}
       </div>

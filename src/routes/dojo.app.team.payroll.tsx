@@ -43,6 +43,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Wallet, CheckCircle2, Clock, Calculator, Plus, Printer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { openBrandedPrintDocument } from "@/lib/dojo/print-document";
+import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
 
 export const Route = createFileRoute("/dojo/app/team/payroll")({
   head: () => ({
@@ -264,12 +265,10 @@ function PayrollPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="Valor (R$)"
+                <CurrencyInput
+                  aria-label="Valor"
                   value={extra.amount}
-                  onChange={(e) => setExtra({ ...extra, amount: e.target.value })}
+                  onValueChange={(v) => setExtra({ ...extra, amount: currencyText(v) })}
                 />
                 <Input
                   placeholder="Descrição (opcional)"

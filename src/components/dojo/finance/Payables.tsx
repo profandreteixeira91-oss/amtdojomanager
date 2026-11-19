@@ -15,6 +15,7 @@ import { Search, Plus, CheckCircle2, Trash2, Eye } from "lucide-react";
 import { brl, brDate, daysBetween, isoDate, useExpenses, useFinanceSettings, type ExpenseRow } from "./shared";
 import { todayISO } from "@/lib/dates";
 import { EntryDrawer } from "./EntryDrawer";
+import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
 
 export function FinancePayables() {
   const { settings } = useFinanceSettings();
@@ -143,11 +144,9 @@ export function FinancePayables() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-1.5">
                     <Label>Valor</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
+                    <CurrencyInput
                       value={form.amount}
-                      onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                      onValueChange={(v) => setForm({ ...form, amount: currencyText(v) })}
                     />
                   </div>
                   <div className="grid gap-1.5">

@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { DojoPageShell } from "@/components/dojo/DojoPageShell";
 import { PinGate } from "@/components/dojo/PinGate";
+import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
 
 export const Route = createFileRoute("/dojo/app/units/affiliates/$id")({
   head: () => ({ meta: [{ title: "Filial — AMT Dojo Manager" }] }),
@@ -247,8 +248,8 @@ function FinanceTab({ affiliate }: { affiliate: any }) {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-xs">Valor (R$)</Label>
-                  <Input type="number" step="0.01" value={form.amount || ""} onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })} />
+                  <Label className="text-xs">Valor</Label>
+                  <CurrencyInput value={form.amount || ""} onValueChange={(v) => setForm({ ...form, amount: v ?? 0 })} />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Vencimento</Label>

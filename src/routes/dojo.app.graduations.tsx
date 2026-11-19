@@ -24,6 +24,7 @@ import { todayISO } from "@/lib/dates";
 import { currentBeltEntries, rankedBelts, beltLabel, beltEntryKey } from "@/lib/dojo/current-belts";
 import { DojoPageHero } from "@/components/dojo/DojoPageHero";
 import { modalityLabel, normalizeModality } from "@/lib/dojo/modalities";
+import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
 
 export const Route = createFileRoute("/dojo/app/graduations")({
   head: () => ({ meta: [{ title: "Graduações — AMT Dojo Manager" }] }),
@@ -86,6 +87,7 @@ function NewGraduationPage() {
   // Preços por faixa (edição local)
   const [showPricing, setShowPricing] = useState(false);
   const [priceDraft, setPriceDraft] = useState<Record<string, string>>({});
+  const [bulkPrice, setBulkPrice] = useState("");
   const [savingPrices, setSavingPrices] = useState(false);
   const [pricingModality, setPricingModality] = useState<string>("all");
 
@@ -783,23 +785,20 @@ function NewGraduationPage() {
                 <div className="flex-1 min-w-0">
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Aplicar valor em massa</div>
                   <div className="flex items-center gap-2">
-                    <div className="relative flex-1 sm:max-w-[140px]">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
-                      <Input
-                        id="bulk-price-input"
-                        inputMode="decimal"
-                        placeholder="0,00"
-                        className="h-9 pl-8"
-                      />
-                    </div>
+                    <CurrencyInput
+                      aria-label="Valor para aplicar em massa"
+                      wrapperClassName="flex-1 sm:max-w-[140px]"
+                      className="h-9"
+                      value={bulkPrice}
+                      onValueChange={(v) => setBulkPrice(currencyText(v))}
+                    />
                     <Button
                       type="button"
                       size="sm"
                       variant="secondary"
                       className="whitespace-nowrap"
                       onClick={() => {
-                        const el = document.getElementById("bulk-price-input") as HTMLInputElement | null;
-                        const v = (el?.value ?? "").trim();
+                        const v = bulkPrice.trim();
                         if (!v) { toast.error("Digite um valor"); return; }
                         setPriceDraft((prev) => {
                           const next = { ...prev };
@@ -848,16 +847,13 @@ function NewGraduationPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="relative flex-1 sm:w-32">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
-                        <Input
-                          inputMode="decimal"
-                          placeholder="0,00"
-                          className="h-9 pl-8"
-                          value={priceDraft[b.id] ?? ""}
-                          onChange={(e) => setPriceDraft(prev => ({ ...prev, [b.id]: e.target.value }))}
-                        />
-                      </div>
+                      <CurrencyInput
+                        aria-label={`Valor da graduação para ${(b as any).name ?? "a faixa"}`}
+                        wrapperClassName="flex-1 sm:w-32"
+                        className="h-9"
+                        value={priceDraft[b.id] ?? ""}
+                        onValueChange={(v) => setPriceDraft(prev => ({ ...prev, [b.id]: currencyText(v) }))}
+                      />
                     </div>
                   </div>
                 ))}
@@ -1383,10 +1379,9 @@ function NewGraduationPage() {
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Taxa (R$)</label>
-                      <Input
-                        inputMode="decimal"
-                        placeholder="0,00"
+                      <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Taxa</label>
+                      <CurrencyInput
+                        aria-label="Taxa da graduação"
                         className="h-9"
                         value={
                           (entry.fee ?? "").toString().trim() !== ""
@@ -1395,7 +1390,7 @@ function NewGraduationPage() {
                               ? String(priceByBelt[entry.beltId])
                               : ""
                         }
-                        onChange={(e) => setStudentFee(s.id, e.target.value)}
+                        onValueChange={(v) => setStudentFee(s.id, currencyText(v))}
                       />
                       {entry.beltId && priceByBelt[entry.beltId] != null && (
                         <div className="text-[10px] text-muted-foreground">

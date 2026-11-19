@@ -20,6 +20,7 @@ import {
 import { buildContractValues, resolveContractHtml } from "@/lib/dojo/contracts-variables";
 import { openBrandedPrintDocument } from "@/lib/dojo/print-document";
 import { useDojoBranding } from "@/hooks/useDojoBranding";
+import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
 
 type Props = { studentId: string; student: any };
 
@@ -283,8 +284,8 @@ export function StudentContracts({ studentId, student }: Props) {
                 <Input value={current?.plan_name ?? ""} onChange={(e) => setCurrent({ ...current, plan_name: e.target.value })} placeholder="Ex.: Mensal Ilimitado" />
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground">Valor mensal (R$)</label>
-                <Input type="number" step="0.01" min="0" value={current?.monthly_value ?? ""} onChange={(e) => setCurrent({ ...current, monthly_value: e.target.value })} placeholder="199,90" />
+                <label className="text-xs font-medium text-muted-foreground">Valor mensal</label>
+                <CurrencyInput value={current?.monthly_value ?? ""} onValueChange={(v) => setCurrent({ ...current, monthly_value: currencyText(v) })} />
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Dia venc.</label>

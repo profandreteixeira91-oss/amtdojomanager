@@ -20,6 +20,7 @@ import {
 import { buildContractValues, resolveContractHtml } from "@/lib/dojo/contracts-variables";
 import { openBrandedPrintDocument } from "@/lib/dojo/print-document";
 import { useDojoBranding } from "@/hooks/useDojoBranding";
+import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
 
 type Props = { teamMemberId: string; member: any };
 
@@ -280,8 +281,8 @@ export function TeamContracts({ teamMemberId, member }: Props) {
                 </Select>
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground">Valor (R$)</label>
-                <Input type="number" step="0.01" min="0" value={current?.compensation_value ?? ""} onChange={(e) => setCurrent({ ...current, compensation_value: e.target.value })} placeholder="1500,00" />
+                <label className="text-xs font-medium text-muted-foreground">Valor</label>
+                <CurrencyInput value={current?.compensation_value ?? ""} onValueChange={(v) => setCurrent({ ...current, compensation_value: currencyText(v) })} />
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Carga sem./horas</label>

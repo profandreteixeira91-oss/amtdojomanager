@@ -35,6 +35,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, Save, Trash2, FileText, History, Upload, Mail, Phone, MapPin, Briefcase, Award } from "lucide-react";
 import { todayISO } from "@/lib/dates";
+import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
 
 export const Route = createFileRoute("/dojo/app/team/$id")({
   head: () => ({ meta: [{ title: "Colaborador — Equipe" }] }),
@@ -532,25 +533,25 @@ function TeamMemberDetail() {
 
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     {show.base_salary && (
-                      <Field label="Salário base (R$)"><Input type="number" step="0.01" value={payroll.base_salary ?? ""} onChange={(e) => setPayroll({ ...payroll, base_salary: e.target.value ? Number(e.target.value) : null })} /></Field>
+                      <Field label="Salário base"><CurrencyInput value={payroll.base_salary ?? ""} onValueChange={(v) => setPayroll({ ...payroll, base_salary: v })} /></Field>
                     )}
                     {show.hourly_rate && (
-                      <Field label="Valor por hora (R$)"><Input type="number" step="0.01" value={payroll.hourly_rate ?? ""} onChange={(e) => setPayroll({ ...payroll, hourly_rate: e.target.value ? Number(e.target.value) : null })} /></Field>
+                      <Field label="Valor por hora"><CurrencyInput value={payroll.hourly_rate ?? ""} onValueChange={(v) => setPayroll({ ...payroll, hourly_rate: v })} /></Field>
                     )}
                     {show.per_class_rate && (
-                      <Field label="Valor por aula (R$)"><Input type="number" step="0.01" value={payroll.per_class_rate ?? ""} onChange={(e) => setPayroll({ ...payroll, per_class_rate: e.target.value ? Number(e.target.value) : null })} /></Field>
+                      <Field label="Valor por aula"><CurrencyInput value={payroll.per_class_rate ?? ""} onValueChange={(v) => setPayroll({ ...payroll, per_class_rate: v })} /></Field>
                     )}
                     {show.commission_percent && (
                       <Field label="Percentual (%)"><Input type="number" step="0.01" value={payroll.commission_percent ?? ""} onChange={(e) => setPayroll({ ...payroll, commission_percent: e.target.value ? Number(e.target.value) : null })} /></Field>
                     )}
                     {show.commission_on_enrollment && (
-                      <Field label="Comissão por matrícula (R$)"><Input type="number" step="0.01" value={payroll.commission_on_enrollment ?? ""} onChange={(e) => setPayroll({ ...payroll, commission_on_enrollment: e.target.value ? Number(e.target.value) : null })} /></Field>
+                      <Field label="Comissão por matrícula"><CurrencyInput value={payroll.commission_on_enrollment ?? ""} onValueChange={(v) => setPayroll({ ...payroll, commission_on_enrollment: v })} /></Field>
                     )}
                     {show.commission_on_renewal && (
-                      <Field label="Comissão por renovação (R$)"><Input type="number" step="0.01" value={payroll.commission_on_renewal ?? ""} onChange={(e) => setPayroll({ ...payroll, commission_on_renewal: e.target.value ? Number(e.target.value) : null })} /></Field>
+                      <Field label="Comissão por renovação"><CurrencyInput value={payroll.commission_on_renewal ?? ""} onValueChange={(v) => setPayroll({ ...payroll, commission_on_renewal: v })} /></Field>
                     )}
                     {show.commission_on_sale && (
-                      <Field label="Comissão por venda (R$)"><Input type="number" step="0.01" value={payroll.commission_on_sale ?? ""} onChange={(e) => setPayroll({ ...payroll, commission_on_sale: e.target.value ? Number(e.target.value) : null })} /></Field>
+                      <Field label="Comissão por venda"><CurrencyInput value={payroll.commission_on_sale ?? ""} onValueChange={(v) => setPayroll({ ...payroll, commission_on_sale: v })} /></Field>
                     )}
                   </div>
 
@@ -619,7 +620,7 @@ function TeamMemberDetail() {
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                 <Field label="Descrição"><Input value={newPay.description} onChange={(e) => setNewPay({ ...newPay, description: e.target.value })} /></Field>
-                <Field label="Valor (R$)"><Input type="number" step="0.01" value={newPay.amount} onChange={(e) => setNewPay({ ...newPay, amount: e.target.value })} /></Field>
+                <Field label="Valor"><CurrencyInput value={newPay.amount} onValueChange={(v) => setNewPay({ ...newPay, amount: currencyText(v) })} /></Field>
                 <Field label="Horas"><Input type="number" step="0.01" value={newPay.hours_worked ?? ""} onChange={(e) => setNewPay({ ...newPay, hours_worked: e.target.value ? Number(e.target.value) : null })} /></Field>
                 <Field label="Nº aulas"><Input type="number" value={newPay.classes_count ?? ""} onChange={(e) => setNewPay({ ...newPay, classes_count: e.target.value ? Number(e.target.value) : null })} /></Field>
               </div>

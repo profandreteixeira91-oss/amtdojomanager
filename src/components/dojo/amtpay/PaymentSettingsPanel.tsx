@@ -10,6 +10,7 @@ import {
   getPaymentSettings,
   previewFees,
 } from "@/lib/dojo/payment-settings.functions";
+import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
 
 const money = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -99,11 +100,9 @@ export function PaymentSettingsPanel() {
           <div className="grid gap-3 md:grid-cols-3">
             <div>
               <Label>Valor da cobrança</Label>
-              <Input
-                type="number"
-                step="0.01"
+              <CurrencyInput
                 value={previewInput.amount}
-                onChange={(e) => setPreviewInput({ ...previewInput, amount: Number(e.target.value) })}
+                onValueChange={(v) => setPreviewInput({ ...previewInput, amount: v ?? 0 })}
               />
             </div>
             <div>

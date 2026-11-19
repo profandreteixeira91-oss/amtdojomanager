@@ -31,6 +31,7 @@ import {
 } from "@/lib/dojo/competitions/academy.functions";
 import { scopeLabel, tierLabel } from "@/lib/dojo/competitions/classifier";
 import { DojoPageHero, SUBNAV_CLS, SUBNAV_TABSLIST_CLS, SUBNAV_TRIGGER_CLS } from "@/components/dojo/DojoPageHero";
+import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
 
 export const Route = createFileRoute("/dojo/app/competitions/")({
   head: () => ({ meta: [{ title: "Competições — AMT Dojo Manager" }] }),
@@ -727,8 +728,7 @@ function NewCompetitionDialog({ onCreated }: { onCreated: () => void }) {
           </div>
           <div>
             <Label>Valor da inscrição</Label>
-            <Input type="number" step="0.01" value={f.price}
-              onChange={(e) => setF({ ...f, price: e.target.value })} placeholder="0,00" />
+            <CurrencyInput value={f.price} onValueChange={(v) => setF({ ...f, price: currencyText(v) })} />
           </div>
           <div>
             <Label>Site oficial</Label>

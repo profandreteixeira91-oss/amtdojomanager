@@ -23,7 +23,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { maskPhone, maskCEP, parseAmountBR } from "@/lib/br-masks";
+import { maskPhone, maskCEP } from "@/lib/br-masks";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import {
   IMPLEMENTATION_PAYMENT_METHODS,
   IMPLEMENTATION_PLAN_FREQUENCIES,
@@ -672,7 +673,7 @@ function PlansStep({ payload, update }: StepProps) {
             </div>
             <MoneyInput
               id={`plan-amount-${index}`}
-              label="Valor (R$)"
+              label="Valor"
               value={plan.amount}
               onChange={(amount) => setPlan(index, { amount })}
             />
@@ -786,21 +787,11 @@ function MoneyInput({
   value: number;
   onChange: (v: number) => void;
 }) {
-  const [text, setText] = useState(value ? value.toFixed(2).replace(".", ",") : "");
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        inputMode="decimal"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => {
-          const v = parseAmountBR(text) ?? 0;
-          onChange(v);
-          setText(v ? v.toFixed(2).replace(".", ",") : "");
-        }}
-      />
+      {/* 0 é o "não preenchido" do formulário: mostra o campo vazio. */}
+      <CurrencyInput id={id} value={value || ""} onValueChange={(v) => onChange(v ?? 0)} />
     </div>
   );
 }

@@ -84,3 +84,33 @@ export function parseAmountBR(value: string | number | null | undefined): number
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
+
+/** Até R$ 999.999.999,99 nos campos de valor. */
+const CURRENCY_MAX_DIGITS = 11;
+
+/**
+ * Valor (número ou texto em qualquer formato aceito por `parseAmountBR`) no formato
+ * dos campos de dinheiro: "1.234,56". Vazio quando não há valor.
+ */
+export function formatCurrencyBR(value: string | number | null | undefined): string {
+  const n = parseAmountBR(value);
+  if (n === null) return "";
+  return Math.abs(n).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+/**
+ * Máscara monetária brasileira: os dígitos entram pela direita, como em app de
+ * banco ("1" → "0,01", "150" → "1,50", "15000" → "150,00"). `previous` é o que o
+ * campo mostrava antes da tecla: apagar até sobrar só zero esvazia o campo, e
+ * digitar "0" num campo vazio vale R$ 0,00 (ex.: aluno bolsista).
+ */
+export function maskCurrencyBR(typed: string, previous = ""): string {
+  const digits = onlyDigits(typed).slice(0, CURRENCY_MAX_DIGITS);
+  if (!digits) return "";
+  const cents = Number(digits);
+  if (cents === 0 && previous !== "") return "";
+  return formatCurrencyBR(cents / 100);
+}

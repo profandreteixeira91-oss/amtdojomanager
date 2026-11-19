@@ -16,6 +16,7 @@ import {
   getWalletSettings,
   getGatewayCapabilities,
 } from "@/lib/dojo/amtpay.functions";
+import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
 
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -135,7 +136,7 @@ export function WithdrawDialog({
 
             <div>
               <Label>Valor do saque</Label>
-              <Input inputMode="decimal" placeholder="0,00" value={amount} onChange={(e) => setAmount(e.target.value)} />
+              <CurrencyInput value={amount} onValueChange={(v) => setAmount(currencyText(v))} />
               <div className="flex gap-2 mt-2 flex-wrap">
                 {[0.25, 0.5, 1].map((p) => (
                   <Button key={p} type="button" variant="outline" size="sm"

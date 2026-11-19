@@ -48,6 +48,7 @@ import { brDate } from "@/lib/format";
 import { parseAmountBR } from "@/lib/br-masks";
 import { addDaysISO, dayISO, todayISO } from "@/lib/dates";
 import { SectionErrorBoundary } from "@/components/dojo/SectionErrorBoundary";
+import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
 
 const TAB_LABELS: Record<string, string> = {
   pessoal: "Dados", academia: "Academia", plano: "Plano", anamnese: "Anamnese", lgpd: "LGPD",
@@ -815,7 +816,7 @@ function StudentDetail() {
                     <option value="">Plano</option>
                     {(plans.data ?? []).map((p: any) => <option key={p.id} value={p.id}>{p.name} · {brl(p.amount)}</option>)}
                   </select>
-                  <Input type="text" inputMode="decimal" placeholder="Valor custom (0 para bolsista)" value={enroll.custom_amount} onChange={(e) => setEnroll({ ...enroll, custom_amount: e.target.value })} />
+                  <CurrencyInput aria-label="Valor personalizado" placeholder="Valor do plano (0,00 = bolsista)" value={enroll.custom_amount} onValueChange={(v) => setEnroll({ ...enroll, custom_amount: currencyText(v) })} />
                   <Input type="number" min={1} max={31} placeholder="Dia venc." value={enroll.due_day} onChange={(e) => setEnroll({ ...enroll, due_day: Number(e.target.value) })} />
                   <Input type="date" value={enroll.start_date} onChange={(e) => setEnroll({ ...enroll, start_date: e.target.value })} />
                   <Button onClick={doAddEnroll}>Salvar</Button>
@@ -862,13 +863,11 @@ function StudentDetail() {
                       </select>
                     </div>
                     <div>
-                      <label className="text-xs text-muted-foreground">Valor mensal (R$)</label>
-                      <Input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="Ex: 150,00 (0 para bolsista)"
+                      <label className="text-xs text-muted-foreground">Valor mensal</label>
+                      <CurrencyInput
+                        placeholder="Valor do plano (0,00 = bolsista)"
                         value={enroll.custom_amount}
-                        onChange={(e) => setEnroll({ ...enroll, custom_amount: e.target.value })}
+                        onValueChange={(v) => setEnroll({ ...enroll, custom_amount: currencyText(v) })}
                       />
                     </div>
                     <div>
@@ -934,10 +933,10 @@ function StudentDetail() {
                     </div>
                     <div>
                       <label className="text-xs text-muted-foreground">Valor personalizado (opcional)</label>
-                      <Input
-                        type="number" min={0} step="0.01" placeholder="Deixe em branco para usar valor do plano"
+                      <CurrencyInput
+                        placeholder="Em branco = valor do plano"
                         value={changePlan.custom_amount}
-                        onChange={(e) => setChangePlan({ ...changePlan, custom_amount: e.target.value })}
+                        onValueChange={(v) => setChangePlan({ ...changePlan, custom_amount: currencyText(v) })}
                       />
                     </div>
                     <div>

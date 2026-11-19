@@ -45,6 +45,7 @@ import { cn } from "@/lib/utils";
 import { todayISO, brl } from "@/lib/format";
 import { currentBeltEntries, rankedBelts, beltLabel, beltEntryKey } from "@/lib/dojo/current-belts";
 import { RouteErrorCard } from "@/components/dojo/SectionErrorBoundary";
+import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
 
 
 export const Route = createFileRoute("/dojo/app/students/")({
@@ -1477,11 +1478,10 @@ function StudentsPage() {
                         />
                       </Field>
                       <Field label="Valor customizado (opcional)">
-                        <Input
-                          inputMode="decimal"
-                          placeholder="Deixe vazio para usar o valor do plano"
+                        <CurrencyInput
+                          placeholder="Em branco = valor do plano"
                           value={enrollment.custom_amount}
-                          onChange={(e) => setEnrollment((s) => ({ ...s, custom_amount: e.target.value }))}
+                          onValueChange={(v) => setEnrollment((s) => ({ ...s, custom_amount: currencyText(v) }))}
                         />
                         {(() => {
                           const selectedPlan = (plans.data as any[] | undefined)?.find((p) => p.id === enrollment.plan_id);

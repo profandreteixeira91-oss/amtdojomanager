@@ -27,6 +27,7 @@ import {
   type DocType,
 } from "@/lib/dojo/onboarding.functions";
 import { createMyAsaasSubaccount } from "@/lib/asaas/asaas.functions";
+import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
 
 type FormState = {
   responsibleName: string;
@@ -457,14 +458,11 @@ export function AMTPayActivationForm({
             </Field>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Faturamento mensal estimado (R$) *">
-              <Input
-                type="number"
-                min={1000}
-                step={100}
+            <Field label="Faturamento mensal estimado *">
+              <CurrencyInput
                 value={form.monthlyIncome}
-                onChange={(e) => set("monthlyIncome", e.target.value)}
-                placeholder="Mínimo R$ 1.000"
+                onValueChange={(v) => set("monthlyIncome", currencyText(v))}
+                placeholder="Mínimo 1.000,00"
               />
             </Field>
             <Field label="Modalidades atendidas *" hint="Separe por vírgula. Ex: Karatê, Muay Thai, Jiu-Jitsu">

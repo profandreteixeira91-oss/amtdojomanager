@@ -29,6 +29,7 @@ import { getMyAsaasConfig } from "@/lib/asaas/asaas.functions";
 import { isAsaasReady } from "@/lib/dojo/amt-pay-status";
 import { Link } from "@tanstack/react-router";
 import { todayISO } from "@/lib/dates";
+import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
 
 export const Route = createFileRoute("/dojo/app/sales")({
   head: () => ({ meta: [{ title: "Vendas — AMT Dojo Manager" }] }),
@@ -507,12 +508,10 @@ function NewSaleDialog({
                     />
                   </TableCell>
                   <TableCell>
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.01"
+                    <CurrencyInput
+                      aria-label="Preço unitário"
                       value={l.unit_price}
-                      onChange={(e) => patchLine(l.key, { unit_price: Number(e.target.value) })}
+                      onValueChange={(v) => patchLine(l.key, { unit_price: v ?? 0 })}
                     />
                   </TableCell>
                   <TableCell className="text-right font-medium">{brl(l.quantity * l.unit_price)}</TableCell>
@@ -534,8 +533,8 @@ function NewSaleDialog({
 
         <div className="grid gap-3 md:grid-cols-3">
           <div>
-            <Label>Desconto (R$)</Label>
-            <Input type="number" min={0} step="0.01" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} />
+            <Label>Desconto</Label>
+            <CurrencyInput value={discount} onValueChange={(v) => setDiscount(v ?? 0)} />
           </div>
           <div>
             <Label>Forma de pagamento</Label>
@@ -810,23 +809,17 @@ function ProductDialog({ product, onDone }: { product: Product | null; onDone: (
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label>Preço de venda (R$)</Label>
-            <Input
-              type="number"
-              min={0}
-              step="0.01"
+            <Label>Preço de venda</Label>
+            <CurrencyInput
               value={form.price}
-              onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
+              onValueChange={(v) => setForm({ ...form, price: v ?? 0 })}
             />
           </div>
           <div>
-            <Label>Custo (R$)</Label>
-            <Input
-              type="number"
-              min={0}
-              step="0.01"
+            <Label>Custo</Label>
+            <CurrencyInput
               value={form.cost}
-              onChange={(e) => setForm({ ...form, cost: Number(e.target.value) })}
+              onValueChange={(v) => setForm({ ...form, cost: v ?? 0 })}
             />
           </div>
         </div>
