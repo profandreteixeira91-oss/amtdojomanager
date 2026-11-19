@@ -48,8 +48,14 @@ export const getMyImplementation = createServerFn({ method: "GET" })
 
 export type MyImplementation = Awaited<ReturnType<typeof getMyImplementation>>;
 
+// O rascunho aceita linhas incompletas (o formulário salva enquanto o dono digita):
+// `readImplementationPayload` só limpa tipos e tamanhos. O formato completo é
+// exigido no envio.
 const draftInput = z.object({
-  payload: implementationPayloadSchema,
+  payload: z
+    .record(z.string(), z.unknown())
+    .refine((v) => JSON.stringify(v).length <= 5_000_000, "Dados grandes demais.")
+    .transform(readImplementationPayload),
   trial_after_implementation: z.boolean(),
 });
 
@@ -87,10 +93,11 @@ export const submitImplementation = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const issues = implementationIssues(data.payload);
     if (issues.length) throw new Error(issues[0]);
+    const payload = implementationPayloadSchema.parse(data.payload);
     const row = await loadOwn(context);
     if (row && row.status !== "rascunho") throw new Error("Este pedido já foi enviado.");
     const values = {
-      payload: data.payload,
+      payload,
       trial_after_implementation: data.trial_after_implementation,
       status: "enviada",
     };
@@ -107,7 +114,7 @@ export const submitImplementation = createServerFn({ method: "POST" })
         .insert({
           owner_id: context.userId,
           status: "rascunho",
-          payload: data.payload,
+          payload,
           trial_after_implementation: data.trial_after_implementation,
         })
         .select("id")

@@ -169,36 +169,161 @@ export function emptyImplementationPayload(): ImplementationPayload {
   return implementationPayloadSchema.parse({});
 }
 
-/** Lê o que veio do banco sem quebrar com rascunho antigo ou incompleto. */
+/* Rascunho: o formulário salva sozinho enquanto o dono digita, então linhas
+ * incompletas (pessoa sem nome, e-mail pela metade, horário vazio) precisam ser
+ * aceitas e voltar intactas. A validação completa fica para o envio
+ * (`implementationIssues` + `implementationPayloadSchema`). */
+const str = (v: unknown, max: number) =>
+  typeof v === "string" ? v.slice(0, max) : typeof v === "number" ? String(v) : "";
+const num = (v: unknown, fallback: number) =>
+  typeof v === "number" && Number.isFinite(v) ? v : fallback;
+const oneOf = <T extends string>(v: unknown, options: readonly T[], fallback: T): T =>
+  (options as readonly unknown[]).includes(v) ? (v as T) : fallback;
+const obj = (v: unknown): Record<string, unknown> =>
+  v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+const arr = (v: unknown, max: number): Record<string, unknown>[] =>
+  Array.isArray(v) ? v.slice(0, max).map(obj) : [];
+
+const FREQUENCIES = ["monthly", "bimonthly", "quarterly", "semiannual", "annual"] as const;
+const PAYMENT_METHODS = ["pix", "cash", "card_machine", "payment_link"] as const;
+const LEVELS = ["iniciante", "intermediário", "avançado", "todos"] as const;
+const TEAM_ROLES = [
+  "teacher",
+  "instructor",
+  "assistant",
+  "receptionist",
+  "finance",
+  "manager",
+  "other",
+] as const;
+const STUDENT_STATUSES = ["active", "inactive", "frozen"] as const;
+
+/** Lê rascunho (do banco ou do formulário) sem quebrar com linha incompleta ou antiga. */
 export function readImplementationPayload(raw: unknown): ImplementationPayload {
-  const parsed = implementationPayloadSchema.safeParse(raw ?? {});
-  if (parsed.success) return parsed.data;
-  const base = emptyImplementationPayload();
-  const obj = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
-  const pick = <S extends z.ZodTypeAny>(
-    schema: S,
-    value: unknown,
-    fallback: z.infer<S>,
-  ): z.infer<S> => {
-    const r = schema.safeParse(value);
-    return r.success ? r.data : fallback;
-  };
-  const list = <S extends z.ZodTypeAny>(schema: S, value: unknown): z.infer<S>[] =>
-    Array.isArray(value)
-      ? value.flatMap((v) => {
-          const r = schema.safeParse(v);
-          return r.success ? [r.data] : [];
-        })
-      : [];
+  const o = obj(raw);
+  const a = obj(o.academy);
+  const b = obj(o.billing);
+  const startMonth = str(b.start_month, 7);
   return {
-    academy: pick(academySchema, obj.academy, base.academy),
-    plans: list(planSchema, obj.plans),
-    classes: list(classSchema, obj.classes),
-    team: list(teamSchema, obj.team),
-    students: list(studentSchema, obj.students),
-    billing: pick(billingSchema, obj.billing, base.billing),
-    notes: typeof obj.notes === "string" ? obj.notes.slice(0, 2000) : "",
+    academy: {
+      trade_name: str(a.trade_name, 200),
+      legal_name: str(a.legal_name, 200),
+      cnpj: str(a.cnpj, 20),
+      responsible_name: str(a.responsible_name, 200),
+      whatsapp: str(a.whatsapp, 20),
+      email: str(a.email, 200),
+      instagram: str(a.instagram, 120),
+      zip: str(a.zip, 10),
+      address: str(a.address, 200),
+      address_number: str(a.address_number, 20),
+      address_complement: str(a.address_complement, 120),
+      neighborhood: str(a.neighborhood, 120),
+      city: str(a.city, 120),
+      state: str(a.state, 2),
+      modalities: Array.isArray(a.modalities)
+        ? a.modalities
+            .map((m) => str(m, 60).trim())
+            .filter(Boolean)
+            .slice(0, 20)
+        : [],
+      logo_url: str(a.logo_url, 500),
+    },
+    plans: arr(o.plans, 50).map((p) => ({
+      name: str(p.name, 120),
+      amount: num(p.amount, 0),
+      frequency: oneOf(p.frequency, FREQUENCIES, "monthly"),
+      enrollment_fee: num(p.enrollment_fee, 0),
+      payment_methods: Array.isArray(p.payment_methods)
+        ? [...new Set(p.payment_methods)].filter((m): m is (typeof PAYMENT_METHODS)[number] =>
+            (PAYMENT_METHODS as readonly unknown[]).includes(m),
+          )
+        : ["pix", "cash"],
+      description: str(p.description, 500),
+    })),
+    classes: arr(o.classes, 100).map((c) => ({
+      name: str(c.name, 120),
+      modality: str(c.modality, 60),
+      level: oneOf(c.level, LEVELS, "todos"),
+      teacher_name: str(c.teacher_name, 200),
+      max_students: num(c.max_students, 30),
+      schedules: arr(c.schedules, 14).map((s) => ({
+        weekday: num(s.weekday, 1),
+        start_time: str(s.start_time, 5),
+        end_time: str(s.end_time, 5),
+      })),
+    })),
+    team: arr(o.team, 50).map((m) => ({
+      full_name: str(m.full_name, 200),
+      email: str(m.email, 200),
+      phone: str(m.phone, 20),
+      role: oneOf(m.role, TEAM_ROLES, "teacher"),
+    })),
+    students: arr(o.students, 2000).map((row) => {
+      const out: Record<string, string> = {};
+      for (const [k, v] of Object.entries(row)) {
+        const value = str(v, 2000);
+        if (value) out[k.slice(0, 60)] = value;
+      }
+      if (out.status && !(STUDENT_STATUSES as readonly string[]).includes(out.status))
+        delete out.status;
+      return { ...out, full_name: out.full_name ?? "" } as ImplementationStudent;
+    }),
+    billing: {
+      due_day_default: num(b.due_day_default, 10),
+      start_month: /^\d{4}-(0[1-9]|1[0-2])$/.test(startMonth) ? startMonth : nextMonthISO(),
+    },
+    notes: str(o.notes, 2000),
   };
+}
+
+const SECTION_LABELS: Record<string, (i: number) => string> = {
+  academy: () => "Academia",
+  plans: (i) => `Planos, plano ${i + 1}`,
+  classes: (i) => `Turmas, turma ${i + 1}`,
+  team: (i) => `Equipe, pessoa ${i + 1}`,
+  students: (i) => `Alunos, linha ${i + 2} da planilha`,
+  billing: () => "Cobrança",
+  notes: () => "Observações",
+};
+
+const FIELD_MESSAGES: Record<string, string> = {
+  full_name: "informe o nome (ao menos 2 letras)",
+  name: "informe o nome",
+  email: "e-mail inválido",
+  amount: "valor inválido",
+  enrollment_fee: "taxa de matrícula inválida",
+  max_students: "limite de alunos entre 1 e 500",
+  start_time: "horário inicial inválido",
+  end_time: "horário final inválido",
+  schedules: "o horário final deve ser depois do inicial",
+  weekday: "dia da semana inválido",
+  logo_url: "endereço do logo inválido",
+  birth_date: "nascimento no formato DD/MM/AAAA",
+  due_day: "vencimento entre 1 e 28",
+  degree: "grau deve ser um número",
+  due_day_default: "vencimento padrão entre 1 e 28",
+  start_month: "mês de início inválido",
+  payment_methods: "forma de pagamento inválida",
+};
+
+/** Traduz o que o formato completo recusa em mensagens por seção e linha. */
+function schemaIssues(p: ImplementationPayload, limit = 10): string[] {
+  const parsed = implementationPayloadSchema.safeParse(p);
+  if (parsed.success) return [];
+  const messages = new Set<string>();
+  for (const issue of parsed.error.issues) {
+    const [section, index] = issue.path;
+    const where = SECTION_LABELS[String(section)]?.(typeof index === "number" ? index : 0);
+    const field = [...issue.path]
+      .reverse()
+      .find((k) => typeof k === "string" && k in FIELD_MESSAGES);
+    const what = field ? FIELD_MESSAGES[String(field)] : issue.message;
+    messages.add(`${where ?? "Dados"}: ${what}.`);
+  }
+  const all = [...messages];
+  return all.length > limit
+    ? [...all.slice(0, limit), `E mais ${all.length - limit} correções.`]
+    : all;
 }
 
 /**
@@ -238,7 +363,7 @@ export function implementationIssues(p: ImplementationPayload): string[] {
     issues.push(
       `Alunos: turma(s) da planilha que não estão em Turmas: ${[...unknownClasses].join(", ")}.`,
     );
-  return issues;
+  return [...issues, ...schemaIssues(p)];
 }
 
 export function splitClasses(value: string | undefined): string[] {
