@@ -7,6 +7,7 @@
 // das chaves aqui são lidos por essa função SQL: mudar um exige mudar lá.
 
 import { z } from "zod";
+import { modalityLabel, normalizeModality } from "@/lib/dojo/modalities";
 
 export const IMPLEMENTATION_STATUS_LABELS: Record<string, string> = {
   rascunho: "Rascunho",
@@ -348,6 +349,8 @@ export function implementationIssues(p: ImplementationPayload): string[] {
     issues.push("Turmas: há duas turmas com o mesmo nome.");
   p.classes.forEach((c) => {
     if (c.schedules.length === 0) issues.push(`Turmas: "${c.name}" está sem dia e horário.`);
+    if (/[;,]/.test(c.name))
+      issues.push(`Turmas: tire a vírgula ou o ponto e vírgula do nome "${c.name}".`);
   });
   const unknownPlans = new Set<string>();
   const unknownClasses = new Set<string>();
@@ -357,11 +360,11 @@ export function implementationIssues(p: ImplementationPayload): string[] {
   }
   if (unknownPlans.size)
     issues.push(
-      `Alunos: plano(s) da planilha que não estão em Planos: ${[...unknownPlans].join(", ")}.`,
+      `Alunos: plano(s) não cadastrado(s) em Planos: ${[...unknownPlans].join(", ")}. Escolha o plano certo na etapa Alunos (filtro "Para corrigir").`,
     );
   if (unknownClasses.size)
     issues.push(
-      `Alunos: turma(s) da planilha que não estão em Turmas: ${[...unknownClasses].join(", ")}.`,
+      `Alunos: turma(s) não cadastrada(s) em Turmas: ${[...unknownClasses].join(", ")}. Corrija na etapa Alunos (filtro "Para corrigir").`,
     );
   return [...issues, ...schemaIssues(p)];
 }
@@ -384,6 +387,13 @@ export function normalizeImplementationStudent(
   const out = { ...row };
   const br = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(out.birth_date ?? "");
   if (br) out.birth_date = `${br[3]}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
+  // "2º grau", "2 graus" → "2"; "dia 10" → "10".
+  for (const k of ["degree", "due_day"] as const) {
+    if (out[k] === undefined) continue;
+    const digits = /\d{1,2}/.exec(out[k]);
+    if (digits) out[k] = String(Number(digits[0]));
+    else delete out[k];
+  }
   return out;
 }
 
@@ -395,4 +405,250 @@ export function validateImplementationStudents(rows: Record<string, string>[]): 
       ? []
       : [`Linha ${index + 2}: ${parsed.error.issues.map((issue) => issue.message).join("; ")}`];
   });
+}
+
+/* ------------------------- Vínculos dos alunos ------------------------- */
+// A planilha traz só os dados pessoais; plano, turmas, faixa, grau e vencimento
+// são escolhidos na tela, em listas montadas com o que o dono cadastrou nas
+// etapas anteriores. Os vínculos continuam gravados por NOME nas chaves `plan`,
+// `classes` ("A; B"), `modality`, `belt`, `degree` e `due_day`, porque é assim
+// que dojo_apply_implementation os lê (lower(trim(nome))).
+
+/** Faixa do catálogo (global da AMT + próprias da academia), por modalidade. */
+export type ImplementationBelt = {
+  name: string;
+  /** Exatamente como está em dojo_belts.modality (a função SQL compara igual). */
+  modality: string;
+  max_degrees: number;
+  kids: boolean;
+};
+
+export type BeltCatalog = Map<string, ImplementationBelt[]>;
+
+type BeltRow = {
+  name?: string | null;
+  modality?: string | null;
+  max_degrees?: number | null;
+  owner_id?: string | null;
+  category?: string | null;
+  sort_order?: number | null;
+};
+
+/** Agrupa as faixas por modalidade, sem nomes repetidos: própria antes da global, adulto antes de infantil. */
+export function buildBeltCatalog(rows: BeltRow[]): BeltCatalog {
+  const isAdult = (b: BeltRow) => (b.category ?? "adult") === "adult";
+  const sorted = [...rows]
+    .filter((b) => (b.name ?? "").trim() && (b.modality ?? "").trim())
+    .sort(
+      (a, b) =>
+        Number(a.owner_id == null) - Number(b.owner_id == null) ||
+        Number(!isAdult(a)) - Number(!isAdult(b)),
+    );
+  const catalog: BeltCatalog = new Map();
+  const order = new Map<ImplementationBelt, number>();
+  for (const b of sorted) {
+    const mod = normalizeModality(b.modality);
+    const list = catalog.get(mod) ?? [];
+    if (list.some((x) => key(x.name) === key(b.name ?? ""))) continue;
+    const belt: ImplementationBelt = {
+      name: (b.name ?? "").trim(),
+      modality: (b.modality ?? "").trim(),
+      max_degrees: Math.max(0, Math.min(10, Number(b.max_degrees ?? 0) || 0)),
+      kids: !isAdult(b),
+    };
+    order.set(belt, Number(b.sort_order ?? 0));
+    list.push(belt);
+    catalog.set(mod, list);
+  }
+  for (const list of catalog.values())
+    list.sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0));
+  return catalog;
+}
+
+/**
+ * Faixa de um aluno no catálogo, como a função SQL acha: pela modalidade do aluno
+ * ou, sem ela, na ordem das modalidades da academia.
+ */
+export function findStudentBelt(
+  catalog: BeltCatalog,
+  belt: string | undefined,
+  modality: string | undefined,
+  academyModalities: string[],
+): ImplementationBelt | null {
+  if (!belt?.trim()) return null;
+  const mods = modality?.trim()
+    ? [normalizeModality(modality)]
+    : academyModalities.map((m) => normalizeModality(m));
+  for (const mod of mods) {
+    const hit = catalog.get(mod)?.find((b) => key(b.name) === key(belt));
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/** Comparação tolerante (acento, hífen, "faixa azul") para reconhecer o que veio da planilha. */
+function loose(v: string | undefined): string {
+  return String(v ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[-_.]/g, " ")
+    .replace(/^faixa\s+/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Troca o que a planilha trouxe (plano, turmas, faixa) pelos nomes exatos do
+ * formulário e do catálogo. O que não for reconhecido fica como veio, para o
+ * dono escolher na tela (aparece em vermelho).
+ */
+export function linkImportedStudent(
+  row: Record<string, string>,
+  payload: Pick<ImplementationPayload, "plans" | "classes" | "academy">,
+  catalog: BeltCatalog,
+): Record<string, string> {
+  const out = { ...row };
+  if (out.plan) {
+    const hit = payload.plans.find((p) => p.name.trim() && loose(p.name) === loose(out.plan));
+    if (hit) out.plan = hit.name.trim();
+  }
+  if (out.classes) {
+    out.classes = splitClasses(out.classes)
+      .map(
+        (c) =>
+          payload.classes.find((x) => x.name.trim() && loose(x.name) === loose(c))?.name.trim() ??
+          c,
+      )
+      .filter((c, i, all) => all.findIndex((x) => key(x) === key(c)) === i)
+      .join("; ");
+  }
+  if (out.modality) out.modality = normalizeModality(out.modality);
+  if (out.belt) {
+    const mods = out.modality
+      ? [out.modality]
+      : payload.academy.modalities.map((m) => normalizeModality(m));
+    for (const mod of mods) {
+      const hit = catalog.get(mod)?.find((b) => loose(b.name) === loose(out.belt));
+      if (hit) {
+        out.belt = hit.name;
+        out.modality = hit.modality;
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+const LINK_KEYS = ["plan", "classes", "modality", "belt", "degree", "due_day"] as const;
+
+/** Leva os vínculos de quem já estava na lista para a planilha nova (mesmo nome). */
+export function keepStudentLinks(
+  rows: Record<string, string>[],
+  previous: Array<Record<string, string | undefined>>,
+): { rows: Record<string, string>[]; kept: number } {
+  const byName = new Map(previous.map((s) => [loose(s.full_name), s]));
+  let kept = 0;
+  const merged = rows.map((row) => {
+    const old = byName.get(loose(row.full_name));
+    if (!old) return row;
+    const out = { ...row };
+    let changed = false;
+    for (const k of LINK_KEYS) {
+      const value = old[k];
+      if (!out[k] && value) {
+        out[k] = value;
+        changed = true;
+      }
+    }
+    if (changed) kept += 1;
+    return out;
+  });
+  return { rows: merged, kept };
+}
+
+export type StudentLinkProblems = {
+  plan: boolean;
+  classes: string[];
+  belt: boolean;
+};
+
+/** O que está escrito no aluno mas não existe nas listas (vira vermelho na tela). */
+export function studentLinkProblems(
+  s: Record<string, string | undefined>,
+  payload: Pick<ImplementationPayload, "plans" | "classes" | "academy">,
+  catalog: BeltCatalog | null,
+): StudentLinkProblems {
+  const plans = new Set(payload.plans.map((p) => key(p.name)));
+  const classes = new Set(payload.classes.map((c) => key(c.name)));
+  return {
+    plan: Boolean(s.plan?.trim()) && !plans.has(key(s.plan ?? "")),
+    classes: splitClasses(s.classes).filter((c) => !classes.has(key(c))),
+    belt:
+      catalog !== null &&
+      Boolean(s.belt?.trim()) &&
+      !findStudentBelt(catalog, s.belt, s.modality, payload.academy.modalities),
+  };
+}
+
+/** Renomear um plano ou uma turma leva o nome novo aos alunos ligados a ele. */
+export function renameStudentLink(
+  students: ImplementationStudent[],
+  field: "plan" | "classes",
+  from: string,
+  to: string,
+): ImplementationStudent[] {
+  if (!from.trim() || !to.trim() || key(from) === key(to)) return students;
+  return students.map((s) => {
+    if (field === "plan") return key(s.plan ?? "") === key(from) ? { ...s, plan: to.trim() } : s;
+    const list = splitClasses(s.classes);
+    if (!list.some((c) => key(c) === key(from))) return s;
+    return { ...s, classes: list.map((c) => (key(c) === key(from) ? to.trim() : c)).join("; ") };
+  });
+}
+
+/** Tira um plano ou uma turma removidos dos alunos. */
+export function dropStudentLink(
+  students: ImplementationStudent[],
+  field: "plan" | "classes",
+  name: string,
+): ImplementationStudent[] {
+  if (!name.trim()) return students;
+  return students.map((s) => {
+    if (field === "plan") return key(s.plan ?? "") === key(name) ? { ...s, plan: "" } : s;
+    const list = splitClasses(s.classes);
+    if (!list.some((c) => key(c) === key(name))) return s;
+    return { ...s, classes: list.filter((c) => key(c) !== key(name)).join("; ") };
+  });
+}
+
+/** Quantos alunos estão ligados a um plano ou uma turma. */
+export function countStudentLinks(
+  students: ImplementationStudent[],
+  field: "plan" | "classes",
+  name: string,
+): number {
+  if (!name.trim()) return 0;
+  return students.filter((s) =>
+    field === "plan"
+      ? key(s.plan ?? "") === key(name)
+      : splitClasses(s.classes).some((c) => key(c) === key(name)),
+  ).length;
+}
+
+/** Faixas escritas nos alunos que não existem no catálogo (para a lista do que falta). */
+export function beltIssues(
+  p: Pick<ImplementationPayload, "students" | "plans" | "classes" | "academy">,
+  catalog: BeltCatalog,
+): string[] {
+  const unknown = new Set<string>();
+  for (const s of p.students) {
+    if (studentLinkProblems(s, p, catalog).belt)
+      unknown.add(`${s.belt}${s.modality ? ` (${modalityLabel(s.modality)})` : ""}`);
+  }
+  return unknown.size
+    ? [
+        `Alunos: faixa(s) que não existem nas modalidades da academia: ${[...unknown].join(", ")}. Escolha a faixa na etapa Alunos (filtro "Para corrigir").`,
+      ]
+    : [];
 }

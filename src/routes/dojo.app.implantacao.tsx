@@ -9,14 +9,14 @@ import {
   CheckCircle2,
   ClipboardList,
   Clock,
-  Download,
   Hammer,
   Plus,
   Send,
   Trash2,
-  Upload,
 } from "lucide-react";
 import { DojoPageHero } from "@/components/dojo/DojoPageHero";
+import { StepGuide } from "@/components/dojo/implementation/ImplementationGuide";
+import { ImplementationStudentsStep } from "@/components/dojo/implementation/ImplementationStudents";
 import { useDojoPermissions } from "@/components/dojo/DojoPermissionsProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,11 +30,13 @@ import {
   IMPLEMENTATION_STATUS_LABELS,
   IMPLEMENTATION_TEAM_ROLES,
   WEEKDAY_LABELS,
+  beltIssues,
+  buildBeltCatalog,
+  countStudentLinks,
+  dropStudentLink,
   emptyImplementationPayload,
   implementationIssues,
-  splitClasses,
-  normalizeImplementationStudent,
-  validateImplementationStudents,
+  renameStudentLink,
   type ImplementationClass,
   type ImplementationPayload,
   type ImplementationPlan,
@@ -48,13 +50,10 @@ import {
   type MyImplementation,
 } from "@/lib/dojo/implementation.functions";
 import { getSetupState } from "@/lib/dojo/setup.functions";
+import { listDojoBelts } from "@/lib/dojo/dojo.functions";
 import { getMySubscription } from "@/lib/dojo/subscription.functions";
 import { effectivePlanCode, planLimits } from "@/lib/dojo/saas-plans";
 import { MODALITY_CATALOG, modalityLabel, normalizeModality } from "@/lib/dojo/modalities";
-import {
-  downloadImplementationStudentsTemplate,
-  parseStudentsFile,
-} from "@/lib/dojo/students-xlsx";
 
 export const Route = createFileRoute("/dojo/app/implantacao")({
   head: () => ({
@@ -176,6 +175,27 @@ function StatusView({ request }: { request: NonNullable<MyImplementation> }) {
               ? "Recebemos seus dados. A equipe AMT vai revisar e implantar — avisamos assim que estiver pronto."
               : "A equipe AMT está implantando sua academia."}
           </p>
+          <StepGuide title="O que acontece agora">
+            <ol>
+              <li>
+                A equipe AMT confere os dados. Se faltar algo, falamos com você pelo WhatsApp.
+              </li>
+              <li>
+                Cadastramos academia, planos, turmas, equipe e alunos, com matrículas e faixas, de
+                uma vez só.
+              </li>
+              <li>
+                Você recebe o aviso de conclusão e esta página mostra o resumo do que foi
+                cadastrado.
+              </li>
+            </ol>
+            {request.status === "enviada" && (
+              <p>
+                Precisa mudar algo? Clique em <strong>Editar pedido</strong>: o pedido volta para
+                rascunho e sai da fila até você enviar de novo.
+              </p>
+            )}
+          </StepGuide>
           <p className="text-muted-foreground">
             {p.plans.length} planos · {p.classes.length} turmas · {p.team.length} pessoas na equipe
             · {p.students.length} alunos
@@ -219,6 +239,10 @@ function ImplementationForm({ initial }: { initial: MyImplementation }) {
   const discardFn = useServerFn(discardImplementationDraft);
   const setupFn = useServerFn(getSetupState);
   const setup = useQuery({ queryKey: ["dojo-setup"], queryFn: () => setupFn(), enabled: !initial });
+  // Faixas da academia + catálogo da AMT: alimentam as listas da etapa Alunos.
+  const beltsFn = useServerFn(listDojoBelts);
+  const belts = useQuery({ queryKey: ["dojo-belts"], queryFn: () => beltsFn() });
+  const catalog = useMemo(() => (belts.data ? buildBeltCatalog(belts.data) : null), [belts.data]);
 
   const [payload, setPayload] = useState<ImplementationPayload>(
     () => initial?.payload ?? emptyImplementationPayload(),
@@ -271,10 +295,43 @@ function ImplementationForm({ initial }: { initial: MyImplementation }) {
     setPayload((prev) => ({ ...prev, ...patch }));
   }
 
-  const issues = useMemo(() => implementationIssues(payload), [payload]);
+  const issues = useMemo(
+    () => [...implementationIssues(payload), ...(catalog ? beltIssues(payload, catalog) : [])],
+    [payload, catalog],
+  );
 
   return (
     <div className="space-y-5">
+      <details
+        open={!initial}
+        className="rounded-lg border bg-card p-4 text-sm [&_summary]:cursor-pointer"
+      >
+        <summary className="font-medium">Como funciona a implantação assistida</summary>
+        <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-muted-foreground">
+          <li>
+            <strong className="text-foreground">Você preenche</strong> as 6 etapas abaixo, no seu
+            ritmo. Tudo é salvo sozinho: pode sair e continuar depois.
+          </li>
+          <li>
+            <strong className="text-foreground">Você envia para a AMT</strong> na última etapa. Nada
+            é cadastrado no sistema antes disso.
+          </li>
+          <li>
+            <strong className="text-foreground">A equipe AMT confere e cadastra tudo</strong>:
+            academia, planos, turmas, equipe e alunos, já com plano, turma, faixa e vencimento de
+            cada um.
+          </li>
+          <li>
+            <strong className="text-foreground">Você recebe o aviso</strong> e começa a usar. O
+            serviço é gratuito.
+          </li>
+        </ol>
+        <p className="mt-3 text-muted-foreground">
+          Siga a ordem das etapas: os planos e turmas que você cadastrar aparecem como opções na
+          etapa Alunos.
+        </p>
+      </details>
+
       <nav aria-label="Etapas da implantação" className="flex flex-wrap gap-2">
         {STEPS.map((label, index) => (
           <Button
@@ -304,7 +361,14 @@ function ImplementationForm({ initial }: { initial: MyImplementation }) {
         {step === 1 && <PlansStep payload={payload} update={update} />}
         {step === 2 && <ClassesStep payload={payload} update={update} />}
         {step === 3 && <TeamStep payload={payload} update={update} />}
-        {step === 4 && <StudentsStep payload={payload} update={update} />}
+        {step === 4 && (
+          <ImplementationStudentsStep
+            payload={payload}
+            update={update}
+            catalog={catalog}
+            beltsLoading={belts.isLoading}
+          />
+        )}
         {step === 5 && (
           <ReviewStep
             payload={payload}
@@ -411,6 +475,17 @@ function AcademyStep({ payload, update }: StepProps) {
   const others = a.modalities.filter((m) => !catalogIds.includes(normalizeModality(m)));
   return (
     <div className="space-y-5">
+      <StepGuide title="Dados da academia">
+        <p>
+          Aparecem no App do Aluno, nos recibos e nos contratos. Só{" "}
+          <strong>nome, WhatsApp e modalidades</strong> são obrigatórios; o resto você completa
+          depois, se preferir.
+        </p>
+        <p>
+          As modalidades marcadas aqui definem as faixas que você vai poder escolher para cada aluno
+          na etapa Alunos.
+        </p>
+      </StepGuide>
       <div className="grid gap-4 sm:grid-cols-2">
         {field("trade_name", "Nome da academia *", { maxLength: 200 })}
         {field("responsible_name", "Responsável", { maxLength: 200 })}
@@ -554,14 +629,24 @@ function AcademyStep({ payload, update }: StepProps) {
 
 function PlansStep({ payload, update }: StepProps) {
   const plans = payload.plans;
+  const nameAtFocus = useRef("");
   const setPlan = (index: number, patch: Partial<ImplementationPlan>) =>
     update({ plans: plans.map((p, i) => (i === index ? { ...p, ...patch } : p)) });
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Os planos de mensalidade que você oferece. O nome do plano é o que vai na coluna "Plano" da
-        planilha de alunos.
-      </p>
+      <StepGuide title="Planos de mensalidade">
+        <ul>
+          <li>
+            Cadastre cada plano que você cobra hoje, com o valor atual (ex.: Mensal Adulto, Kids 2x
+            na semana, Trimestral).
+          </li>
+          <li>
+            Na etapa Alunos você escolhe o plano de cada aluno numa lista com estes nomes. Se mudar
+            o nome de um plano, os alunos ligados a ele acompanham.
+          </li>
+          <li>Nenhuma mensalidade é gerada antes do mês que você escolher na revisão.</li>
+        </ul>
+      </StepGuide>
       {plans.map((plan, index) => (
         <div key={index} className="space-y-3 rounded-md border p-4">
           <div className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr_1fr]">
@@ -571,7 +656,18 @@ function PlansStep({ payload, update }: StepProps) {
                 id={`plan-name-${index}`}
                 maxLength={120}
                 value={plan.name}
+                onFocus={() => (nameAtFocus.current = plan.name)}
                 onChange={(e) => setPlan(index, { name: e.target.value })}
+                onBlur={() =>
+                  update({
+                    students: renameStudentLink(
+                      payload.students,
+                      "plan",
+                      nameAtFocus.current,
+                      plan.name,
+                    ),
+                  })
+                }
               />
             </div>
             <MoneyInput
@@ -626,7 +722,26 @@ function PlansStep({ payload, update }: StepProps) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => update({ plans: plans.filter((_, i) => i !== index) })}
+            onClick={() => {
+              const linked = countStudentLinks(payload.students, "plan", plan.name);
+              if (
+                linked > 0 &&
+                !window.confirm(
+                  `${linked} aluno(s) estão neste plano e ficarão sem plano. Remover mesmo assim?`,
+                )
+              )
+                return;
+              const rest = plans.filter((_, i) => i !== index);
+              const stillExists = rest.some(
+                (p) => p.name.trim().toLowerCase() === plan.name.trim().toLowerCase(),
+              );
+              update({
+                plans: rest,
+                students: stillExists
+                  ? payload.students
+                  : dropStudentLink(payload.students, "plan", plan.name),
+              });
+            }}
           >
             <Trash2 /> Remover plano
           </Button>
@@ -714,14 +829,24 @@ function flattenSchedules(groups: ScheduleGroup[]): ImplementationClass["schedul
 function ClassesStep({ payload, update }: StepProps) {
   const classes = payload.classes;
   const mods = payload.academy.modalities;
+  const nameAtFocus = useRef("");
   const setClass = (index: number, patch: Partial<ImplementationClass>) =>
     update({ classes: classes.map((c, i) => (i === index ? { ...c, ...patch } : c)) });
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        As turmas e a grade de horários. O nome da turma é o que vai na coluna "Turmas" da planilha
-        de alunos.
-      </p>
+      <StepGuide title="Turmas e horários">
+        <ul>
+          <li>
+            Uma turma para cada grupo que treina junto, com a modalidade e os dias e horários (ex.:
+            Jiu-Jitsu Adulto Noite, seg e qua, 19h às 20h30).
+          </li>
+          <li>
+            A grade aparece no App do Aluno para o check-in. Na etapa Alunos você marca em quais
+            turmas cada aluno treina — pode ser mais de uma.
+          </li>
+          <li>Use nomes sem vírgula nem ponto e vírgula.</li>
+        </ul>
+      </StepGuide>
       {classes.map((c, index) => {
         const groups = groupSchedules(c.schedules);
         const setGroups = (next: ScheduleGroup[]) =>
@@ -735,7 +860,18 @@ function ClassesStep({ payload, update }: StepProps) {
                   id={`class-name-${index}`}
                   maxLength={120}
                   value={c.name}
-                  onChange={(e) => setClass(index, { name: e.target.value })}
+                  onFocus={() => (nameAtFocus.current = c.name)}
+                  onChange={(e) => setClass(index, { name: e.target.value.replace(/[;,]/g, "") })}
+                  onBlur={() =>
+                    update({
+                      students: renameStudentLink(
+                        payload.students,
+                        "classes",
+                        nameAtFocus.current,
+                        c.name,
+                      ),
+                    })
+                  }
                 />
               </div>
               <div className="space-y-1.5">
@@ -890,7 +1026,26 @@ function ClassesStep({ payload, update }: StepProps) {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => update({ classes: classes.filter((_, i) => i !== index) })}
+              onClick={() => {
+                const linked = countStudentLinks(payload.students, "classes", c.name);
+                if (
+                  linked > 0 &&
+                  !window.confirm(
+                    `${linked} aluno(s) estão nesta turma e sairão dela. Remover mesmo assim?`,
+                  )
+                )
+                  return;
+                const rest = classes.filter((_, i) => i !== index);
+                const stillExists = rest.some(
+                  (x) => x.name.trim().toLowerCase() === c.name.trim().toLowerCase(),
+                );
+                update({
+                  classes: rest,
+                  students: stillExists
+                    ? payload.students
+                    : dropStudentLink(payload.students, "classes", c.name),
+                });
+              }}
             >
               <Trash2 /> Remover turma
             </Button>
@@ -932,13 +1087,15 @@ function TeamStep({ payload, update }: StepProps) {
     update({ team: team.map((m, i) => (i === index ? { ...m, ...patch } : m)) });
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Professores e funcionários. A AMT cadastra a equipe; os logins de acesso você cria depois em
-        Usuários do Sistema.
-      </p>
-      {team.length === 0 && (
-        <p className="text-sm">Ninguém na equipe além de você? Pode seguir para a próxima etapa.</p>
-      )}
+      <StepGuide title="Equipe">
+        <ul>
+          <li>
+            Professores e funcionários entram no cadastro da equipe. O acesso ao sistema (login) de
+            cada um você libera depois, em Usuários do Sistema.
+          </li>
+          <li>Só você na academia? Pode seguir para a próxima etapa.</li>
+        </ul>
+      </StepGuide>
       {team.map((m, index) => (
         <div
           key={index}
@@ -1011,139 +1168,6 @@ function TeamStep({ payload, update }: StepProps) {
   );
 }
 
-/* ------------------------------ 5. Alunos ------------------------------ */
-
-function StudentsStep({ payload, update }: StepProps) {
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [errors, setErrors] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
-  const students = payload.students;
-  return (
-    <div className="space-y-4">
-      <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-        <li>Baixe o modelo e preencha uma linha por aluno (só o nome é obrigatório).</li>
-        <li>
-          Nas colunas <strong>Plano</strong> e <strong>Turmas</strong>, use os mesmos nomes das
-          etapas anteriores. Mais de uma turma: separe com ponto e vírgula.
-        </li>
-        <li>
-          Envie a planilha aqui. Os dados ficam só na sua conta, protegidos, e são usados apenas na
-          implantação.
-        </li>
-      </ol>
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={() => downloadImplementationStudentsTemplate()}>
-          <Download /> Baixar modelo
-        </Button>
-        <Button variant="outline" disabled={busy} onClick={() => fileRef.current?.click()}>
-          <Upload /> {students.length ? "Trocar planilha" : "Enviar planilha"}
-        </Button>
-        {students.length > 0 && (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              update({ students: [] });
-              setErrors([]);
-            }}
-          >
-            <Trash2 /> Remover alunos
-          </Button>
-        )}
-      </div>
-      <input
-        ref={fileRef}
-        type="file"
-        accept=".csv,.xlsx,.xls"
-        aria-label="Planilha de alunos"
-        className="sr-only"
-        onChange={async (e) => {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          setBusy(true);
-          setErrors([]);
-          try {
-            if (file.size > 10 * 1024 * 1024) throw new Error("Arquivo máximo: 10 MB.");
-            const parsed = await parseStudentsFile(file, true, true);
-            if (!parsed.length)
-              throw new Error(
-                "Nenhum aluno encontrado. Confira se a primeira linha tem os títulos do modelo.",
-              );
-            if (parsed.length > 2000) throw new Error("Máximo de 2.000 alunos por implantação.");
-            const rows = parsed.map((row) => {
-              const fixed = normalizeImplementationStudent(row);
-              return fixed.modality
-                ? { ...fixed, modality: normalizeModality(fixed.modality) }
-                : fixed;
-            });
-            const problems = validateImplementationStudents(rows);
-            setErrors(problems);
-            if (problems.length === 0) {
-              update({ students: rows as ImplementationPayload["students"] });
-              toast.success(`${rows.length} alunos carregados.`);
-            }
-          } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Arquivo inválido.");
-          } finally {
-            setBusy(false);
-            e.target.value = "";
-          }
-        }}
-      />
-      {errors.length > 0 && (
-        <div
-          role="alert"
-          className="space-y-1 rounded-md border border-destructive/40 p-3 text-sm text-destructive"
-        >
-          <p className="font-medium">Corrija a planilha e envie de novo:</p>
-          <ul className="max-h-40 list-disc overflow-auto pl-5">
-            {errors.slice(0, 50).map((m) => (
-              <li key={m}>{m}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {students.length > 0 && (
-        <>
-          <p className="text-sm font-medium">{students.length} alunos na planilha</p>
-          <div className="max-h-80 overflow-auto rounded-md border">
-            <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-muted">
-                <tr>
-                  <th className="p-2">Nome</th>
-                  <th className="p-2">Plano</th>
-                  <th className="p-2">Turmas</th>
-                  <th className="p-2">Faixa</th>
-                  <th className="p-2">Venc.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {students.map((s, i) => (
-                  <tr key={`${s.full_name}-${i}`} className="border-t">
-                    <td className="p-2">
-                      {s.full_name}
-                      {s.status && s.status !== "active" ? (
-                        <span className="ml-1 text-xs text-muted-foreground">
-                          ({s.status === "frozen" ? "trancado" : "inativo"})
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="p-2">{s.plan || "—"}</td>
-                    <td className="p-2">{splitClasses(s.classes).join(", ") || "—"}</td>
-                    <td className="p-2">
-                      {s.belt ? `${s.belt}${s.degree ? ` · ${s.degree}º` : ""}` : "—"}
-                    </td>
-                    <td className="p-2">{s.due_day || "padrão"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 /* ------------------------------ 6. Revisão ------------------------------ */
 
 function ReviewStep({
@@ -1158,9 +1182,24 @@ function ReviewStep({
   const planCode = effectivePlanCode(sub.data as { plan_code?: string | null } | null);
   const limit = planLimits(planCode).students;
   const active = payload.students.filter((s) => !s.status || s.status === "active").length;
+  const withoutPlan = payload.students.filter(
+    (s) => (!s.status || s.status === "active") && !s.plan?.trim(),
+  ).length;
   const billing = payload.billing;
   return (
     <div className="space-y-5">
+      <StepGuide title="Antes de enviar">
+        <ul>
+          <li>
+            Confira os números abaixo e escolha <strong>a partir de quando</strong> o sistema gera
+            as mensalidades. Os meses anteriores continuam com você, fora do sistema.
+          </li>
+          <li>
+            Ao enviar, o pedido vai para a fila da AMT. Enquanto não começarmos, você ainda pode
+            editar.
+          </li>
+        </ul>
+      </StepGuide>
       <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-5">
         {[
           ["Academia", payload.academy.trade_name || "—"],
@@ -1175,6 +1214,14 @@ function ReviewStep({
           </div>
         ))}
       </dl>
+
+      {withoutPlan > 0 && (
+        <p className="rounded-md border p-3 text-sm text-muted-foreground">
+          {withoutPlan === 1 ? "1 aluno ativo está" : `${withoutPlan} alunos ativos estão`} sem
+          plano: {withoutPlan === 1 ? "entra" : "entram"} sem matrícula e sem mensalidade. Para
+          escolher, volte à etapa Alunos e use o filtro <strong>Sem plano</strong>.
+        </p>
+      )}
 
       {limit !== null && active > limit && (
         <p
@@ -1206,7 +1253,7 @@ function ReviewStep({
             }
           />
           <p className="text-xs text-muted-foreground">
-            Vale para quem não tem dia de vencimento na planilha.
+            Vale para quem ficou com vencimento "Padrão" na etapa Alunos.
           </p>
         </div>
         <div className="space-y-1.5">

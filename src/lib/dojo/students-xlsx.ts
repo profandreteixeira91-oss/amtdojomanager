@@ -87,8 +87,10 @@ export function downloadStudentsTemplate() {
 
 export type ParsedStudentRow = Record<string, string>;
 
-// Colunas a mais da planilha da implantação assistida (/dojo/app/implantacao):
-// ligam o aluno ao plano, às turmas e à faixa. O importador comum as ignora.
+// Implantação assistida (/dojo/app/implantacao): o modelo traz só os dados
+// pessoais; plano, turmas, faixa, grau e vencimento são escolhidos na tela. As
+// colunas abaixo continuam aceitas para quem já tem tudo numa planilha: o sistema
+// tenta reconhecer os nomes e o que não reconhecer o dono escolhe na tela.
 export const IMPLEMENTATION_EXTRA_COLUMNS: Array<{ key: string; label: string; aliases: string[] }> = [
   { key: "plan", label: "Plano", aliases: ["plano de mensalidade"] },
   { key: "classes", label: "Turmas (separe com ;)", aliases: ["turmas", "turma"] },
@@ -98,19 +100,50 @@ export const IMPLEMENTATION_EXTRA_COLUMNS: Array<{ key: string; label: string; a
   { key: "due_day", label: "Dia de vencimento", aliases: ["vencimento", "dia vencimento"] },
 ];
 
+const IMPLEMENTATION_BIRTH_LABEL = "Nascimento (DD/MM/AAAA)";
+
 const IMPLEMENTATION_LABEL_TO_KEY: Record<string, string> = { ...LABEL_TO_KEY };
 for (const c of IMPLEMENTATION_EXTRA_COLUMNS) {
   for (const label of [c.label, c.key, ...c.aliases]) IMPLEMENTATION_LABEL_TO_KEY[normalize(label)] = c.key;
 }
+for (const label of [IMPLEMENTATION_BIRTH_LABEL, "Nascimento", "Data de nascimento"]) {
+  IMPLEMENTATION_LABEL_TO_KEY[normalize(label)] = "birth_date";
+}
+
+const IMPLEMENTATION_HOW_TO: string[][] = [
+  ["Como preencher a planilha da implantação"],
+  [""],
+  ["1. Use a aba Alunos: uma linha por aluno. Só o nome completo é obrigatório."],
+  ["2. Apague a linha de exemplo (João da Silva) antes de enviar."],
+  ["3. Nascimento no formato DD/MM/AAAA (ex.: 12/05/1990)."],
+  ["4. Status: ativo, inativo ou congelado. Em branco = ativo."],
+  ["5. Plano, turmas, faixa, grau e vencimento NÃO vão na planilha:"],
+  ["   depois de enviar, você escolhe cada um em listas, na tela da implantação,"],
+  ["   com os planos e turmas que cadastrou e as faixas de cada modalidade."],
+  ["6. Pode usar Excel ou Google Planilhas. Salve como .xlsx ou .csv e envie na etapa Alunos."],
+];
 
 export function downloadImplementationStudentsTemplate() {
-  const headers = [...STUDENT_IMPORT_COLUMNS.map((c) => c.label), ...IMPLEMENTATION_EXTRA_COLUMNS.map((c) => c.label)];
-  const example = [...STUDENT_IMPORT_EXAMPLE, "Mensal Adulto", "Jiu-Jitsu Noite", "Jiu-Jitsu", "Azul", "2", "10"];
+  const headers = STUDENT_IMPORT_COLUMNS.map((c) =>
+    c.key === "birth_date" ? IMPLEMENTATION_BIRTH_LABEL : c.label,
+  );
+  const example = STUDENT_IMPORT_COLUMNS.map((c, i) =>
+    c.key === "birth_date" ? "12/05/1990" : STUDENT_IMPORT_EXAMPLE[i] ?? "",
+  );
   const ws = XLSX.utils.aoa_to_sheet([headers, example]);
   ws["!cols"] = headers.map(() => ({ wch: 22 }));
+  const help = XLSX.utils.aoa_to_sheet(IMPLEMENTATION_HOW_TO);
+  help["!cols"] = [{ wch: 90 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Alunos");
+  XLSX.utils.book_append_sheet(wb, help, "Como preencher");
   XLSX.writeFile(wb, "implantacao-alunos.xlsx");
+}
+
+/** Data de célula do Excel em AAAA-MM-DD (meio-dia evita o deslocamento de fuso das datas antigas). */
+function isoFromCellDate(d: Date): string {
+  const noon = new Date(d.getTime() + 12 * 3600_000);
+  return `${noon.getFullYear()}-${String(noon.getMonth() + 1).padStart(2, "0")}-${String(noon.getDate()).padStart(2, "0")}`;
 }
 
 export async function parseStudentsFile(
@@ -123,18 +156,24 @@ export async function parseStudentsFile(
   const csv = preserveCsvText && file.name.toLowerCase().endsWith(".csv");
   const wb = csv
     ? XLSX.read(new TextDecoder("utf-8").decode(buf), { type: "string", raw: true })
-    : XLSX.read(buf, { type: "array", raw: preserveCsvText });
+    : XLSX.read(buf, { type: "array", raw: preserveCsvText, cellDates: true });
   const wsName = wb.SheetNames[0];
   if (!wsName) return [];
   const ws = wb.Sheets[wsName];
   const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "", raw: false });
+  // Nascimento digitado no Excel vira célula de data, e o texto formatado sai no
+  // padrão americano (5/12/90): lê o valor da data e grava AAAA-MM-DD.
+  const values = csv ? [] : XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "", raw: true });
   const rows: ParsedStudentRow[] = [];
-  for (const r of raw) {
+  for (const [index, r] of raw.entries()) {
     const mapped: ParsedStudentRow = {};
     for (const [k, v] of Object.entries(r)) {
       const key = labelToKey[normalize(k)];
       if (!key) continue;
-      const val = String(v ?? "").trim();
+      const cell = values[index]?.[k];
+      const val = key === "birth_date" && cell instanceof Date && !Number.isNaN(cell.getTime())
+        ? isoFromCellDate(cell)
+        : String(v ?? "").trim();
       if (!val) continue;
       if (key === "status") {
         const mappedStatus = STATUS_TO_VALUE[normalize(val)];
