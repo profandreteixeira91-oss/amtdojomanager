@@ -20,9 +20,13 @@ import {
   keepStudentLinks,
   linkImportedStudent,
   normalizeImplementationStudent,
+  pruneClassTimes,
+  scheduleGroupLabels,
   splitClasses,
+  studentClassTime,
   studentLinkProblems,
   validateImplementationStudents,
+  withClassTime,
   type BeltCatalog,
   type ImplementationPayload,
   type ImplementationStudent,
@@ -53,6 +57,9 @@ const selectClass =
 const DAYS = Array.from({ length: 28 }, (_, i) => i + 1);
 
 const key = (v: string | undefined) => (v ?? "").trim().toLowerCase();
+
+/** Horários de cada turma (nome em minúsculas → "Seg/Qua 19:00–20:00"). */
+type ClassTimes = Map<string, string[]>;
 
 /** Aplica o patch e apaga os campos que ficaram vazios (o nome sempre fica). */
 function withPatch(s: ImplementationStudent, patch: Record<string, string>): ImplementationStudent {
@@ -86,6 +93,15 @@ export function ImplementationStudentsStep({ payload, update, catalog, beltsLoad
   );
   const classNames = useMemo(
     () => [...new Set(payload.classes.map((c) => c.name.trim()).filter(Boolean))],
+    [payload.classes],
+  );
+  const classTimes = useMemo<ClassTimes>(
+    () =>
+      new Map(
+        payload.classes
+          .filter((c) => c.name.trim())
+          .map((c) => [key(c.name), scheduleGroupLabels(c.schedules)]),
+      ),
     [payload.classes],
   );
 
@@ -207,6 +223,10 @@ export function ImplementationStudentsStep({ payload, update, catalog, beltsLoad
           Dica: marque vários alunos e use <strong>Aplicar aos selecionados</strong> para escolher
           de uma vez (ex.: todos da turma Adulto no plano Mensal). Aluno sem plano entra sem
           matrícula e sem mensalidade; sem faixa, entra sem graduação.
+        </p>
+        <p>
+          Turma com mais de um horário? Escolha também <strong>o horário do aluno</strong>: ele fica
+          registrado nas observações do cadastro do aluno.
         </p>
       </StepGuide>
 
@@ -373,6 +393,7 @@ export function ImplementationStudentsStep({ payload, update, catalog, beltsLoad
               count={selected.size}
               planNames={planNames}
               classNames={classNames}
+              classTimes={classTimes}
               modalities={modalities}
               catalog={catalog}
               defaultDue={payload.billing.due_day_default}
@@ -381,7 +402,7 @@ export function ImplementationStudentsStep({ payload, update, catalog, beltsLoad
                 if (window.confirm(`Remover ${selected.size} aluno(s) da lista?`))
                   removeStudents(selected);
               }}
-              onApply={(patch, addClass) => {
+              onApply={(patch, addClass, addClassTime) => {
                 setStudents(
                   students.map((s, i) => {
                     if (!selected.has(i)) return s;
@@ -390,6 +411,8 @@ export function ImplementationStudentsStep({ payload, update, catalog, beltsLoad
                       const list = splitClasses(s.classes);
                       if (!list.some((c) => key(c) === key(addClass))) list.push(addClass);
                       extra.classes = list.join("; ");
+                      if (addClassTime)
+                        extra.class_times = withClassTime(s.class_times, addClass, addClassTime);
                     }
                     return withPatch(s, { ...patch, ...extra });
                   }),
@@ -416,6 +439,7 @@ export function ImplementationStudentsStep({ payload, update, catalog, beltsLoad
                 onRemove={() => removeStudents(new Set([index]))}
                 planNames={planNames}
                 classNames={classNames}
+                classTimes={classTimes}
                 modalities={modalities}
                 catalog={catalog}
                 beltsLoading={beltsLoading}
@@ -467,6 +491,7 @@ type RowProps = {
   onRemove: () => void;
   planNames: string[];
   classNames: string[];
+  classTimes: ClassTimes;
   modalities: string[];
   catalog: BeltCatalog | null;
   beltsLoading: boolean;
@@ -482,6 +507,7 @@ function StudentRow({
   onRemove,
   planNames,
   classNames,
+  classTimes,
   modalities,
   catalog,
   beltsLoading,
@@ -505,6 +531,10 @@ function StudentRow({
   const beltValue = !s.belt?.trim() ? "" : belt ? belt.name : UNKNOWN;
   const flagged = hasProblem(problems);
   const nameShort = s.full_name.trim().length < 2;
+  // Turmas do aluno com mais de um horário: o dono pode dizer qual ele faz.
+  const timeChoices = splitClasses(s.classes)
+    .map((className) => ({ className, options: classTimes.get(key(className)) ?? [] }))
+    .filter((c) => c.options.length > 1);
 
   return (
     <li
@@ -569,7 +599,9 @@ function StudentRow({
             value={s.classes}
             classNames={classNames}
             unknown={problems.classes}
-            onChange={(classes) => onPatch({ classes })}
+            onChange={(classes) =>
+              onPatch({ classes, class_times: pruneClassTimes(s.class_times, classes) })
+            }
           />
         </Cell>
 
@@ -664,6 +696,41 @@ function StudentRow({
           </select>
         </Cell>
       </div>
+
+      {timeChoices.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {timeChoices.map(({ className, options }) => {
+            const current = studentClassTime(s.class_times, className);
+            return (
+              <label
+                key={className}
+                className="flex min-w-[14rem] flex-1 flex-col gap-1 text-xs text-muted-foreground sm:max-w-xs"
+              >
+                Horário em {className}
+                <select
+                  className={selectClass}
+                  value={current}
+                  onChange={(e) =>
+                    onPatch({
+                      class_times: withClassTime(s.class_times, className, e.target.value),
+                    })
+                  }
+                >
+                  <option value="">Não informado</option>
+                  {current && !options.includes(current) && (
+                    <option value={current}>⚠ {current} (horário mudou na turma)</option>
+                  )}
+                  {options.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            );
+          })}
+        </div>
+      )}
     </li>
   );
 }
@@ -740,6 +807,7 @@ function BulkBar({
   count,
   planNames,
   classNames,
+  classTimes,
   modalities,
   catalog,
   defaultDue,
@@ -750,15 +818,22 @@ function BulkBar({
   count: number;
   planNames: string[];
   classNames: string[];
+  classTimes: ClassTimes;
   modalities: string[];
   catalog: BeltCatalog | null;
   defaultDue: number;
-  onApply: (patch: Record<string, string>, addClass: string | null) => void;
+  onApply: (
+    patch: Record<string, string>,
+    addClass: string | null,
+    addClassTime: string | null,
+  ) => void;
   onClear: () => void;
   onRemove: () => void;
 }) {
   const [plan, setPlan] = useState(KEEP);
   const [addClass, setAddClass] = useState(KEEP);
+  const [addClassTime, setAddClassTime] = useState("");
+  const addClassOptions = addClass === KEEP ? [] : (classTimes.get(key(addClass)) ?? []);
   const [modality, setModality] = useState(modalities.length === 1 ? modalities[0] : "");
   const [belt, setBelt] = useState(KEEP);
   const [degree, setDegree] = useState("");
@@ -797,7 +872,10 @@ function BulkBar({
             aria-label="Incluir os selecionados na turma"
             className={selectClass}
             value={addClass}
-            onChange={(e) => setAddClass(e.target.value)}
+            onChange={(e) => {
+              setAddClass(e.target.value);
+              setAddClassTime("");
+            }}
           >
             <option value={KEEP}>Não alterar</option>
             {classNames.map((c) => (
@@ -806,6 +884,21 @@ function BulkBar({
               </option>
             ))}
           </select>
+          {addClassOptions.length > 1 && (
+            <select
+              aria-label={`Horário em ${addClass} para os selecionados`}
+              className={cn(selectClass, "mt-1")}
+              value={addClassTime}
+              onChange={(e) => setAddClassTime(e.target.value)}
+            >
+              <option value="">Horário: não informado</option>
+              {addClassOptions.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
+          )}
         </Cell>
         <Cell label="Faixa e grau">
           <div className="grid grid-cols-[1fr_1.2fr_0.9fr] gap-1">
@@ -896,7 +989,11 @@ function BulkBar({
                 degree,
               });
             if (due !== KEEP) patch.due_day = due;
-            onApply(patch, addClass === KEEP ? null : addClass);
+            onApply(
+              patch,
+              addClass === KEEP ? null : addClass,
+              addClass === KEEP ? null : addClassTime || null,
+            );
           }}
         >
           Aplicar aos selecionados

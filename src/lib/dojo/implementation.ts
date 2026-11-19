@@ -540,7 +540,15 @@ export function linkImportedStudent(
   return out;
 }
 
-const LINK_KEYS = ["plan", "classes", "modality", "belt", "degree", "due_day"] as const;
+const LINK_KEYS = [
+  "plan",
+  "classes",
+  "class_times",
+  "modality",
+  "belt",
+  "degree",
+  "due_day",
+] as const;
 
 /** Leva os vínculos de quem já estava na lista para a planilha nova (mesmo nome). */
 export function keepStudentLinks(
@@ -603,7 +611,17 @@ export function renameStudentLink(
     if (field === "plan") return key(s.plan ?? "") === key(from) ? { ...s, plan: to.trim() } : s;
     const list = splitClasses(s.classes);
     if (!list.some((c) => key(c) === key(from))) return s;
-    return { ...s, classes: list.map((c) => (key(c) === key(from) ? to.trim() : c)).join("; ") };
+    const out: ImplementationStudent = {
+      ...s,
+      classes: list.map((c) => (key(c) === key(from) ? to.trim() : c)).join("; "),
+    };
+    if (s.class_times)
+      out.class_times = writeClassTimes(
+        readClassTimes(s.class_times).map((x) =>
+          key(x.className) === key(from) ? { ...x, className: to.trim() } : x,
+        ),
+      );
+    return out;
   });
 }
 
@@ -618,7 +636,10 @@ export function dropStudentLink(
     if (field === "plan") return key(s.plan ?? "") === key(name) ? { ...s, plan: "" } : s;
     const list = splitClasses(s.classes);
     if (!list.some((c) => key(c) === key(name))) return s;
-    return { ...s, classes: list.filter((c) => key(c) !== key(name)).join("; ") };
+    const classes = list.filter((c) => key(c) !== key(name)).join("; ");
+    const out: ImplementationStudent = { ...s, classes };
+    if (s.class_times) out.class_times = pruneClassTimes(s.class_times, classes);
+    return out;
   });
 }
 
@@ -651,4 +672,76 @@ export function beltIssues(
         `Alunos: faixa(s) que não existem nas modalidades da academia: ${[...unknown].join(", ")}. Escolha a faixa na etapa Alunos (filtro "Para corrigir").`,
       ]
     : [];
+}
+
+/* ---------------- Horário do aluno na turma (só informativo) ---------------- */
+// O sistema liga o aluno à turma inteira (dojo_class_students não tem horário).
+// Quando a turma tem mais de um horário, o dono pode dizer qual o aluno faz: fica
+// na chave `class_times` ("Kids → Seg/Qua 09:00–10:00; Adulto → Ter/Qui 19:00–20:30")
+// e dojo_apply_implementation grava nas observações do aluno.
+
+const TIME_SEP = " → ";
+
+/** Horários de uma turma agrupados como o dono cadastrou: "Seg/Qua 19:00–20:00". */
+export function scheduleGroupLabels(schedules: ImplementationClass["schedules"]): string[] {
+  const groups = new Map<string, number[]>();
+  for (const sch of schedules) {
+    if (!sch.start_time || !sch.end_time) continue;
+    const time = `${sch.start_time}–${sch.end_time}`;
+    const days = groups.get(time) ?? [];
+    if (!days.includes(sch.weekday)) days.push(sch.weekday);
+    groups.set(time, days);
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(
+      ([time, days]) =>
+        `${days
+          .sort((a, b) => a - b)
+          .map((d) => WEEKDAY_LABELS[d] ?? "?")
+          .join("/")} ${time}`,
+    );
+}
+
+type ClassTime = { className: string; time: string };
+
+export function readClassTimes(value: string | undefined): ClassTime[] {
+  return (value ?? "")
+    .split(";")
+    .map((part) => {
+      const i = part.indexOf(TIME_SEP);
+      return i < 0
+        ? null
+        : { className: part.slice(0, i).trim(), time: part.slice(i + TIME_SEP.length).trim() };
+    })
+    .filter((x): x is ClassTime => Boolean(x?.className && x.time));
+}
+
+function writeClassTimes(list: ClassTime[]): string {
+  return list.map((x) => `${x.className}${TIME_SEP}${x.time}`).join("; ");
+}
+
+/** Horário escolhido para o aluno numa turma ("" = não informado). */
+export function studentClassTime(classTimes: string | undefined, className: string): string {
+  return readClassTimes(classTimes).find((x) => key(x.className) === key(className))?.time ?? "";
+}
+
+/** Define (ou limpa, com time "") o horário do aluno numa turma. */
+export function withClassTime(
+  classTimes: string | undefined,
+  className: string,
+  time: string,
+): string {
+  const rest = readClassTimes(classTimes).filter((x) => key(x.className) !== key(className));
+  if (time.trim()) rest.push({ className: className.trim(), time: time.trim() });
+  return writeClassTimes(rest);
+}
+
+/** Mantém só os horários das turmas em que o aluno continua. */
+export function pruneClassTimes(
+  classTimes: string | undefined,
+  classes: string | undefined,
+): string {
+  const keep = new Set(splitClasses(classes).map(key));
+  return writeClassTimes(readClassTimes(classTimes).filter((x) => keep.has(key(x.className))));
 }
