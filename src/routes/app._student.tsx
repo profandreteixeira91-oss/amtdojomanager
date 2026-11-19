@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, redirect, useNavigate, Link, useRouterState } 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect } from "react";
-import * as Icons from "lucide-react";
+import { studentAppIcon } from "@/lib/student-app/icons";
 import { studentSupabase as supabase } from "@/lib/student-auth/student-client";
 import { BottomNav } from "@/components/student/BottomNav";
 import { StudentThemeProvider } from "@/components/student/StudentThemeProvider";
@@ -240,12 +240,7 @@ const ROUTE_FEATURE: Record<string, FeatureKey> = {
 };
 
 function iconFor(name: string) {
-  const key = name
-    .split(/[-_ ]+/)
-    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-    .join("");
-  const Comp = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[key];
-  return Comp ?? Icons.Circle;
+  return studentAppIcon(name);
 }
 
 function DesktopNav({ items, features }: { items: any[]; features: any }) {

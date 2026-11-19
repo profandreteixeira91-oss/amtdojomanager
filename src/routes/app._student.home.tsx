@@ -10,8 +10,8 @@ import { getStudentAppConfig, getActiveAppNews } from "@/lib/student-app/config.
 import { listMyAnnouncements } from "@/lib/student/announcements.functions";
 import { getMyClassRanking } from "@/lib/student/ranking.functions";
 import { DEFAULT_CONFIG, type HomeBlock, type FeatureKey } from "@/lib/student-app/schema";
-import * as Icons from "lucide-react";
-import { ChevronRight, Megaphone, Pin, Star, AlertTriangle, Trophy, Crown, Flame } from "lucide-react";
+import { Activity, ChevronRight, Megaphone, Pin, Star, AlertTriangle, Trophy, Crown, Flame, Sparkles } from "lucide-react";
+import { studentAppIcon } from "@/lib/student-app/icons";
 
 export const Route = createFileRoute("/app/_student/home")({
   head: () => ({
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/app/_student/home")({
   component: HomePage,
 });
 
-const SHORTCUT_META: Record<string, { label: string; icon: keyof typeof Icons; to: string; feature?: FeatureKey }> = {
+const SHORTCUT_META: Record<string, { label: string; icon: string; to: string; feature?: FeatureKey }> = {
   checkin: { label: "Check-in", icon: "QrCode", to: "/app/checkin", feature: "checkin" },
   agenda: { label: "Agenda", icon: "CalendarDays", to: "/app/agenda", feature: "agenda" },
   schedule: { label: "Grade de aulas", icon: "CalendarRange", to: "/app/schedule" },
@@ -127,11 +127,11 @@ function PerformanceButton() {
       <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-red-600/25 blur-[80px] transition-all group-hover:bg-red-500/40" />
       <div className="pointer-events-none absolute -bottom-14 -left-10 h-40 w-40 rounded-full bg-amber-500/15 blur-[80px]" />
       <div className="relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-red-500 via-red-600 to-amber-500 shadow-lg ring-1 ring-white/10 sm:h-12 sm:w-12">
-        <Icons.Activity className="h-5 w-5 text-white sm:h-6 sm:w-6" />
+        <Activity className="h-5 w-5 text-white sm:h-6 sm:w-6" />
       </div>
       <div className="relative min-w-0 flex-1">
         <div className="inline-flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.2em] text-red-200">
-          <Icons.Sparkles className="h-2.5 w-2.5" /> Novo
+          <Sparkles className="h-2.5 w-2.5" /> Novo
         </div>
         <div className="mt-1 text-base font-black tracking-tight text-white">Performance</div>
         <div className="line-clamp-2 text-[11px] leading-snug text-white/70">Sua análise completa: frequência, técnico, graduações e insights</div>
@@ -440,7 +440,7 @@ function BlockRenderer({
           </h2>
           <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 sm:gap-3 md:grid-cols-5 lg:grid-cols-4">
             {items.map(({ key, meta }) => {
-              const Icon = Icons[meta.icon] as React.ComponentType<{ className?: string }>;
+              const Icon = studentAppIcon(meta.icon);
               return (
                 <Link
                   key={key}

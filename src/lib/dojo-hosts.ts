@@ -27,14 +27,32 @@ export const DOJO_SHARED_PATH_PREFIXES: readonly string[] = [
   "/reset-password",
   "/sitemap.xml",
   "/robots.txt",
+  "/llms.txt",
 ];
 
 export function isDojoSharedPath(pathname: string): boolean {
   return DOJO_SHARED_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
-/** Host de teste (branch 1nov26): nunca deve ser indexado. */
+/** Host de teste (branch 1nov26): nunca deve ser indexado (robots.txt fechado e X-Robots-Tag: noindex). */
 export const DOJO_TEST_HOST = "teste.amtsistemas.com.br";
+
+/** Variante com www: as páginas públicas redirecionam (301) para o domínio principal. */
+export const DOJO_WWW_HOST = `www.${DOJO_HOST}`;
+
+/**
+ * Hosts pelos quais a requisição chegou (x-forwarded-host, host, URL), normalizados: os proxies nem sempre
+ * concordam sobre o host público.
+ */
+export function requestHostnames(request: Request): string[] {
+  const normalize = (h: string | null | undefined) =>
+    (h ?? "").split(",")[0].trim().toLowerCase().replace(/:\d+$/, "").replace(/\.$/, "");
+  return [
+    normalize(request.headers.get("x-forwarded-host")),
+    normalize(request.headers.get("host")),
+    normalize(new URL(request.url).host),
+  ].filter(Boolean);
+}
 
 /** Endereço público canônico de uma página do Dojo. */
 export function dojoCanonical(path: string): string {

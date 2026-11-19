@@ -5,6 +5,7 @@
 // páginas de DOJO_PUBLIC_PAGES. Manter as duas coisas juntas ao criar uma página pública nova.
 
 import { dojoCanonical } from "@/lib/dojo-hosts";
+import { DOJO_LEGAL } from "@/lib/dojo/legal";
 import { SAAS_PLAN_ORDER, SAAS_PLANS } from "@/lib/dojo/saas-plans";
 
 export const DOJO_SITE_NAME = "AMT Dojo Manager";
@@ -13,13 +14,58 @@ export const DOJO_SITE_DESCRIPTION =
 /** Imagem de compartilhamento 1200×630 (public/og/dojo-manager.png). */
 export const DOJO_OG_IMAGE = dojoCanonical("/og/dojo-manager.png");
 
-/** Páginas que o Google deve indexar (sitemap.xml). */
-export const DOJO_PUBLIC_PAGES: Array<{ path: string; priority: string; changefreq: string }> = [
-  { path: "/dojo", priority: "1.0", changefreq: "weekly" },
-  { path: "/dojo/planos", priority: "0.9", changefreq: "monthly" },
-  { path: "/ferramentas/calculadora-ticket-medio", priority: "0.7", changefreq: "monthly" },
-  { path: "/dojo/termos", priority: "0.3", changefreq: "yearly" },
-  { path: "/dojo/privacidade", priority: "0.3", changefreq: "yearly" },
+/**
+ * Páginas que o Google deve indexar (sitemap.xml e llms.txt). `lastmod` é a data da última mudança de conteúdo
+ * da página (AAAA-MM-DD): atualize ao mexer no texto. Uma data que muda todo dia faz o Google ignorar o campo.
+ */
+export const DOJO_PUBLIC_PAGES: Array<{
+  path: string;
+  title: string;
+  summary: string;
+  priority: string;
+  changefreq: string;
+  lastmod: string;
+}> = [
+  {
+    path: "/dojo",
+    title: "AMT Dojo Manager",
+    summary: "Apresentação do sistema, módulos, planos e perguntas frequentes.",
+    priority: "1.0",
+    changefreq: "weekly",
+    lastmod: "2026-11-17",
+  },
+  {
+    path: "/dojo/planos",
+    title: "Planos e preços",
+    summary: "Comparativo dos planos Essencial, Profissional e Premium, com limites e recursos.",
+    priority: "0.9",
+    changefreq: "monthly",
+    lastmod: "2026-11-10",
+  },
+  {
+    path: "/ferramentas/calculadora-ticket-medio",
+    title: "Calculadora de Ticket Médio para Academias",
+    summary: "Ferramenta gratuita: ticket médio atual e quanto cobrar por aluno para cobrir despesas e atingir a meta de lucro.",
+    priority: "0.7",
+    changefreq: "monthly",
+    lastmod: "2026-11-19",
+  },
+  {
+    path: "/dojo/termos",
+    title: "Termos de Uso",
+    summary: "Conta, teste grátis, cobrança, cancelamento e responsabilidades.",
+    priority: "0.3",
+    changefreq: "yearly",
+    lastmod: "2026-11-10",
+  },
+  {
+    path: "/dojo/privacidade",
+    title: "Política de Privacidade",
+    summary: "Como os dados das academias e dos alunos são tratados (LGPD).",
+    priority: "0.3",
+    changefreq: "yearly",
+    lastmod: "2026-11-10",
+  },
   // /privacy e /terms são os textos da AMT Fight Wear (canônico lá); os do Dojo são os dois acima.
 ];
 
@@ -32,7 +78,35 @@ export const DOJO_ORGANIZATION = {
   name: "AMT Sistemas",
   url: "https://amtsistemas.com.br",
   logo: dojoCanonical("/dojo-icon-512.png"),
+  email: DOJO_LEGAL.email,
+  contactPoint: {
+    "@type": "ContactPoint",
+    contactType: "customer support",
+    email: DOJO_LEGAL.email,
+    availableLanguage: "pt-BR",
+    areaServed: "BR",
+  },
 } as const;
+
+/** O que o sistema faz, para o schema.org (featureList) e o llms.txt. */
+export const DOJO_FEATURES: string[] = [
+  "Cadastro de alunos, matrículas e planos de mensalidade",
+  "Agenda, turmas e check-in por QR Code",
+  "Financeiro com cobrança recorrente por Pix, cartão e boleto (AMT Pay)",
+  "Modalidades, faixas, graus e graduações com certificados",
+  "App do Aluno com notificações, carteirinha e pagamento",
+  "Avaliações, planos de aula e ranking",
+  "Competições e inscrições",
+  "Equipe, permissões, folha e comissões",
+  "Contratos digitais de alunos e equipe",
+  "Vendas avulsas e loja integrada (AMT Store)",
+  "Várias unidades com visão consolidada (plano Premium)",
+];
+
+/** Telas reais do painel (public/dojo-shots), para o schema.org (screenshot). */
+const DOJO_SCREENSHOTS = ["dashboard", "students", "checkin", "finance", "graduations"].map((name) =>
+  dojoCanonical(`/dojo-shots/${name}.webp`),
+);
 
 /** Oferta de cada plano (schema.org Offer), a partir de SAAS_PLANS. */
 export function dojoPlanOffers() {
@@ -68,6 +142,8 @@ export function dojoSoftwareApplication() {
     image: DOJO_OG_IMAGE,
     description: DOJO_SITE_DESCRIPTION,
     inLanguage: "pt-BR",
+    featureList: DOJO_FEATURES,
+    screenshot: DOJO_SCREENSHOTS,
     sameAs: DOJO_SOCIAL_PROFILES,
     publisher: { "@id": DOJO_ORGANIZATION["@id"] },
     offers: dojoPlanOffers(),

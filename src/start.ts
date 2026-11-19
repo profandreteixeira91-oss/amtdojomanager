@@ -4,7 +4,36 @@ import { renderErrorPage } from "./lib/error-page";
 import { attachScopedSupabaseAuth } from "@/lib/student-auth/bearer-attacher";
 import { attachActiveStudent } from "@/integrations/supabase/active-student-attacher";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
-import { DOJO_HOST, isDojoHostname, isDojoSharedPath } from "@/lib/dojo-hosts";
+import {
+  DOJO_HOST,
+  DOJO_TEST_HOST,
+  DOJO_WWW_HOST,
+  isDojoHostname,
+  isDojoSharedPath,
+  requestHostnames,
+} from "@/lib/dojo-hosts";
+import { DOJO_PUBLIC_PAGES } from "@/lib/dojo/seo";
+
+/** Páginas públicas (as do sitemap e a raiz): no www elas vão para o domínio principal com 301. */
+function isPublicSeoPath(pathname: string): boolean {
+  const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  return path === "/" || DOJO_PUBLIC_PAGES.some((page) => page.path === path) || path.startsWith("/ferramentas/");
+}
+
+/**
+ * O domínio de teste (branch 1nov26) nunca entra no Google: toda resposta que passa pelo servidor sai com
+ * X-Robots-Tag: noindex (o robots.txt de lá também fecha tudo, ver src/routes/robots[.]txt.ts).
+ */
+const testHostNoindexMiddleware = createMiddleware().server(async ({ next, request }) => {
+  const result = await next();
+  if (!requestHostnames(request).includes(DOJO_TEST_HOST)) return result;
+  const original = (result as { response?: Response }).response ?? (result as unknown as Response);
+  if (!(original instanceof Response)) return result;
+  // Cabeçalhos de Response.redirect() são imutáveis: copia a resposta antes de marcar.
+  const response = new Response(original.body, original);
+  response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  return result === (original as unknown) ? response : { ...result, response };
+});
 
 const domainRoutingMiddleware = createMiddleware().server(async ({ next, request }) => {
   const url = new URL(request.url);
@@ -26,6 +55,13 @@ const domainRoutingMiddleware = createMiddleware().server(async ({ next, request
   const isPageRequest = (request.method === "GET" || request.method === "HEAD") && acceptsHtml;
 
   if (!isPageRequest) return next();
+
+  // www → domínio principal (301) nas páginas públicas, para o Google ver um endereço só. As áreas logadas e o
+  // App do Aluno ficam no www para não derrubar sessões nem apps já instalados a partir dele.
+  if (hosts.includes(DOJO_WWW_HOST) && isPublicSeoPath(url.pathname)) {
+    const target = url.pathname === "/" ? "/dojo" : url.pathname;
+    return Response.redirect(`https://${DOJO_HOST}${target}${url.search}`, 301);
+  }
 
   // Ambientes de desenvolvimento/preview nunca são redirecionados para o domínio público.
   const isInternalHost = hosts.some(
@@ -84,5 +120,5 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
 
 export const startInstance = createStart(() => ({
   functionMiddleware: [attachSupabaseAuth, attachScopedSupabaseAuth, attachActiveStudent],
-  requestMiddleware: [domainRoutingMiddleware, errorMiddleware],
+  requestMiddleware: [testHostNoindexMiddleware, domainRoutingMiddleware, errorMiddleware],
 }));

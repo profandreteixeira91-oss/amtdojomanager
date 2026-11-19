@@ -22,7 +22,7 @@ import {
 import { checkStudentAccess, activateStudentAccount } from "@/lib/student/activation.functions";
 import { redeemStudentPasswordReset, requestStudentPasswordReset } from "@/lib/student-auth/password-reset.functions";
 import { RESET_CODE_TTL_MINUTES } from "@/lib/student-auth/password-reset";
-import logoAsset from "@/assets/amt-dojo-manager-logo.png.asset.json";
+import { DOJO_LOGO_HEIGHT, DOJO_LOGO_SRC, DOJO_LOGO_WIDTH } from "@/components/dojo/DojoLogo";
 
 export const Route = createFileRoute("/app/login")({
   head: () => ({ meta: [{ title: "Entrar — Portal do Aluno" }, { name: "robots", content: "noindex" }] }),
@@ -217,7 +217,7 @@ function LoginPage() {
 
         <div className="relative flex flex-1 flex-col justify-between gap-10 px-12 py-10 xl:px-16">
           <div className="inline-flex w-fit items-center rounded-2xl bg-white px-4 py-2.5 shadow-[0_10px_30px_-12px_rgba(60,0,0,0.7)]">
-            <img src={logoAsset.url} alt="AMT Dojo Manager" className="h-14 w-auto select-none" draggable={false} />
+            <img src={DOJO_LOGO_SRC} width={DOJO_LOGO_WIDTH} height={DOJO_LOGO_HEIGHT} alt="AMT Dojo Manager" className="h-14 w-auto select-none" draggable={false} />
           </div>
 
           <div className="max-w-lg">
@@ -254,7 +254,7 @@ function LoginPage() {
       <div className="relative flex min-h-screen flex-col bg-[#f6f6f7]">
         <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-700 via-red-600 to-red-500 lg:hidden" />
         <header className="flex items-center px-5 py-4 sm:px-8 lg:invisible">
-          <img src={logoAsset.url} alt="AMT Dojo Manager" className="h-9 w-auto rounded-md select-none" draggable={false} />
+          <img src={DOJO_LOGO_SRC} width={DOJO_LOGO_WIDTH} height={DOJO_LOGO_HEIGHT} alt="AMT Dojo Manager" className="h-9 w-auto rounded-md select-none" draggable={false} />
         </header>
 
         <main className="flex flex-1 items-center justify-center px-5 pb-10 sm:px-8">

@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import * as Icons from "lucide-react";
+import { studentAppIcon } from "@/lib/student-app/icons";
 import type { NavItem, Features, FeatureKey } from "@/lib/student-app/schema";
 
 // Mapa de rotas → feature key para gate.
@@ -17,12 +17,7 @@ const ROUTE_FEATURE: Record<string, FeatureKey> = {
 };
 
 function iconFor(name: string) {
-  const key = name
-    .split(/[-_ ]+/)
-    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-    .join("");
-  const Comp = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[key];
-  return Comp ?? Icons.Circle;
+  return studentAppIcon(name);
 }
 
 export function BottomNav({ items, features }: { items: NavItem[]; features: Features }) {

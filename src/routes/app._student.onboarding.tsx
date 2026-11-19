@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import * as Icons from "lucide-react";
+import { studentAppIcon } from "@/lib/student-app/icons";
 import { CheckCircle2, Bell, Smartphone, Share, MoreVertical, ArrowRight, Sparkles, ArrowLeft } from "lucide-react";
 import { getVapidPublicKey, subscribeMyPush } from "@/lib/student/push.functions";
 import { isPushSupported, subscribePush, subscriptionToPayload } from "@/lib/pwa/push-client";
@@ -26,8 +26,7 @@ function detectPlatform(): "ios" | "android" | "other" {
 }
 
 function iconFromName(name: string) {
-  const key = name.split(/[-_ ]+/).map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join("");
-  return (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[key] ?? Icons.Sparkles;
+  return studentAppIcon(name, Sparkles);
 }
 
 function OnboardingPage() {
