@@ -734,13 +734,25 @@ function clientIp(req: Request): string {
 }
 
 type SiteMessage = { id: string; from_me: boolean; type: string; body: string | null; sent_at: string };
+type SiteSession = { id: string; chat_id: string; phone_normalized: string | null; started_at: string };
 
-async function siteMessages(sb: SupabaseClient, chatId: string): Promise<SiteMessage[]> {
+/**
+ * Mensagens da janela do site: só as trocadas desde o início da sessão, nunca o histórico anterior do número
+ * (quem digita o WhatsApp de outra pessoa não vê as conversas dela). Inclui conversas do mesmo telefone: o WhatsApp
+ * às vezes identifica o contato por um código de privacidade (@lid) e a resposta cai numa conversa separada.
+ */
+async function siteMessages(sb: SupabaseClient, session: SiteSession): Promise<SiteMessage[]> {
+  const ids = new Set([session.chat_id]);
+  if (session.phone_normalized) {
+    const { data: same } = await sb.from("support_wa_chats").select("id").eq("phone_normalized", session.phone_normalized).limit(5);
+    for (const c of same ?? []) ids.add(c.id);
+  }
   const { data } = await sb
     .from("support_wa_messages")
     .select("id, from_me, type, body, sent_at")
-    .eq("chat_id", chatId)
+    .in("chat_id", [...ids])
     .eq("hidden", false)
+    .gte("sent_at", session.started_at)
     .order("sent_at", { ascending: false })
     .limit(100);
   return ((data ?? []) as SiteMessage[]).reverse();
@@ -768,10 +780,10 @@ async function touchFromVisitor(sb: SupabaseClient, chatId: string, text: string
   }).eq("id", chatId);
 }
 
-async function siteSession(sb: SupabaseClient, token: unknown): Promise<{ id: string; chat_id: string }> {
+async function siteSession(sb: SupabaseClient, token: unknown): Promise<SiteSession> {
   const raw = String(token ?? "");
   if (!/^[0-9a-f]{64}$/.test(raw)) throw new HttpError(401, "Conversa expirada. Comece de novo.");
-  const { data } = await sb.from("support_site_sessions").select("id, chat_id").eq("token_hash", await sha256Hex(raw)).maybeSingle();
+  const { data } = await sb.from("support_site_sessions").select("id, chat_id, phone_normalized, started_at").eq("token_hash", await sha256Hex(raw)).maybeSingle();
   if (!data) throw new HttpError(401, "Conversa expirada. Comece de novo.");
   await sb.from("support_site_sessions").update({ last_seen_at: new Date().toISOString() }).eq("id", data.id);
   return data;
@@ -805,31 +817,40 @@ async function site(req: Request, sb: SupabaseClient, body: Record<string, unkno
     const found = (Array.isArray(check) ? check : []).find((r: any) => r?.exists);
     if (!found) throw new HttpError(400, "Esse número não tem WhatsApp. Confira o DDD e o número.");
 
+    // Antes do envio: a mensagem do visitante vem antes da confirmação, e a janela começa um pouco antes
+    // (o WhatsApp grava a hora da confirmação em segundos inteiros).
+    const at = new Date(Date.now() - 1000).toISOString();
+    const startedAt = new Date(Date.now() - 3000).toISOString();
     const firstName = name.split(/\s+/)[0];
     const greeting = `Olá, ${firstName}! Aqui é a AMT Sistemas. Recebemos sua mensagem pelo site:\n\n“${text}”\n\nJá vamos te responder por aqui.`;
     const sent = await evo<any>("POST", `/message/sendText/${enc(cfg.instance)}`, { number: phone, text: greeting, delay: 0 });
     const jid: string = sent?.key?.remoteJid || found.jid || `${phone}@s.whatsapp.net`;
-    const chatId = await upsertChat(sb, jid, { phone, name });
+    // A conversa que já existe com esse telefone (pode estar guardada por @lid) ou uma nova.
+    const { data: byPhone } = await sb.from("support_wa_chats").select("id").eq("phone_normalized", phone)
+      .order("last_message_at", { ascending: false, nullsFirst: false }).limit(1).maybeSingle();
+    const chatId = byPhone?.id ?? await upsertChat(sb, jid, { phone, name });
     const { data: chat } = await sb.from("support_wa_chats").select("tags, name").eq("id", chatId).maybeSingle();
     await sb.from("support_wa_chats").update({
       tags: [...new Set([...(chat?.tags ?? []), "Site"])],
       ...(chat?.name ? {} : { name }),
     }).eq("id", chatId);
 
-    const at = new Date(Date.now() - 1000).toISOString();
     await sb.from("support_wa_messages").insert({ chat_id: chatId, message_id: `site-${crypto.randomUUID()}`, from_me: false, type: "text", body: text, sent_at: at, source: "site" });
     await markSystemMessage(sb, chatId, sent, greeting, "auto");
     await touchFromVisitor(sb, chatId, text, at);
 
     const token = [...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, "0")).join("");
-    const { error } = await sb.from("support_site_sessions").insert({ chat_id: chatId, token_hash: await sha256Hex(token), ip_hash: ipHash, visitor_name: name });
+    const { data: created, error } = await sb.from("support_site_sessions")
+      .insert({ chat_id: chatId, token_hash: await sha256Hex(token), ip_hash: ipHash, visitor_name: name, phone_normalized: phone, started_at: startedAt })
+      .select("id").single();
     if (error) throw new Error(error.message);
-    return { token, chat_id: chatId, messages: await siteMessages(sb, chatId) };
+    const session: SiteSession = { id: created.id, chat_id: chatId, phone_normalized: phone, started_at: startedAt };
+    return { token, chat_id: chatId, messages: await siteMessages(sb, session) };
   }
 
   const session = await siteSession(sb, body.token);
   // chat_id: o servidor do site usa para ligar o lead à conversa (/admin/whatsapp?conversa=).
-  if (action === "site_poll") return { chat_id: session.chat_id, messages: await siteMessages(sb, session.chat_id) };
+  if (action === "site_poll") return { chat_id: session.chat_id, messages: await siteMessages(sb, session) };
   if (action === "site_send") {
     const text = str(body.text, 1000);
     if (!text) throw new HttpError(400, "Escreva a mensagem.");
@@ -850,7 +871,7 @@ async function site(req: Request, sb: SupabaseClient, body: Record<string, unkno
       console.error("support-inbox: cópia da mensagem do site não enviada", err instanceof Error ? err.message : err);
     }
     await touchFromVisitor(sb, session.chat_id, text, at);
-    return { messages: await siteMessages(sb, session.chat_id) };
+    return { messages: await siteMessages(sb, session) };
   }
   throw new HttpError(400, "Ação inválida.");
 }
