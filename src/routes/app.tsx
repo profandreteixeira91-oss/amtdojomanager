@@ -13,9 +13,9 @@ export const Route = createFileRoute("/app")({
     ],
     links: [
       { rel: "manifest", href: "/api/public/app/manifest.webmanifest" },
-      { rel: "apple-touch-icon", sizes: "180x180", href: "/student-icon-180.png" },
-      { rel: "icon", type: "image/png", sizes: "192x192", href: "/student-icon-192.png" },
-      { rel: "icon", type: "image/png", sizes: "512x512", href: "/student-icon-512.png" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/student-icon-180.png?v=4" },
+      { rel: "icon", type: "image/png", sizes: "192x192", href: "/student-icon-192.png?v=4" },
+      { rel: "icon", type: "image/png", sizes: "512x512", href: "/student-icon-512.png?v=4" },
     ],
   }),
   ssr: false,

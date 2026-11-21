@@ -30,11 +30,11 @@ export const Route = createFileRoute("/api/public/app/manifest.webmanifest")({
           categories: ["sports", "education", "lifestyle"],
           prefer_related_applications: false,
           icons: [
-            { src: "/student-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-            { src: "/student-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-            { src: "/student-icon-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
-            { src: "/student-icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
-            { src: "/student-icon-180.png", sizes: "180x180", type: "image/png", purpose: "any" },
+            { src: "/student-icon-192.png?v=4", sizes: "192x192", type: "image/png", purpose: "any" },
+            { src: "/student-icon-512.png?v=4", sizes: "512x512", type: "image/png", purpose: "any" },
+            { src: "/student-icon-maskable-192.png?v=4", sizes: "192x192", type: "image/png", purpose: "maskable" },
+            { src: "/student-icon-maskable-512.png?v=4", sizes: "512x512", type: "image/png", purpose: "maskable" },
+            { src: "/student-icon-180.png?v=4", sizes: "180x180", type: "image/png", purpose: "any" },
           ],
         };
 

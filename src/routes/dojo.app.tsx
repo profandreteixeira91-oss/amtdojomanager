@@ -259,7 +259,7 @@ function DojoLayout() {
       link.rel = "manifest";
       head.appendChild(link);
     }
-    link.setAttribute("href", "/api/public/dojo-manifest.webmanifest?v=3");
+    link.setAttribute("href", "/api/public/dojo-manifest.webmanifest?v=4");
 
     let themeMeta = head.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
     const prevTheme = themeMeta?.getAttribute("content") ?? null;
@@ -279,7 +279,7 @@ function DojoLayout() {
       appleIcon.setAttribute("sizes", "180x180");
       head.appendChild(appleIcon);
     }
-    appleIcon.setAttribute("href", "/dojo-icon-180.png");
+    appleIcon.setAttribute("href", "/dojo-icon-180.png?v=4");
 
     void import("@/lib/pwa/register").then((m) => m.registerPwa());
     // Garante captura global do beforeinstallprompt o mais cedo possível.
