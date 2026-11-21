@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { adminClient, assertControlCenterAdmin, corsHeaders, errorResponse, HttpError, json, withCors } from "../_shared/control-center.ts";
+import { BOT_SETTINGS_KEY, botEnabled, type BotDeps, scheduleBot } from "./bot.ts";
 
 // Atendimento da AMT pelo Control Center (amtsistemas.com.br/admin): WhatsApp do suporte (Evolution API,
 // instância amt-suporte, o número 551151040791 conectado), chamados do Dojo Manager e o chat do site.
@@ -20,6 +21,10 @@ import { adminClient, assertControlCenterAdmin, corsHeaders, errorResponse, Http
 //   SUPPORT_WHATSAPP_TO                           — número conectado na instância (conversa consigo mesmo)
 //   SUPPORT_WHATSAPP_WEBHOOK_SECRET               — segredo do endpoint support-reply do Dojo
 //   SUPPORT_REPLY_URL                             — opcional; padrão https://amtdojomanager.com.br/api/public/hooks/support-reply
+//   BOT_LEAD_SECRET                               — segredo para o Assistente Virtual registrar leads no funil do site
+//
+// Assistente Virtual AMT Sistemas (bot.ts): responde às mensagens recebidas por regras, com menu e diagnóstico,
+// e passa a conversa para um atendente. Liga/desliga em app_settings 'support_whatsapp_bot' (ações bot_settings*).
 //
 // Deploy: npx supabase functions deploy support-inbox --project-ref gudjmkiyprgwgxmzbgji --use-api --no-verify-jwt
 
@@ -197,6 +202,15 @@ function recipient(to: string): string | null {
   return to.includes("@") ? to.trim() : normalizePhone(to);
 }
 
+/** O que o Assistente Virtual usa daqui: envio pela Evolution e o número do próprio suporte. */
+function botDeps(): BotDeps {
+  return {
+    sendText: (to, text) => evo<any>("POST", `/message/sendText/${enc(requireConfig().instance)}`, { number: to, text, delay: 1200 }),
+    ownPhone: config()?.ownPhone ?? null,
+    recipient,
+  };
+}
+
 /* ------------------------- Conversas e mensagens ------------------------- */
 
 type Parsed = {
@@ -341,7 +355,9 @@ async function handleEvent(sb: SupabaseClient, payload: any) {
       const p = parseMessage(raw);
       if (!p) continue;
       const chatId = await upsertChat(sb, p.remote_jid, { phone: p.phone, name: p.push_name });
-      await insertMessages(sb, chatId, [p]);
+      const inserted = await insertMessages(sb, chatId, [p]);
+      // Mensagem nova do cliente (não reentrega): o Assistente Virtual decide se responde.
+      if (inserted && !p.from_me) scheduleBot(sb, chatId, p.message_id, botDeps());
     }
   } else if (event === "messages.update") {
     for (const u of items) {
@@ -371,12 +387,13 @@ async function recordOutgoing(sb: SupabaseClient, to: string, res: any, fallback
 /* ------------------------------- Painel -------------------------------- */
 
 const CHAT_COLUMNS =
-  "id, remote_jid, phone_normalized, name, academy_owner_id, last_message_at, last_message_preview, last_message_from_me, unread_count, tags, archived, follow_up_at, follow_up_note";
+  "id, remote_jid, phone_normalized, name, academy_owner_id, last_message_at, last_message_preview, last_message_from_me, unread_count, tags, archived, follow_up_at, follow_up_note, bot_handoff_at, bot_paused_until";
 
 type Chat = {
   id: string; remote_jid: string; phone_normalized: string | null; name: string | null; academy_owner_id: string | null;
   last_message_at: string | null; last_message_preview: string | null; last_message_from_me: boolean | null; unread_count: number;
   tags: string[]; archived: boolean; follow_up_at: string | null; follow_up_note: string | null;
+  bot_handoff_at: string | null; bot_paused_until: string | null;
 };
 
 async function academyNames(sb: SupabaseClient, ownerIds: string[]): Promise<Map<string, string>> {
@@ -604,6 +621,11 @@ async function panel(sb: SupabaseClient, body: Record<string, unknown>): Promise
       if (typeof body.archived === "boolean") patch.archived = body.archived;
       if (body.follow_up_at !== undefined) patch.follow_up_at = body.follow_up_at ? str(body.follow_up_at, 10) : null;
       if (body.follow_up_note !== undefined) patch.follow_up_note = body.follow_up_note ? str(body.follow_up_note, 300) : null;
+      // Assistente Virtual nesta conversa: pausar (até retomar) ou retomar do menu.
+      if (typeof body.bot_paused === "boolean") {
+        patch.bot_paused_until = body.bot_paused ? "2999-12-31T00:00:00Z" : null;
+        if (!body.bot_paused) Object.assign(patch, { bot_handoff_at: null, bot_state: null });
+      }
       if (body.academy_owner_id !== undefined) {
         const owner = body.academy_owner_id ? String(body.academy_owner_id) : null;
         if (owner && !UUID_RE.test(owner)) throw new HttpError(400, "Academia inválida.");
@@ -648,6 +670,15 @@ async function panel(sb: SupabaseClient, body: Record<string, unknown>): Promise
       const { error } = await sb.from("app_settings").upsert({ key: QUICK_KEY, value: list }, { onConflict: "key" });
       if (error) throw new Error(error.message);
       return { ok: true };
+    }
+    case "bot_settings": {
+      return { enabled: await botEnabled(sb) };
+    }
+    case "bot_settings_save": {
+      const enabled = body.enabled === true;
+      const { error } = await sb.from("app_settings").upsert({ key: BOT_SETTINGS_KEY, value: { enabled } }, { onConflict: "key" });
+      if (error) throw new Error(error.message);
+      return { enabled };
     }
     case "counters": {
       // Contadores do menu do /admin: conversas com mensagem não lida e chamados com mensagem nova.
@@ -835,9 +866,11 @@ async function site(req: Request, sb: SupabaseClient, body: Record<string, unkno
       ...(chat?.name ? {} : { name }),
     }).eq("id", chatId);
 
-    await sb.from("support_wa_messages").insert({ chat_id: chatId, message_id: `site-${crypto.randomUUID()}`, from_me: false, type: "text", body: text, sent_at: at, source: "site" });
+    const siteMessageId = `site-${crypto.randomUUID()}`;
+    await sb.from("support_wa_messages").insert({ chat_id: chatId, message_id: siteMessageId, from_me: false, type: "text", body: text, sent_at: at, source: "site" });
     await markSystemMessage(sb, chatId, sent, greeting, "auto");
     await touchFromVisitor(sb, chatId, text, at);
+    scheduleBot(sb, chatId, siteMessageId, botDeps());
 
     const token = [...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, "0")).join("");
     const { data: created, error } = await sb.from("support_site_sessions")
@@ -861,7 +894,8 @@ async function site(req: Request, sb: SupabaseClient, body: Record<string, unkno
     const { data: chat } = await sb.from("support_wa_chats").select("remote_jid, phone_normalized").eq("id", session.chat_id).maybeSingle();
     if (!chat) throw new HttpError(401, "Conversa expirada. Comece de novo.");
     const at = new Date().toISOString();
-    await sb.from("support_wa_messages").insert({ chat_id: session.chat_id, message_id: `site-${crypto.randomUUID()}`, from_me: false, type: "text", body: text, sent_at: at, source: "site" });
+    const siteMessageId = `site-${crypto.randomUUID()}`;
+    await sb.from("support_wa_messages").insert({ chat_id: session.chat_id, message_id: siteMessageId, from_me: false, type: "text", body: text, sent_at: at, source: "site" });
     // Cópia no WhatsApp: é o único jeito de a mensagem do site aparecer no celular do suporte, na mesma conversa.
     try {
       const relay = `📝 Mensagem enviada pelo site:\n“${text}”`;
@@ -871,6 +905,7 @@ async function site(req: Request, sb: SupabaseClient, body: Record<string, unkno
       console.error("support-inbox: cópia da mensagem do site não enviada", err instanceof Error ? err.message : err);
     }
     await touchFromVisitor(sb, session.chat_id, text, at);
+    scheduleBot(sb, session.chat_id, siteMessageId, botDeps());
     return { messages: await siteMessages(sb, session) };
   }
   throw new HttpError(400, "Ação inválida.");
