@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { adminClient, assertControlCenterAdmin, corsHeaders, errorResponse, HttpError, json, withCors } from "../_shared/control-center.ts";
-import { BOT_SETTINGS_KEY, botEnabled, type BotDeps, scheduleBot } from "./bot.ts";
+import { BOT_SETTINGS_KEY, type BotDeps, botSettings, scheduleBot } from "./bot.ts";
 
 // Atendimento da AMT pelo Control Center (amtsistemas.com.br/admin): WhatsApp do suporte (Evolution API,
 // instância amt-suporte, o número 551151040791 conectado), chamados do Dojo Manager e o chat do site.
@@ -206,6 +206,14 @@ function recipient(to: string): string | null {
 function botDeps(): BotDeps {
   return {
     sendText: (to, text) => evo<any>("POST", `/message/sendText/${enc(requireConfig().instance)}`, { number: to, text, delay: 1200 }),
+    sendButtons: (to, text, labels) =>
+      evo<any>("POST", `/message/sendButtons/${enc(requireConfig().instance)}`, {
+        number: to,
+        title: "Assistente Virtual AMT Sistemas",
+        description: text,
+        footer: "Toque numa opção ou responda com o número",
+        buttons: labels.map((label, i) => ({ type: "reply", displayText: label, id: String(i + 1) })),
+      }),
     ownPhone: config()?.ownPhone ?? null,
     recipient,
   };
@@ -276,6 +284,36 @@ function parseMessage(raw: any): Parsed | null {
     case "contactMessage":
       type = "contact"; body = `👤 Contato: ${m.contactMessage?.displayName ?? ""}`.trim();
       break;
+    // Toque num botão ou numa lista (Assistente Virtual): vira texto com a opção escolhida.
+    case "buttonsResponseMessage":
+      body = m.buttonsResponseMessage?.selectedDisplayText ?? m.buttonsResponseMessage?.selectedButtonId ?? null;
+      break;
+    case "templateButtonReplyMessage":
+      body = m.templateButtonReplyMessage?.selectedDisplayText ?? m.templateButtonReplyMessage?.selectedId ?? null;
+      break;
+    case "listResponseMessage":
+      body = m.listResponseMessage?.title ?? m.listResponseMessage?.singleSelectReply?.selectedRowId ?? null;
+      break;
+    case "interactiveResponseMessage": {
+      const r = m.interactiveResponseMessage ?? {};
+      let picked: string | null = null;
+      try {
+        picked = JSON.parse(r.nativeFlowResponseMessage?.paramsJson ?? "{}")?.id ?? null;
+      } catch {
+        picked = null;
+      }
+      body = r.body?.text || picked;
+      if (!body) console.error("support-inbox: resposta de botão sem texto", JSON.stringify(r).slice(0, 400));
+      break;
+    }
+    // Mensagem com botões enviada pelo assistente (vem dentro de viewOnceMessage).
+    case "viewOnceMessage":
+    case "viewOnceMessageV2": {
+      const inner = m.viewOnceMessage?.message ?? m.viewOnceMessageV2?.message ?? {};
+      body = textOf(inner) ?? inner.interactiveMessage?.body?.text ?? null;
+      if (!body) type = "other";
+      break;
+    }
     case "protocolMessage":
     case "reactionMessage":
     case "senderKeyDistributionMessage":
@@ -672,13 +710,18 @@ async function panel(sb: SupabaseClient, body: Record<string, unknown>): Promise
       return { ok: true };
     }
     case "bot_settings": {
-      return { enabled: await botEnabled(sb) };
+      return await botSettings(sb);
     }
     case "bot_settings_save": {
-      const enabled = body.enabled === true;
-      const { error } = await sb.from("app_settings").upsert({ key: BOT_SETTINGS_KEY, value: { enabled } }, { onConflict: "key" });
+      // Só muda o que vier no pedido: { enabled } e/ou { buttons }.
+      const current = await botSettings(sb);
+      const next = {
+        enabled: typeof body.enabled === "boolean" ? body.enabled : current.enabled,
+        buttons: typeof body.buttons === "boolean" ? body.buttons : current.buttons,
+      };
+      const { error } = await sb.from("app_settings").upsert({ key: BOT_SETTINGS_KEY, value: next }, { onConflict: "key" });
       if (error) throw new Error(error.message);
-      return { enabled };
+      return next;
     }
     case "counters": {
       // Contadores do menu do /admin: conversas com mensagem não lida e chamados com mensagem nova.

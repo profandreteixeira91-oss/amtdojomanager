@@ -50,6 +50,8 @@ type Incoming = { id: string; message_id: string; type: string; body: string | n
 export type BotDeps = {
   /** Envia um texto pelo WhatsApp e devolve a resposta da Evolution (com key.id). */
   sendText: (to: string, text: string) => Promise<any>;
+  /** Envia o texto com botões de resposta rápida (rótulos curtos; o id de cada botão é o número da opção). */
+  sendButtons: (to: string, text: string, labels: string[]) => Promise<any>;
   /** Número do próprio suporte (a conversa dele nunca recebe o bot). */
   ownPhone: string | null;
   recipient: (jid: string) => string | null;
@@ -106,37 +108,53 @@ function planText(plan: Plan): string {
 
 /* ------------------------------- Textos ------------------------------- */
 
-const MENU = [
-  "*1* Sistema para academia (AMT Dojo Manager)",
-  "*2* Sistema para ótica (AMT OptiOne)",
-  "*3* Site, app ou automação sob medida",
-  "*4* Já sou cliente / suporte",
-  "*5* Falar com um atendente",
-].join("\n");
+/**
+ * Mensagem do assistente: texto puro ou texto com botões. O texto sempre traz as opções numeradas, então quem não
+ * vê os botões (WhatsApp antigo, botões desligados) continua respondendo pelo número.
+ */
+export type OutMessage = string | { text: string; buttons: string[] };
+
+/** Até quantas opções vão como botões; perguntas maiores ficam só no texto numerado. */
+const MAX_BUTTONS = 3;
+
+/** `short`: rótulo do botão (curto, o WhatsApp corta textos longos). */
+type Question = { text: string; options: string[]; short?: string[] };
+
+const MENU_Q: Question = {
+  text: "Como posso te ajudar? Responda com o número da opção:",
+  options: ["Sistema para academia (AMT Dojo Manager)", "Sistema para ótica (AMT OptiOne)", "Site, app ou automação sob medida", "Já sou cliente / suporte", "Falar com um atendente"],
+  short: ["Academia (Dojo)", "Ótica (OptiOne)", "Sob medida", "Já sou cliente", "Atendente"],
+};
+const MENU = MENU_Q.options.map((o, i) => `*${i + 1}* ${o}`).join("\n");
 
 const FOOTER = "_Digite *0* para voltar ao menu ou *atendente* para falar com uma pessoa._";
 
-function greeting(name: string | null, again: boolean): string {
+function greeting(name: string | null, again: boolean): OutMessage {
   const first = (name ?? "").trim().split(/\s+/)[0];
   const hello = again ? `Olá${first ? `, ${first}` : ""}! Posso ajudar em mais alguma coisa?` : `Olá${first ? `, ${first}` : ""}! 👋 Eu sou o *${BOT_NAME}*.`;
-  return `${hello}\nComo posso te ajudar? Responda com o número da opção:\n\n${MENU}`;
+  return { text: `${hello}\n${MENU_Q.text}\n\n${MENU}`, buttons: MENU_Q.short! };
 }
 
-type Question = { text: string; options: string[] };
 const Q: Record<Exclude<Step, "menu" | "done" | "sm_detalhe" | "cli_descricao" | "dojo_contato" | "opt_contato">, Question> = {
-  dojo_alunos: { text: "Ótimo! Vou te ajudar a escolher o plano ideal do *AMT Dojo Manager*.\n\nQuantos alunos ativos a academia tem hoje?", options: ["Até 100", "De 100 a 300", "Mais de 300"] },
-  dojo_unidades: { text: "A academia tem mais de uma unidade (filiais)?", options: ["Não, só uma", "Sim, mais de uma"] },
-  dojo_recursos: { text: "Você precisa de avaliações, certificados, competições, contratos ou controle de equipe?", options: ["Sim", "Não, só o básico (alunos, agenda, check-in e financeiro)"] },
-  opt_usuarios: { text: "Vamos encontrar o plano ideal do *AMT OptiOne* para a sua ótica.\n\nQuantas pessoas vão usar o sistema?", options: ["Até 3", "De 4 a 10", "Mais de 10"] },
-  opt_computadores: { text: "Em quantos computadores ele vai ser instalado?", options: ["Até 2", "De 3 a 5", "Mais de 5"] },
-  opt_whatsapp: { text: "Quer enviar pedidos, PDFs e mensagens de pós-venda aos clientes pelo WhatsApp automaticamente?", options: ["Sim", "Não"] },
-  sm_tipo: { text: "Legal! Qual é o tipo de projeto?", options: ["Site", "App para Android/iOS", "Sistema (Windows ou web)", "Automação", "Sistema White Label", "Outro"] },
-  sm_prazo: { text: "Para quando você precisa?", options: ["O quanto antes (até 1 mês)", "De 1 a 3 meses", "Sem pressa, estou pesquisando"] },
-  cli_sistema: { text: "Qual sistema ou serviço você usa?", options: ["AMT Dojo Manager", "AMT OptiOne", "Outro serviço da AMT"] },
+  dojo_alunos: { text: "Ótimo! Vou te ajudar a escolher o plano ideal do *AMT Dojo Manager*.\n\nQuantos alunos ativos a academia tem hoje?", options: ["Até 100", "De 100 a 300", "Mais de 300"], short: ["Até 100", "100 a 300", "Mais de 300"] },
+  dojo_unidades: { text: "A academia tem mais de uma unidade (filiais)?", options: ["Não, só uma", "Sim, mais de uma"], short: ["Só uma", "Mais de uma"] },
+  dojo_recursos: { text: "Você precisa de avaliações, certificados, competições, contratos ou controle de equipe?", options: ["Sim", "Não, só o básico (alunos, agenda, check-in e financeiro)"], short: ["Sim, preciso", "Só o básico"] },
+  opt_usuarios: { text: "Vamos encontrar o plano ideal do *AMT OptiOne* para a sua ótica.\n\nQuantas pessoas vão usar o sistema?", options: ["Até 3", "De 4 a 10", "Mais de 10"], short: ["Até 3", "4 a 10", "Mais de 10"] },
+  opt_computadores: { text: "Em quantos computadores ele vai ser instalado?", options: ["Até 2", "De 3 a 5", "Mais de 5"], short: ["Até 2", "3 a 5", "Mais de 5"] },
+  opt_whatsapp: { text: "Quer enviar pedidos, PDFs e mensagens de pós-venda aos clientes pelo WhatsApp automaticamente?", options: ["Sim", "Não"], short: ["Sim", "Não"] },
+  sm_tipo: { text: "Legal! Qual é o tipo de projeto?", options: ["Site", "App para Android/iOS", "Sistema (Windows ou web)", "Automação", "Sistema White Label", "Outro"], short: ["Site", "App", "Sistema", "Automação", "White Label", "Outro"] },
+  sm_prazo: { text: "Para quando você precisa?", options: ["O quanto antes (até 1 mês)", "De 1 a 3 meses", "Sem pressa, estou pesquisando"], short: ["Até 1 mês", "1 a 3 meses", "Sem pressa"] },
+  cli_sistema: { text: "Qual sistema ou serviço você usa?", options: ["AMT Dojo Manager", "AMT OptiOne", "Outro serviço da AMT"], short: ["Dojo Manager", "OptiOne", "Outro serviço"] },
 };
 
-const ask = (q: Question) => `${q.text}\n\n${q.options.map((o, i) => `*${i + 1}* ${o}`).join("\n")}`;
-const CONTACT_Q = "Quer que um especialista fale com você por aqui para tirar dúvidas?\n\n*1* Sim, quero falar com um especialista\n*2* Não, obrigado";
+const CONTACT: Question = {
+  text: "Quer que um especialista fale com você por aqui para tirar dúvidas?",
+  options: ["Sim, quero falar com um especialista", "Não, obrigado"],
+  short: ["Sim, quero", "Não, obrigado"],
+};
+
+const askText = (q: Question) => `${q.text}\n\n${q.options.map((o, i) => `*${i + 1}* ${o}`).join("\n")}`;
+const ask = (q: Question): OutMessage => ({ text: askText(q), buttons: q.short ?? q.options });
 
 /* ------------------------------ Entrada ------------------------------ */
 
@@ -152,7 +170,18 @@ function choice(text: string, n: number): number | null {
   return v && v >= 1 && v <= n ? v : null;
 }
 
-const wantsHuman = (t: string) => /\b(atendente|humano|pessoa|falar com alguem|falar com voce|consultor|vendedor)\b/.test(normalize(t));
+/** Opção pelo rótulo (toque num botão manda o texto dele; ou a pessoa digita a opção). */
+function labelChoice(text: string, q: Question): number | null {
+  const t = normalize(text);
+  if (!t) return null;
+  const at = (list?: string[]) => (list ?? []).findIndex((o) => normalize(o) === t);
+  const i = at(q.short) >= 0 ? at(q.short) : at(q.options);
+  return i >= 0 ? i + 1 : null;
+}
+
+const pick = (text: string, q: Question) => choice(text, q.options.length) ?? labelChoice(text, q);
+
+const wantsHuman =(t: string) => /\b(atendente|humano|pessoa|falar com alguem|falar com voce|consultor|vendedor)\b/.test(normalize(t));
 const THANKS = /^(obrigad[oa]s?|obg|valeu|vlw|ok|okay|blz|beleza|show|perfeito|certo|top|otimo|joia|tmj|grato|grata)( .*)?$/;
 const wantsMenu =(t: string) => /^(0|menu|inicio|voltar|recomecar)$/.test(normalize(t));
 
@@ -176,16 +205,24 @@ export function scheduleBot(sb: SupabaseClient, chatId: string, messageId: strin
   if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(task);
 }
 
-export async function botEnabled(sb: SupabaseClient): Promise<boolean> {
+export type BotSettings = { enabled: boolean; buttons: boolean };
+
+/** Liga/desliga geral e o uso de botões (app_settings 'support_whatsapp_bot'). */
+export async function botSettings(sb: SupabaseClient): Promise<BotSettings> {
   const { data } = await sb.from("app_settings").select("value").eq("key", BOT_SETTINGS_KEY).maybeSingle();
-  return (data?.value as { enabled?: boolean } | null)?.enabled === true;
+  const value = (data?.value ?? {}) as { enabled?: boolean; buttons?: boolean };
+  return { enabled: value.enabled === true, buttons: value.buttons === true };
 }
+
+/** Sem confirmação de entrega dos botões nesse tempo, manda a versão em texto. */
+const BUTTONS_DELIVERY_WAIT_MS = 20_000;
 
 async function runBot(sb: SupabaseClient, chatId: string, messageId: string, deps: BotDeps) {
   if (!/^[A-Za-z0-9_-]{4,120}$/.test(messageId)) return;
   // Junta mensagens enviadas em sequência: só a última da rajada é tratada.
   await new Promise((r) => setTimeout(r, DEBOUNCE_MS));
-  if (!(await botEnabled(sb))) return;
+  const settings = await botSettings(sb);
+  if (!settings.enabled) return;
 
   const { data: last } = await sb
     .from("support_wa_messages")
@@ -238,15 +275,30 @@ async function runBot(sb: SupabaseClient, chatId: string, messageId: string, dep
 
   const to = chat.phone_normalized ?? deps.recipient(chat.remote_jid);
   if (!to) return;
-  for (const message of out.messages) {
-    const res = await deps.sendText(to, message);
+  const record = async (res: any, body: string) => {
     const id: string | undefined = res?.key?.id;
-    if (id) {
-      const row = { chat_id: chatId, message_id: id, from_me: true, type: "text", body: message, status: "sent", sent_at: new Date().toISOString(), source: "bot", hidden: false };
-      await sb.from("support_wa_messages").upsert(row, { onConflict: "message_id", ignoreDuplicates: true });
-      // O webhook pode ter gravado antes como mensagem comum: corrige a origem.
-      await sb.from("support_wa_messages").update({ source: "bot" }).eq("message_id", id);
+    if (!id) return null;
+    const row = { chat_id: chatId, message_id: id, from_me: true, type: "text", body, status: "sent", sent_at: new Date().toISOString(), source: "bot", hidden: false };
+    await sb.from("support_wa_messages").upsert(row, { onConflict: "message_id", ignoreDuplicates: true });
+    // O webhook pode ter gravado antes como mensagem comum: corrige origem e texto.
+    await sb.from("support_wa_messages").update({ source: "bot", type: "text", body }).eq("message_id", id);
+    return id;
+  };
+  const withButtons: Array<{ id: string; text: string }> = [];
+  for (const message of out.messages) {
+    const text = typeof message === "string" ? message : message.text;
+    const buttons = typeof message === "string" ? [] : message.buttons;
+    if (settings.buttons && buttons.length > 0 && buttons.length <= MAX_BUTTONS) {
+      try {
+        const res = await deps.sendButtons(to, text, buttons);
+        const id = await record(res, `${text}\n\n${buttons.map((b) => `[ ${b} ]`).join("  ")}`);
+        if (id) withButtons.push({ id, text });
+        continue;
+      } catch (err) {
+        console.error("support-inbox: botões não enviados, indo em texto", err instanceof Error ? err.message : err);
+      }
     }
+    await record(await deps.sendText(to, text), text);
   }
 
   const next: BotState = { ...out.state, updated_at: new Date().toISOString(), replies: [...recent, now].slice(-MAX_REPLIES_PER_HOUR) };
@@ -258,9 +310,20 @@ async function runBot(sb: SupabaseClient, chatId: string, messageId: string, dep
   }).eq("id", chatId);
 
   if (out.handoff) await notifyHandoff(sb, chat, out.handoff);
+
+  // Botões sem confirmação de entrega (alguns WhatsApp não recebem mensagens interativas): manda em texto.
+  if (withButtons.length) {
+    await new Promise((r) => setTimeout(r, BUTTONS_DELIVERY_WAIT_MS));
+    for (const sent of withButtons) {
+      const { data } = await sb.from("support_wa_messages").select("status").eq("message_id", sent.id).maybeSingle();
+      if (data?.status === "delivered" || data?.status === "read") continue;
+      console.error("support-inbox: botões sem entrega confirmada, reenviando em texto", sent.id, data?.status ?? "sem status");
+      await record(await deps.sendText(to, sent.text), sent.text);
+    }
+  }
 }
 
-type Outcome = { messages: string[]; state: BotState; handoff?: string };
+type Outcome = { messages: OutMessage[]; state: BotState; handoff?: string };
 
 export async function decide(sb: SupabaseClient, chat: ChatRow, state: BotState, text: string, incoming: Incoming, fresh: boolean): Promise<Outcome> {
   const reset = (again: boolean): Outcome => ({ messages: [greeting(chat.name, again)], state: { step: "menu", answers: {}, updated_at: state.updated_at } });
@@ -286,18 +349,20 @@ export async function decide(sb: SupabaseClient, chat: ChatRow, state: BotState,
   // (Só emoji, como 👍, também não.)
   if (state.step === "done") return text && (!normalize(text) || THANKS.test(normalize(text))) ? { messages: [], state } : reset(true);
 
-  const invalid = (question: string): Outcome => {
+  const invalid = (question: string | Question): Outcome => {
     const n = (state.invalid ?? 0) + 1;
     if (n >= 2) return handoff("O assistente não entendeu as respostas", "Para não te fazer perder tempo, já chamei uma pessoa da nossa equipe para continuar a conversa por aqui. 🙂");
     const hint = incoming.type !== "text" ? "Por aqui eu só consigo ler mensagens de texto." : "Não entendi. 🙂";
-    return { messages: [`${hint} Responda só com o *número* da opção.\n\n${question}\n\n${FOOTER}`], state: { ...state, invalid: n } };
+    const body = `${hint} Responda só com o *número* da opção.\n\n${typeof question === "string" ? question : askText(question)}\n\n${FOOTER}`;
+    const again: OutMessage = typeof question === "string" ? body : { text: body, buttons: question.short ?? question.options };
+    return { messages: [again], state: { ...state, invalid: n } };
   };
   const ok = (s: BotState): BotState => ({ ...s, invalid: 0 });
 
   switch (state.step) {
     case "menu": {
-      const c = choice(text, 5) ?? (text ? menuByKeyword(text) : null);
-      if (!c) return invalid(`Como posso te ajudar?\n\n${MENU}`);
+      const c = pick(text, MENU_Q) ?? (text ? menuByKeyword(text) : null);
+      if (!c) return invalid(MENU_Q);
       if (c === 5) return handoff("Pediu para falar com um atendente");
       return openPath(sb, chat, state, c);
     }
@@ -312,8 +377,8 @@ export async function decide(sb: SupabaseClient, chat: ChatRow, state: BotState,
     case "sm_prazo":
     case "cli_sistema": {
       const q = Q[state.step];
-      const c = choice(text, q.options.length);
-      if (!c) return invalid(ask(q));
+      const c = pick(text, q);
+      if (!c) return invalid(q);
       const answers = { ...state.answers, [state.step]: q.options[c - 1] };
       const s = ok({ ...state, answers });
       if (state.step === "dojo_alunos") return step(s, "dojo_unidades");
@@ -348,8 +413,8 @@ export async function decide(sb: SupabaseClient, chat: ChatRow, state: BotState,
 
     case "dojo_contato":
     case "opt_contato": {
-      const c = choice(text, 2);
-      if (!c) return invalid(CONTACT_Q);
+      const c = pick(text, CONTACT);
+      if (!c) return invalid(CONTACT);
       const system = state.step === "dojo_contato" ? "AMT Dojo Manager" : "AMT OptiOne";
       if (c === 1) {
         await registerLead(chat, state.step === "dojo_contato" ? "amt-dojo-manager" : "amt-optione", [`Pediu para falar com um especialista (${system}).`]);
@@ -388,7 +453,7 @@ async function recommendDojo(_sb: SupabaseClient, chat: ChatRow, state: BotState
   return {
     messages: [
       `Recomendo o plano ${planText(plan)}\n\nEle é o mais indicado ${why}.\n\n✅ Teste grátis por ${trial} dias, sem cartão:\n${DOJO_PLANS_URL}?plan=${plan.slug}`,
-      CONTACT_Q,
+      ask(CONTACT),
     ],
     state: { ...state, step: "dojo_contato", answers: { ...a, plano: plan.slug } },
   };
@@ -409,7 +474,7 @@ async function recommendOptione(_sb: SupabaseClient, chat: ChatRow, state: BotSt
   return {
     messages: [
       `Recomendo o plano ${planText(plan)}\n\nEle é o mais indicado ${why}.\n\n✅ Teste grátis por ${trial} dias:\n${OPTIONE_URL}`,
-      CONTACT_Q,
+      ask(CONTACT),
     ],
     state: { ...state, step: "opt_contato", answers: { ...a, plano: plan.slug } },
   };
