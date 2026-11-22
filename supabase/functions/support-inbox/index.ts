@@ -205,7 +205,7 @@ function recipient(to: string): string | null {
 /** O que o Assistente Virtual usa daqui: envio pela Evolution e o número do próprio suporte. */
 function botDeps(): BotDeps {
   return {
-    sendText: (to, text) => evo<any>("POST", `/message/sendText/${enc(requireConfig().instance)}`, { number: to, text, delay: 1200 }),
+    sendText: (to, text) => evo<any>("POST", `/message/sendText/${enc(requireConfig().instance)}`, { number: to, text, delay: 400 }),
     sendButtons: (to, text, labels) =>
       evo<any>("POST", `/message/sendButtons/${enc(requireConfig().instance)}`, {
         number: to,
@@ -222,7 +222,7 @@ function botDeps(): BotDeps {
         fileName: url.split("/").pop() ?? "imagem.jpg",
         caption,
         media: url,
-        delay: 1500,
+        delay: 500,
       }),
     ownPhone: config()?.ownPhone ?? null,
     recipient,

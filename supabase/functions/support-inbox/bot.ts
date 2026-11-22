@@ -19,7 +19,7 @@ const QUIET_AFTER_HUMAN_MS = 24 * 3600_000;
 const QUIET_AFTER_HANDOFF_MS = 24 * 3600_000;
 const SESSION_MS = 24 * 3600_000;
 const MAX_MESSAGE_AGE_MS = 3 * 60_000;
-const DEBOUNCE_MS = 2500;
+const DEBOUNCE_MS = 1500;
 const MAX_REPLIES_PER_HOUR = 15;
 const PLANS_CACHE_MS = 10 * 60_000;
 
@@ -120,6 +120,13 @@ export type OutMessage = string | { text: string; buttons: string[] } | { image:
 
 /** Até quantas opções vão como botões; perguntas maiores ficam só no texto numerado. */
 const MAX_BUTTONS = 3;
+
+/**
+ * Botões desativados no código: na Evolution 2.3.7 (Baileys) a mensagem com botões não chega ao celular do cliente
+ * (teste real em 22/11/2026: ficou em "enviada" e só a reserva em texto chegou, 20 s depois). Reativar só com a
+ * Evolution 2.4 estável ou a API oficial do WhatsApp, depois de testar com outro celular.
+ */
+const BUTTONS_SUPPORTED = false;
 
 /** `short`: rótulo do botão (curto, o WhatsApp corta textos longos). */
 type Question = { text: string; options: string[]; short?: string[] };
@@ -353,7 +360,7 @@ async function runBot(sb: SupabaseClient, chatId: string, messageId: string, dep
     }
     const text = typeof message === "string" ? message : message.text;
     const buttons = typeof message === "string" ? [] : message.buttons;
-    if (settings.buttons && buttons.length > 0 && buttons.length <= MAX_BUTTONS) {
+    if (BUTTONS_SUPPORTED && settings.buttons && buttons.length > 0 && buttons.length <= MAX_BUTTONS) {
       try {
         const res = await deps.sendButtons(to, text, buttons);
         const id = await record(res, `${text}\n\n${buttons.map((b) => `[ ${b} ]`).join("  ")}`);
