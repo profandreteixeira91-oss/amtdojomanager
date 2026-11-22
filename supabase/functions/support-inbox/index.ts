@@ -214,6 +214,16 @@ function botDeps(): BotDeps {
         footer: "Toque numa opção ou responda com o número",
         buttons: labels.map((label, i) => ({ type: "reply", displayText: label, id: String(i + 1) })),
       }),
+    sendImage: (to, url, caption) =>
+      evo<any>("POST", `/message/sendMedia/${enc(requireConfig().instance)}`, {
+        number: to,
+        mediatype: "image",
+        mimetype: "image/jpeg",
+        fileName: url.split("/").pop() ?? "imagem.jpg",
+        caption,
+        media: url,
+        delay: 1500,
+      }),
     ownPhone: config()?.ownPhone ?? null,
     recipient,
   };

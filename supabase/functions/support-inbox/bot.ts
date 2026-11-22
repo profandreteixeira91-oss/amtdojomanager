@@ -25,7 +25,9 @@ const PLANS_CACHE_MS = 10 * 60_000;
 
 const SITE = "https://amtsistemas.com.br";
 const DOJO_PLANS_URL = "https://amtdojomanager.com.br/dojo/planos";
-const OPTIONE_URL = `${SITE}/optione`;
+const OPTIONE_TRIAL_URL = `${SITE}/optione/teste-gratis`;
+/** Prints do guia (JPG, em amtdojomanager public/whatsapp). */
+const MEDIA = "https://amtdojomanager.com.br/whatsapp";
 const LEAD_RPC_URL = "https://yqxmxevphdumyuwlvppg.supabase.co/rest/v1/rpc/bot_upsert_lead";
 // Chave pública (publishable) do projeto amt-sistemas: só dá acesso ao que o RLS e as funções liberam.
 const AMT_PUBLIC_KEY = "sb_publishable_jK7lhco6DQLlfjYm8LGS3g_sGBkVtK2";
@@ -33,8 +35,8 @@ const AMT_PUBLIC_KEY = "sb_publishable_jK7lhco6DQLlfjYm8LGS3g_sGBkVtK2";
 type Path = "dojo" | "optione" | "sob_medida" | "cliente";
 type Step =
   | "menu"
-  | "dojo_alunos" | "dojo_unidades" | "dojo_recursos" | "dojo_contato"
-  | "opt_usuarios" | "opt_computadores" | "opt_whatsapp" | "opt_contato"
+  | "dojo_apresentacao" | "dojo_alunos" | "dojo_unidades" | "dojo_recursos"
+  | "opt_apresentacao" | "opt_usuarios" | "opt_computadores" | "opt_whatsapp"
   | "sm_tipo" | "sm_detalhe" | "sm_prazo"
   | "cli_sistema" | "cli_descricao"
   | "done";
@@ -52,6 +54,8 @@ export type BotDeps = {
   sendText: (to: string, text: string) => Promise<any>;
   /** Envia o texto com botões de resposta rápida (rótulos curtos; o id de cada botão é o número da opção). */
   sendButtons: (to: string, text: string, labels: string[]) => Promise<any>;
+  /** Envia uma imagem (URL pública) com legenda. */
+  sendImage: (to: string, url: string, caption: string) => Promise<any>;
   /** Número do próprio suporte (a conversa dele nunca recebe o bot). */
   ownPhone: string | null;
   recipient: (jid: string) => string | null;
@@ -112,7 +116,7 @@ function planText(plan: Plan): string {
  * Mensagem do assistente: texto puro ou texto com botões. O texto sempre traz as opções numeradas, então quem não
  * vê os botões (WhatsApp antigo, botões desligados) continua respondendo pelo número.
  */
-export type OutMessage = string | { text: string; buttons: string[] };
+export type OutMessage = string | { text: string; buttons: string[] } | { image: string; caption: string };
 
 /** Até quantas opções vão como botões; perguntas maiores ficam só no texto numerado. */
 const MAX_BUTTONS = 3;
@@ -135,7 +139,7 @@ function greeting(name: string | null, again: boolean): OutMessage {
   return { text: `${hello}\n${MENU_Q.text}\n\n${MENU}`, buttons: MENU_Q.short! };
 }
 
-const Q: Record<Exclude<Step, "menu" | "done" | "sm_detalhe" | "cli_descricao" | "dojo_contato" | "opt_contato">, Question> = {
+const Q: Record<Exclude<Step, "menu" | "done" | "sm_detalhe" | "cli_descricao" | "dojo_apresentacao" | "opt_apresentacao">, Question> = {
   dojo_alunos: { text: "Ótimo! Vou te ajudar a escolher o plano ideal do *AMT Dojo Manager*.\n\nQuantos alunos ativos a academia tem hoje?", options: ["Até 100", "De 100 a 300", "Mais de 300"], short: ["Até 100", "100 a 300", "Mais de 300"] },
   dojo_unidades: { text: "A academia tem mais de uma unidade (filiais)?", options: ["Não, só uma", "Sim, mais de uma"], short: ["Só uma", "Mais de uma"] },
   dojo_recursos: { text: "Você precisa de avaliações, certificados, competições, contratos ou controle de equipe?", options: ["Sim", "Não, só o básico (alunos, agenda, check-in e financeiro)"], short: ["Sim, preciso", "Só o básico"] },
@@ -147,11 +151,61 @@ const Q: Record<Exclude<Step, "menu" | "done" | "sm_detalhe" | "cli_descricao" |
   cli_sistema: { text: "Qual sistema ou serviço você usa?", options: ["AMT Dojo Manager", "AMT OptiOne", "Outro serviço da AMT"], short: ["Dojo Manager", "OptiOne", "Outro serviço"] },
 };
 
-const CONTACT: Question = {
-  text: "Quer que um especialista fale com você por aqui para tirar dúvidas?",
-  options: ["Sim, quero falar com um especialista", "Não, obrigado"],
-  short: ["Sim, quero", "Não, obrigado"],
+/** Depois da apresentação: segue para o diagnóstico (venda) ou tira uma dúvida com a equipe. */
+const NEXT_Q = (sistema: string): Question => ({
+  text: `Quer descobrir qual plano do *${sistema}* é o ideal para você? São só 3 perguntas rápidas.`,
+  options: ["Sim, quero ver o plano ideal", "Tenho uma dúvida antes"],
+  short: ["Ver plano ideal", "Tenho uma dúvida"],
+});
+
+/**
+ * Guia de apresentação (prints reais + o que cada parte resolve), com o conteúdo das páginas oficiais
+ * (landing do Dojo Manager e página do OptiOne). Ao mudar recursos nas páginas, atualizar aqui também.
+ */
+const GUIDE: Record<"dojo" | "optione", OutMessage[]> = {
+  dojo: [
+    {
+      image: `${MEDIA}/dojo-dashboard.jpg`,
+      caption:
+        "*AMT Dojo Manager* é o sistema de gestão feito para academias de artes marciais: alunos, aulas, graduações, financeiro e app do aluno num só lugar, no computador e no celular.\n\nVou te mostrar em 1 minuto 👇",
+    },
+    {
+      image: `${MEDIA}/dojo-finance.jpg`,
+      caption:
+        "💰 *Financeiro no automático*\n• Mensalidades e cobranças por Pix, boleto e cartão (AMT Pay), com baixa automática\n• Contas a pagar e a receber e fluxo de caixa do mês\n• Controle de inadimplência e bloqueio de check-in de quem está em atraso",
+    },
+    {
+      image: `${MEDIA}/dojo-checkin.jpg`,
+      caption:
+        "📅 *Aulas e frequência*\n• Agenda e turmas por modalidade\n• Check-in por QR Code e presença por aluno e turma\n• Integração com Gympass e TotalPass",
+    },
+    {
+      image: `${MEDIA}/dojo-graduations.jpg`,
+      caption:
+        "🥋 *Graduações e ensino*\n• Modalidades, faixas e graus da sua arte (Jiu-Jitsu, Judô, Karatê, Muay Thai e outras)\n• Critérios de graduação e avaliações feitas pelo instrutor\n• Certificados com editor próprio, competições e ranking",
+    },
+    {
+      image: `${MEDIA}/dojo-app-aluno.jpg`,
+      caption:
+        "📱 *App do aluno incluso*\n• Carteirinha com QR Code, mensalidades e contratos no celular\n• Avisos com notificação\n\nE ainda: contratos digitais, equipe com acesso por função, várias unidades e a loja AMT Fight Wear integrada.",
+    },
+  ],
+  optione: [
+    {
+      image: `${MEDIA}/optione-capa.jpg`,
+      caption:
+        "*AMT OptiOne* é o sistema completo para óticas: vendas, receitas, laboratório, estoque e financeiro, instalado no computador da loja (Windows).\n\nVou te mostrar rapidinho 👇",
+    },
+    {
+      image: `${MEDIA}/optione-visao-geral.jpg`,
+      caption:
+        "🧾 *Vendas, receitas e laboratório*\n• PDV com leitor de código de barras, pagamentos múltiplos, crediário e orçamentos que viram venda\n• Receitas OD/OE com alertas de digitação e histórico por cliente\n• Pedidos ao laboratório por etapa, com prazos e alerta de atraso",
+    },
+    "📦 *Estoque, financeiro e indicadores*\n• Armações, lentes, lentes de contato e acessórios, com estoque mínimo e pedidos de compra\n• Contas a pagar e a receber, parcelas do crediário e relatórios em PDF\n• Faturamento, lucro, ticket médio e conversão de orçamentos\n\n💬 *Relacionamento*: pós-venda, revisão de receita e aniversariantes com mensagem pronta para WhatsApp\n📄 Ordem de serviço e orçamento com a logo da ótica\n👥 Um login por pessoa e vendas registradas por vendedor",
+  ],
 };
+
+const CLOSING = "Se travar em algum passo ou surgir qualquer dúvida, é só responder *atendente* que alguém da nossa equipe te ajuda por aqui. 😉";
 
 const askText = (q: Question) => `${q.text}\n\n${q.options.map((o, i) => `*${i + 1}* ${o}`).join("\n")}`;
 const ask = (q: Question): OutMessage => ({ text: askText(q), buttons: q.short ?? q.options });
@@ -275,17 +329,28 @@ async function runBot(sb: SupabaseClient, chatId: string, messageId: string, dep
 
   const to = chat.phone_normalized ?? deps.recipient(chat.remote_jid);
   if (!to) return;
-  const record = async (res: any, body: string) => {
+  const record = async (res: any, body: string, type = "text") => {
     const id: string | undefined = res?.key?.id;
     if (!id) return null;
-    const row = { chat_id: chatId, message_id: id, from_me: true, type: "text", body, status: "sent", sent_at: new Date().toISOString(), source: "bot", hidden: false };
+    const media = { media_mime: type === "image" ? "image/jpeg" : null };
+    const row = { chat_id: chatId, message_id: id, from_me: true, type, body, ...media, status: "sent", sent_at: new Date().toISOString(), source: "bot", hidden: false };
     await sb.from("support_wa_messages").upsert(row, { onConflict: "message_id", ignoreDuplicates: true });
     // O webhook pode ter gravado antes como mensagem comum: corrige origem e texto.
-    await sb.from("support_wa_messages").update({ source: "bot", type: "text", body }).eq("message_id", id);
+    await sb.from("support_wa_messages").update({ source: "bot", type, body, ...media }).eq("message_id", id);
     return id;
   };
   const withButtons: Array<{ id: string; text: string }> = [];
   for (const message of out.messages) {
+    if (typeof message !== "string" && "image" in message) {
+      try {
+        await record(await deps.sendImage(to, message.image, message.caption), message.caption, "image");
+      } catch (err) {
+        // Sem a imagem, o texto do guia ainda chega.
+        console.error("support-inbox: imagem do guia não enviada", message.image, err instanceof Error ? err.message : err);
+        await record(await deps.sendText(to, message.caption), message.caption);
+      }
+      continue;
+    }
     const text = typeof message === "string" ? message : message.text;
     const buttons = typeof message === "string" ? [] : message.buttons;
     if (settings.buttons && buttons.length > 0 && buttons.length <= MAX_BUTTONS) {
@@ -367,6 +432,20 @@ export async function decide(sb: SupabaseClient, chat: ChatRow, state: BotState,
       return openPath(sb, chat, state, c);
     }
 
+    case "dojo_apresentacao":
+    case "opt_apresentacao": {
+      const dojo = state.step === "dojo_apresentacao";
+      const sistema = dojo ? "AMT Dojo Manager" : "AMT OptiOne";
+      const q = NEXT_Q(sistema);
+      const c = pick(text, q);
+      if (!c) return invalid(q);
+      if (c === 2) {
+        await registerLead(chat, dojo ? "amt-dojo-manager" : "amt-optione", [`Viu a apresentação do ${sistema} e tem uma dúvida.`]);
+        return handoff(`Tem uma dúvida sobre o ${sistema} (depois da apresentação)`, "Claro! Pode mandar a sua dúvida por aqui que um especialista da nossa equipe te responde. 🙂");
+      }
+      return step(ok({ ...state }), dojo ? "dojo_alunos" : "opt_usuarios");
+    }
+
     case "dojo_alunos":
     case "dojo_unidades":
     case "dojo_recursos":
@@ -411,17 +490,6 @@ export async function decide(sb: SupabaseClient, chat: ChatRow, state: BotState,
       return handoff(`Suporte (${system}): ${desc.slice(0, 140)}`, "Obrigado! Registrei o seu relato e a nossa equipe de suporte vai te responder por aqui o quanto antes. 🙂");
     }
 
-    case "dojo_contato":
-    case "opt_contato": {
-      const c = pick(text, CONTACT);
-      if (!c) return invalid(CONTACT);
-      const system = state.step === "dojo_contato" ? "AMT Dojo Manager" : "AMT OptiOne";
-      if (c === 1) {
-        await registerLead(chat, state.step === "dojo_contato" ? "amt-dojo-manager" : "amt-optione", [`Pediu para falar com um especialista (${system}).`]);
-        return handoff(`Quer falar com um especialista (${system})`);
-      }
-      return { messages: ["Combinado! Se surgir qualquer dúvida, é só mandar uma mensagem por aqui. 😉\n\n" + FOOTER], state: ok({ ...state, step: "done" }) };
-    }
   }
   return reset(false);
 }
@@ -432,8 +500,9 @@ function step(state: BotState, next: keyof typeof Q): Outcome {
 
 async function openPath(_sb: SupabaseClient, _chat: ChatRow, state: BotState, option: number): Promise<Outcome> {
   const base = { ...state, answers: {}, invalid: 0 };
-  if (option === 1) return step({ ...base, path: "dojo" }, "dojo_alunos");
-  if (option === 2) return step({ ...base, path: "optione" }, "opt_usuarios");
+  // Dojo e OptiOne: primeiro o guia de apresentação, depois o convite para o diagnóstico (venda).
+  if (option === 1) return { messages: [...GUIDE.dojo, ask(NEXT_Q("AMT Dojo Manager"))], state: { ...base, path: "dojo", step: "dojo_apresentacao" } };
+  if (option === 2) return { messages: [...GUIDE.optione, ask(NEXT_Q("AMT OptiOne"))], state: { ...base, path: "optione", step: "opt_apresentacao" } };
   if (option === 3) return step({ ...base, path: "sob_medida" }, "sm_tipo");
   return step({ ...base, path: "cliente" }, "cli_sistema");
 }
@@ -448,14 +517,15 @@ async function recommendDojo(_sb: SupabaseClient, chat: ChatRow, state: BotState
   const why = varias ? "porque tem mais de uma unidade" : alunos === 3 ? "porque tem mais de 300 alunos" : alunos === 2 ? "pelo número de alunos" : recursos ? "pelos recursos que você precisa" : "para o dia a dia da academia";
   await registerLead(chat, "amt-dojo-manager", [
     `Diagnóstico do assistente (Dojo Manager): ${a.dojo_alunos} alunos · ${a.dojo_unidades} · recursos avançados: ${a.dojo_recursos}`,
-    `Plano recomendado: ${plan.nome} (${brl(plan.preco_mensal)}/mês)`,
+    `Plano recomendado: ${plan.nome} (${brl(plan.preco_mensal)}/mês). Recebeu o link do teste grátis.`,
   ]);
   return {
     messages: [
-      `Recomendo o plano ${planText(plan)}\n\nEle é o mais indicado ${why}.\n\n✅ Teste grátis por ${trial} dias, sem cartão:\n${DOJO_PLANS_URL}?plan=${plan.slug}`,
-      ask(CONTACT),
+      `Recomendo o plano ${planText(plan)}\n\nEle é o mais indicado ${why}.`,
+      `✅ *Comece agora o seu teste grátis de ${trial} dias* no plano ${plan.nome}, sem cartão de crédito:\n${DOJO_PLANS_URL}?plan=${plan.slug}\n\nLeva cerca de 2 minutos: você cadastra a academia e já começa a usar, com todos os recursos do plano.`,
+      CLOSING,
     ],
-    state: { ...state, step: "dojo_contato", answers: { ...a, plano: plan.slug } },
+    state: { ...state, step: "done", answers: { ...a, plano: plan.slug } },
   };
 }
 
@@ -469,14 +539,15 @@ async function recommendOptione(_sb: SupabaseClient, chat: ChatRow, state: BotSt
   const why = usuarios === 3 || pcs === 3 ? "pelo tamanho da equipe" : zap ? "porque inclui o WhatsApp automático" : usuarios === 2 || pcs === 2 ? "pelo número de usuários e computadores" : "para organizar a operação da ótica";
   await registerLead(chat, "amt-optione", [
     `Diagnóstico do assistente (OptiOne): ${a.opt_usuarios} usuários · ${a.opt_computadores} computadores · WhatsApp automático: ${a.opt_whatsapp}`,
-    `Plano recomendado: ${plan.nome} (${brl(plan.preco_mensal)}/mês)`,
+    `Plano recomendado: ${plan.nome} (${brl(plan.preco_mensal)}/mês). Recebeu o link do teste grátis.`,
   ]);
   return {
     messages: [
-      `Recomendo o plano ${planText(plan)}\n\nEle é o mais indicado ${why}.\n\n✅ Teste grátis por ${trial} dias:\n${OPTIONE_URL}`,
-      ask(CONTACT),
+      `Recomendo o plano ${planText(plan)}\n\nEle é o mais indicado ${why}.`,
+      `✅ *Comece agora o seu teste grátis de ${trial} dias* no plano ${plan.nome}:\n${OPTIONE_TRIAL_URL}?plano=${plan.slug}\n\nLeva cerca de 2 minutos: você cadastra a ótica, recebe a chave de acesso e instala no Windows.`,
+      CLOSING,
     ],
-    state: { ...state, step: "opt_contato", answers: { ...a, plano: plan.slug } },
+    state: { ...state, step: "done", answers: { ...a, plano: plan.slug } },
   };
 }
 
