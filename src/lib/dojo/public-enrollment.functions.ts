@@ -353,7 +353,9 @@ export const publicEnrollStudent = createServerFn({ method: "POST" })
     // 5) Cria a primeira fatura local (fluxo manual — a página /pay lida com
     // gateway/nativa conforme a configuração do dojo).
     const baseAmount = Number((plan as any).amount ?? 0);
-    const fee = data.include_enrollment_fee ? Number((plan as any).enrollment_fee ?? 0) : 0;
+    // A taxa de matrícula do plano sempre entra na primeira cobrança: o aluno não
+    // pode dispensá-la (o campo include_enrollment_fee fica só por compatibilidade).
+    const fee = Number((plan as any).enrollment_fee ?? 0);
     const amount = baseAmount + fee;
     const description = fee > 0
       ? `Matrícula + 1ª mensalidade — ${(plan as any).name}`

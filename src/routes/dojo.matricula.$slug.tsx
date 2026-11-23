@@ -1,13 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PublicEnrollmentPage } from "./matricula.$slug";
+import { PublicEnrollmentPage, enrollmentHead, loadEnrollmentBundle } from "./matricula.$slug";
 
 export const Route = createFileRoute("/dojo/matricula/$slug")({
-  head: ({ params }) => ({
-    meta: [
-      { title: "Matrícula online — Dojo" },
-      { name: "description", content: `Faça sua matrícula online no dojo ${params.slug}.` },
-      { name: "robots", content: "noindex" },
-    ],
-  }),
+  loader: ({ params }) => loadEnrollmentBundle(params.slug),
+  head: ({ loaderData }) => enrollmentHead(loaderData),
   component: PublicEnrollmentPage,
 });
