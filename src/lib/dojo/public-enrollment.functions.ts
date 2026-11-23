@@ -372,6 +372,8 @@ export const publicEnrollStudent = createServerFn({ method: "POST" })
           degree: clampDegree(m),
           graduation_date: todayISO(),
           notes: "Informada no pré-cadastro online",
+          // Já vale: sem isso o cron tratava como cerimônia e mandava "Parabéns".
+          applied_at: new Date().toISOString(),
         })) as any,
       );
     } catch (e) {

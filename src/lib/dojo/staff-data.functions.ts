@@ -404,6 +404,7 @@ export const staffRegisterGraduation = createServerFn({ method: "POST" })
     const { staff, admin } = await scope(context.supabase, "graduations", "write");
     await assertOwned(admin, "dojo_students", data.student_id, staff.owner_id);
     await assertOwned(admin, "dojo_belts", data.belt_id, staff.owner_id);
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
     const { error } = await admin.from("dojo_graduations").insert({
       owner_id: staff.owner_id,
       student_id: data.student_id,
@@ -412,6 +413,9 @@ export const staffRegisterGraduation = createServerFn({ method: "POST" })
       graduation_date: data.graduation_date,
       evaluator: staff.full_name ?? staff.email,
       notes: data.notes ?? null,
+      // Registro com data de hoje ou passada já vale (sem "Parabéns");
+      // data futura fica agendada para o cron.
+      applied_at: String(data.graduation_date).slice(0, 10) > today ? null : new Date().toISOString(),
     });
     if (error) throw new Error(error.message);
     return { ok: true };

@@ -650,6 +650,10 @@ export const addDojoGraduation = createServerFn({ method: "POST" })
     notes: z.string().max(2000).optional().nullable(),
   }).parse(i))
   .handler(async ({ data, context }) => {
+    // Registro de faixa (cadastro, edição da ficha, histórico) já vale na data
+    // informada: nasce aplicado, sem "Parabéns" para o aluno. Só data futura
+    // fica agendada e é aplicada (com aviso) no dia, pelo cron.
+    const isFuture = String(data.graduation_date).slice(0, 10) > todayISO();
     const { data: row, error } = await context.supabase
       .from("dojo_graduations")
       .insert({
@@ -660,6 +664,7 @@ export const addDojoGraduation = createServerFn({ method: "POST" })
         evaluator: data.evaluator ?? null,
         notes: data.notes ?? null,
         owner_id: ownerId(context),
+        applied_at: isFuture ? null : new Date().toISOString(),
       })
       .select("id").single();
     if (error) throw new Error(error.message);
@@ -690,7 +695,7 @@ export const addDojoGraduation = createServerFn({ method: "POST" })
       }
     }
     const isMostRecent = !latestForModality || new Date(data.graduation_date) >= new Date(latestForModality);
-    const shouldOverwrite = (!student?.current_belt_id || currentMod === null || currentMod === newMod) && isMostRecent;
+    const shouldOverwrite = !isFuture && (!student?.current_belt_id || currentMod === null || currentMod === newMod) && isMostRecent;
     if (shouldOverwrite) {
       await context.supabase.from("dojo_students")
         .update({ current_belt_id: data.belt_id, current_degree: data.degree })

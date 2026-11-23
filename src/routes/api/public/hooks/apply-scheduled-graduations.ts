@@ -22,7 +22,7 @@ export const Route = createFileRoute("/api/public/hooks/apply-scheduled-graduati
         // ============================================================
         const { data: pendingGrads } = await (supabaseAdmin as any)
           .from("dojo_graduations")
-          .select("id, owner_id, student_id, belt_id, degree, graduation_date")
+          .select("id, owner_id, student_id, belt_id, degree, graduation_date, created_at")
           .is("applied_at", null)
           .lte("graduation_date", todayISO)
           .order("graduation_date", { ascending: true })
@@ -50,7 +50,7 @@ export const Route = createFileRoute("/api/public/hooks/apply-scheduled-graduati
 
               const { data: student } = await (supabaseAdmin as any)
                 .from("dojo_students")
-                .select("id, current_belt_id, cancelled_at, dojo_belts:current_belt_id(modality)")
+                .select("id, status, current_belt_id, cancelled_at, dojo_belts:current_belt_id(modality)")
                 .eq("id", g.student_id)
                 .maybeSingle();
 
@@ -84,7 +84,13 @@ export const Route = createFileRoute("/api/public/hooks/apply-scheduled-graduati
               }
               gradsApplied++;
 
-              if (student && !student.cancelled_at) {
+              // "Parabéns" só para graduação de verdade: aluno ativo e data que não
+              // seja anterior ao registro (histórico lançado depois não é cerimônia).
+              const createdDay = g.created_at
+                ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(g.created_at))
+                : null;
+              const backdated = !!createdDay && String(g.graduation_date).slice(0, 10) < createdDay;
+              if (student && !student.cancelled_at && student.status === "active" && !backdated) {
                 const belt = beltById.get(g.belt_id) as any;
                 const degreeTxt = typeof g.degree === "number" && g.degree > 0 ? ` — ${g.degree}º grau` : "";
                 await sendPushToStudent(g.student_id, {

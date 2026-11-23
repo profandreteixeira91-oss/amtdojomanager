@@ -441,13 +441,15 @@ export const finishEvalSession = createServerFn({ method: "POST" })
 
     // Auto-graduate if approved
     if (data.result === "approved" && sess?.template?.auto_graduate && sess.template.end_belt_id) {
-      await context.supabase.from("dojo_graduations").insert({
+      const { error: gradErr } = await context.supabase.from("dojo_graduations").insert({
         owner_id: context.userId,
         student_id: sess.student_id,
         belt_id: sess.template.end_belt_id,
         degree: sess.template.degree ?? 0,
-        graduated_at: now,
+        graduation_date: new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()),
+        notes: "Aprovado na avaliação",
       } as never);
+      if (gradErr) console.warn("[evaluations] graduação automática falhou:", gradErr.message);
     }
 
     try {
