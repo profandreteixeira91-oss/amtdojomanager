@@ -17,6 +17,7 @@ import { addDaysISO, calendarISO, dayISO, isoToDate, todayISO } from "@/lib/date
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { isBillableStudentStatus } from "@/lib/dojo/student-status";
 
 type MonthPoint = {
   key: string;
@@ -86,7 +87,7 @@ export const dojoFinanceDashboard = createServerFn({ method: "GET" })
     // -----------------------------------------------------------------
     const recurringP = supabase
       .from("dojo_enrollments")
-      .select("custom_amount, frequency, next_run_at, status, plan:dojo_plans(amount)")
+      .select("custom_amount, frequency, next_run_at, status, plan:dojo_plans(amount), student:dojo_students(status)")
       .eq("status", "active");
 
     // -----------------------------------------------------------------
@@ -109,7 +110,9 @@ export const dojoFinanceDashboard = createServerFn({ method: "GET" })
     const walletRows = wallet.data ?? [];
     const invoices = (inv.data ?? []) as any[];
     const expenses = (exp.data ?? []) as any[];
-    const recurring = (rec.data ?? []) as any[];
+    // Aluno trancado/inativo não entra no MRR nem na projeção, mesmo que
+    // alguma matrícula tenha ficado ativa.
+    const recurring = ((rec.data ?? []) as any[]).filter((r) => isBillableStudentStatus(r.student?.status));
     const students = new Map<string, string>();
     (stu.data ?? []).forEach((s: any) => students.set(s.id, s.full_name ?? ""));
 

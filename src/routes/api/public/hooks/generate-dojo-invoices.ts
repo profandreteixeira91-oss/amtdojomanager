@@ -8,6 +8,7 @@ import {
   planInstallments,
 } from "@/lib/dojo/payment-methods";
 import { addDaysISO, addMonthsISO, todayISO as brToday, utcCalendarISO } from "@/lib/dates";
+import { isBillableStudentStatus } from "@/lib/dojo/student-status";
 
 /**
  * Cron diário de geração de mensalidades.
@@ -37,6 +38,32 @@ export const Route = createFileRoute("/api/public/hooks/generate-dojo-invoices")
         // Janela máxima de antecedência suportada (filtro grosso no banco; a
         // decisão fina usa a antecedência configurada em cada plano).
         const maxTargetISO = addDaysISO(todayISO, 60);
+
+        // Trancamento com data de volta: reativa o aluno no dia escolhido e
+        // retoma as matrículas antes da geração (já entram nesta execução).
+        let unfrozen = 0;
+        {
+          const { resumeStudentBilling } = await import("@/lib/dojo/student-billing.server");
+          const { data: back } = await supabaseAdmin
+            .from("dojo_students")
+            .select("id")
+            .eq("status", "frozen")
+            .not("frozen_until", "is", null)
+            .lte("frozen_until", todayISO)
+            .limit(200);
+          for (const st of (back ?? []) as Array<{ id: string }>) {
+            const { error: upErr } = await supabaseAdmin
+              .from("dojo_students")
+              .update({ status: "active", frozen_since: null, frozen_until: null } as never)
+              .eq("id", st.id)
+              .eq("status", "frozen");
+            if (upErr) continue;
+            await resumeStudentBilling(supabaseAdmin, st.id).catch((e: unknown) =>
+              console.warn("[generate-dojo-invoices] reativação", st.id, e),
+            );
+            unfrozen++;
+          }
+        }
 
         const { data: enrolls, error } = await supabaseAdmin
           .from("dojo_enrollments")
@@ -72,8 +99,8 @@ export const Route = createFileRoute("/api/public/hooks/generate-dojo-invoices")
           // Renovação automática obrigatória: `installments_total` NÃO interrompe
           // a recorrência. As cobranças só param quando a matrícula é cancelada
           // (status != active) ou o aluno é removido/cancelado do sistema.
-          const studentStatus = String(e.student?.status ?? "active");
-          if (studentStatus === "cancelled" || studentStatus === "inactive" || studentStatus === "frozen" || e.student?.cancelled_at) { skipped++; continue; }
+          // Trancado, inativo, cancelado ou pré-cadastro: não recebe cobrança.
+          if (!isBillableStudentStatus(e.student?.status) || e.student?.cancelled_at) { skipped++; continue; }
 
           const plan = e.plan ?? {};
           const rules = plan.rules ?? {};
@@ -218,7 +245,7 @@ export const Route = createFileRoute("/api/public/hooks/generate-dojo-invoices")
         if (deferred > 0) {
           console.warn(`[recurring] orçamento de tempo esgotado; ${deferred} matrícula(s) para a próxima execução`);
         }
-        return Response.json({ ok: true, created, skipped, deferred, today: todayISO });
+        return Response.json({ ok: true, created, skipped, deferred, unfrozen, today: todayISO });
       },
     },
   },

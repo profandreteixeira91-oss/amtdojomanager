@@ -1,4 +1,5 @@
 import { calendarISO, todayISO, monthStartISO, addMonthsISO } from "@/lib/dates";
+import { isBillableStudentStatus } from "@/lib/dojo/student-status";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -210,10 +211,12 @@ export function useFinanceKpis() {
     ).size;
     const avgTicket = uniqueStudentsPaid > 0 ? paidThisMonth / uniqueStudentsPaid : 0;
 
-    // MRR = active recurring invoices sum, approximated by paid last 30d.
+    // MRR (30d) = recebido nos últimos 30 dias, só de alunos que seguem
+    // pagando: trancado/inativo não é receita recorrente.
     const thirtyDaysAgo = Date.now() - 30 * 86_400_000;
     const mrr = invoices
       .filter((i) => i.status === "paid" && i.paid_at && new Date(i.paid_at).getTime() >= thirtyDaysAgo)
+      .filter((i) => isBillableStudentStatus((i as any).student?.status))
       .reduce((s, i) => s + Number(i.amount || 0), 0);
 
     const pendingPayables = expenses

@@ -49,6 +49,7 @@ import { parseAmountBR } from "@/lib/br-masks";
 import { addDaysISO, dayISO, todayISO } from "@/lib/dates";
 import { SectionErrorBoundary } from "@/components/dojo/SectionErrorBoundary";
 import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
+import { ENROLLMENT_STATUS, enrollmentStatusLabel, studentStatusLabel, studentStatusTone, type StudentStatusTone } from "@/lib/dojo/student-status";
 
 const TAB_LABELS: Record<string, string> = {
   pessoal: "Dados", academia: "Academia", plano: "Plano", anamnese: "Anamnese", lgpd: "LGPD",
@@ -337,8 +338,15 @@ function StudentDetail() {
     setCancelBusy(true);
     try {
       if (cancelDialog.mode === "freeze") {
-        await freezeStudent({ data: { id, frozen_until: cancelDialog.frozen_until || null } });
-        toast.success("Matrícula congelada", { description: "Cobranças e fluxo do aluno foram pausados." });
+        const r = await freezeStudent({ data: { id, frozen_until: cancelDialog.frozen_until || null } });
+        const parts = [
+          r.paused ? `${r.paused} matrícula(s) trancada(s)` : null,
+          r.cancelledInvoices ? `${r.cancelledInvoices} cobrança(s) futura(s) cancelada(s)` : null,
+        ].filter(Boolean);
+        toast.success("Matrícula trancada", {
+          description: `${parts.length ? parts.join(" · ") + ". " : ""}O aluno não recebe cobranças e sai do MRR até ser reativado.`,
+        });
+        if (r.warnings?.length) toast.warning("Confira no Asaas", { description: r.warnings[0] });
         setCancelDialog((d) => ({ ...d, open: false }));
         refresh();
       } else {
@@ -356,7 +364,7 @@ function StudentDetail() {
   const doUnfreeze = async () => {
     try {
       await unfreezeStudent({ data: { id } });
-      toast.success("Matrícula reativada");
+      toast.success("Matrícula reativada", { description: "As cobranças voltam a partir do próximo vencimento." });
       refresh();
     } catch (e: any) { toast.error("Erro ao reativar", { description: e.message }); }
   };
@@ -519,11 +527,11 @@ function StudentDetail() {
         </div>
       </section>
 
-      {/* Diálogo: cancelar / congelar matrícula */}
+      {/* Diálogo: cancelar / trancar matrícula */}
       <Dialog open={cancelDialog.open} onOpenChange={(v) => setCancelDialog((d) => ({ ...d, open: v }))}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Cancelar ou congelar matrícula</DialogTitle>
+            <DialogTitle>Cancelar ou trancar matrícula</DialogTitle>
             <DialogDescription>
               Escolha como deseja encerrar o vínculo do aluno <strong>{s.full_name}</strong>.
             </DialogDescription>
@@ -546,9 +554,9 @@ function StudentDetail() {
                   onChange={() => setCancelDialog((d) => ({ ...d, mode: "freeze" }))}
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold">Congelar matrícula</div>
+                  <div className="text-sm font-semibold">Trancar matrícula</div>
                   <div className="text-xs text-muted-foreground">
-                    Pausa cobranças, lembretes e demais fluxos. O aluno permanece cadastrado e pode ser reativado a qualquer momento.
+                    Suspende as mensalidades (cancela as que ainda não venceram), os lembretes e o valor no MRR. O aluno continua cadastrado e pode ser reativado a qualquer momento.
                   </div>
                   {cancelDialog.mode === "freeze" && (
                     <div className="mt-2">
@@ -561,7 +569,7 @@ function StudentDetail() {
                         className="mt-1"
                       />
                       <p className="mt-1 text-[11px] text-muted-foreground">
-                        Deixe em branco para congelar por tempo indeterminado.
+                        Deixe em branco para trancar por tempo indeterminado.
                       </p>
                     </div>
                   )}
@@ -603,7 +611,7 @@ function StudentDetail() {
               disabled={cancelBusy}
               className={cancelDialog.mode === "cancel" ? "bg-red-600 hover:bg-red-700 text-white" : "bg-amber-600 hover:bg-amber-700 text-white"}
             >
-              {cancelBusy ? "Processando..." : cancelDialog.mode === "freeze" ? "Congelar matrícula" : "Cancelar definitivamente"}
+              {cancelBusy ? "Processando..." : cancelDialog.mode === "freeze" ? "Trancar matrícula" : "Cancelar definitivamente"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -825,7 +833,7 @@ function StudentDetail() {
                   {enrollments.map((e: any) => (
                     <div key={e.id} className="flex items-center justify-between p-3 border-b border-border last:border-0 text-sm">
                       <div className="min-w-0 flex-1 truncate">
-                        {e.plan?.name} · {brl(e.custom_amount ?? e.plan?.amount)} · venc. dia {e.due_day} · <Badge variant="outline">{e.status}</Badge>
+                        {e.plan?.name} · {brl(e.custom_amount ?? e.plan?.amount)} · venc. dia {e.due_day} · <EnrollmentStatusBadge status={e.status} />
                       </div>
                       <Button size="icon" variant="ghost" onClick={async () => {
                         try {
@@ -893,10 +901,10 @@ function StudentDetail() {
                         value={enroll.status}
                         onChange={(e) => setEnroll({ ...enroll, status: e.target.value as any })}
                       >
-                        <option value="active">Ativo (Mensalidades pagas)</option>
-                        <option value="overdue">Pendente (Mensalidade vencida)</option>
-                        <option value="paused">Pausado/Trancado</option>
-                        <option value="cancelled">Cancelado</option>
+                        <option value="active">Ativa (gera mensalidades)</option>
+                        {enroll.status === "overdue" && <option value="overdue">Em atraso</option>}
+                        <option value="paused">Trancada (aluno fica trancado, sem cobranças)</option>
+                        <option value="cancelled">Cancelada</option>
                       </select>
                     </div>
                   </div>
@@ -993,9 +1001,7 @@ function StudentDetail() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge variant={e.status === "active" ? "default" : "outline"}>
-                            {e.status === "active" ? "Ativo" : e.status === "overdue" ? "Pendente" : e.status}
-                          </Badge>
+                          <EnrollmentStatusBadge status={e.status} />
                           <Button
                             size="icon"
                             variant="ghost"
@@ -1745,23 +1751,32 @@ function Kpi({ icon: Icon, label, value, tint }: { icon: any; label: string; val
 }
 
 
+const BADGE_TONE: Record<StudentStatusTone, string> = {
+  ok: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  warn: "bg-amber-100 text-amber-800 border-amber-200",
+  muted: "bg-muted text-muted-foreground border-border",
+  danger: "bg-red-100 text-red-800 border-red-200",
+  info: "bg-sky-100 text-sky-800 border-sky-200",
+};
+
 function StatusBadge({ status, className }: { status?: string; className?: string }) {
-  const map: Record<string, { label: string; cls: string }> = {
-    active: { label: "Ativo", cls: "bg-emerald-100 text-emerald-800 border-emerald-200" },
-    inactive: { label: "Inativo", cls: "bg-muted text-muted-foreground border-border" },
-    frozen: { label: "Trancado", cls: "bg-amber-100 text-amber-800 border-amber-200" },
-    trial: { label: "Experimental", cls: "bg-sky-100 text-sky-800 border-sky-200" },
-  };
-  const cfg = map[status ?? ""] ?? map.inactive;
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${cfg.cls} ${className ?? ""}`}>
-      <span className="h-1.5 w-1.5 rounded-full bg-current" /> {cfg.label}
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${BADGE_TONE[studentStatusTone(status)]} ${className ?? ""}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" /> {studentStatusLabel(status)}
     </span>
   );
 }
 
 function statusLabel(s?: string) {
-  return s === "active" ? "Ativo" : s === "frozen" ? "Trancado" : s === "inactive" ? "Inativo" : s ?? "—";
+  return studentStatusLabel(s);
+}
+
+function EnrollmentStatusBadge({ status }: { status?: string }) {
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${BADGE_TONE[ENROLLMENT_STATUS[status ?? ""]?.tone ?? "muted"]}`}>
+      {enrollmentStatusLabel(status)}
+    </span>
+  );
 }
 
 function SidebarField({ icon: Icon, label, value }: { icon: any; label: string; value: React.ReactNode }) {
@@ -1803,13 +1818,14 @@ function HeroChip({ icon: Icon, children }: { icon?: any; children: React.ReactN
 }
 
 function HeroStatusPill({ status }: { status?: string }) {
-  const map: Record<string, { label: string; cls: string; dot: string }> = {
-    active: { label: "Ativo", cls: "border-emerald-200 bg-emerald-50 text-emerald-700", dot: "bg-emerald-500" },
-    inactive: { label: "Inativo", cls: "border-neutral-200 bg-neutral-50 text-neutral-600", dot: "bg-neutral-400" },
-    frozen: { label: "Trancado", cls: "border-amber-200 bg-amber-50 text-amber-800", dot: "bg-amber-500" },
-    trial: { label: "Experimental", cls: "border-sky-200 bg-sky-50 text-sky-700", dot: "bg-sky-500" },
+  const tones: Record<StudentStatusTone, { cls: string; dot: string }> = {
+    ok: { cls: "border-emerald-200 bg-emerald-50 text-emerald-700", dot: "bg-emerald-500" },
+    muted: { cls: "border-neutral-200 bg-neutral-50 text-neutral-600", dot: "bg-neutral-400" },
+    warn: { cls: "border-amber-200 bg-amber-50 text-amber-800", dot: "bg-amber-500" },
+    danger: { cls: "border-red-200 bg-red-50 text-red-700", dot: "bg-red-500" },
+    info: { cls: "border-sky-200 bg-sky-50 text-sky-700", dot: "bg-sky-500" },
   };
-  const cfg = map[status ?? ""] ?? map.inactive;
+  const cfg = { ...tones[studentStatusTone(status)], label: studentStatusLabel(status) };
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${cfg.cls}`}>
       <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot} shadow-[0_0_0_3px_rgba(255,255,255,0.06)]`} /> {cfg.label}
@@ -2174,7 +2190,7 @@ function printStudentReport(p: {
     : `<div class="ph-fallback">${escapeHtml((s.full_name ?? "?").slice(0, 1).toUpperCase())}</div>`;
 
   const statusTone = s.status === "active" ? "ok" : (s.status === "inactive" ? "muted" : "warn");
-  const statusLabel = s.status === "active" ? "Ativo" : (s.status === "inactive" ? "Inativo" : (s.status ?? "—"));
+  const statusLabel = studentStatusLabel(s.status);
 
   const heroChips = [
     ["Código", studentCode],

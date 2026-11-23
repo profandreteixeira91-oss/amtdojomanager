@@ -5,6 +5,7 @@ import { calendarISO, todayISO, utcCalendarISO } from "@/lib/dates";
 import { normalizeCurrentBelts } from "@/lib/dojo/current-belts";
 import { resolveDojoOwnerId } from "@/lib/dojo/owner-scope";
 import { normalizeModality } from "@/lib/dojo/modalities";
+import { isBillableStudentStatus } from "@/lib/dojo/student-status";
 
 // Owner-scoped helper: every user manages their own dojo. RLS enforces
 // `owner_id = auth.uid()` for reads/writes, so we only need to inject
@@ -486,8 +487,22 @@ export const saveDojoStudent = createServerFn({ method: "POST" })
     if (payload.terms_accepted === true) payload.terms_accepted_date = now;
     Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
     if (id) {
+      // Mudança de situação (ativo/trancado/inativo) mexe nas cobranças.
+      let prevStatus: string | null = null;
+      if (data.status) {
+        const { data: prev } = await context.supabase.from("dojo_students").select("status").eq("id", id).maybeSingle();
+        prevStatus = (prev as any)?.status ?? null;
+        if (prevStatus !== data.status) {
+          if (data.status === "frozen") { payload.frozen_since = now; payload.cancelled_at = null; }
+          else { payload.frozen_since = null; payload.frozen_until = null; }
+        }
+      }
       const { error } = await context.supabase.from("dojo_students").update(payload).eq("id", id);
       if (error) throw new Error(error.message);
+      if (data.status && prevStatus !== data.status) {
+        const { applyStudentStatusChange } = await import("@/lib/dojo/student-billing.server");
+        await applyStudentStatusChange(context.supabase, id, prevStatus, data.status);
+      }
       return { id };
     }
     const owner = ownerId(context);
@@ -566,6 +581,9 @@ export const freezeDojoStudent = createServerFn({ method: "POST" })
       })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    // Trancado não é cobrado: pausa matrículas e cancela cobranças futuras.
+    const { pauseStudentBilling } = await import("@/lib/dojo/student-billing.server");
+    const billing = await pauseStudentBilling(context.supabase, data.id, { until: data.frozen_until ?? null });
     try {
       const owner = ownerId(context);
       const { sendPushToDojoOwner } = await import("@/lib/push/dojo-owner-push.server");
@@ -573,15 +591,15 @@ export const freezeDojoStudent = createServerFn({ method: "POST" })
         ? ` até ${new Date(`${data.frozen_until}T00:00:00`).toLocaleDateString("pt-BR")}`
         : " por tempo indeterminado";
       await sendPushToDojoOwner(owner, "enrollments", {
-        title: "Matrícula congelada",
-        body: `${prev?.full_name ?? "Aluno"} teve a matrícula congelada${untilLabel}`,
+        title: "Matrícula trancada",
+        body: `${prev?.full_name ?? "Aluno"} teve a matrícula trancada${untilLabel}`,
         url: `/dojo/app/students/${data.id}`,
         tag: `dojo-student-freeze-${data.id}`,
       }).catch((e) => console.warn("[owner-push] freeze enrollment failed", e));
     } catch (e) {
       console.warn("[owner-push] freeze enrollment import failed", e);
     }
-    return { ok: true };
+    return { ok: true, paused: billing.paused, cancelledInvoices: billing.cancelledInvoices, warnings: billing.warnings };
   });
 
 export const unfreezeDojoStudent = createServerFn({ method: "POST" })
@@ -593,7 +611,10 @@ export const unfreezeDojoStudent = createServerFn({ method: "POST" })
       .update({ status: "active", frozen_since: null, frozen_until: null })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
-    return { ok: true };
+    // Volta a cobrar o que o trancamento pausou, a partir do próximo vencimento.
+    const { resumeStudentBilling } = await import("@/lib/dojo/student-billing.server");
+    const { resumed } = await resumeStudentBilling(context.supabase, data.id);
+    return { ok: true, resumed };
   });
 
 export const restoreDojoStudent = createServerFn({ method: "POST" })
@@ -605,12 +626,15 @@ export const restoreDojoStudent = createServerFn({ method: "POST" })
       .update({ status: "active", cancelled_at: null, frozen_since: null, frozen_until: null })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
-    // Restaurar o aluno reativa a recorrência das matrículas canceladas.
-    await context.supabase
+    // Restaurar o aluno reativa a recorrência das matrículas canceladas, com o
+    // próximo vencimento a partir de hoje (nada retroativo).
+    const { data: cancelled } = await context.supabase
       .from("dojo_enrollments")
-      .update({ status: "active", cancelled_at: null } as never)
+      .select("id, due_day, next_run_at, paused_from")
       .eq("student_id", data.id)
-      .eq("status", "cancelled");
+      .in("status", ["cancelled", "canceled"]);
+    const { reactivateEnrollments } = await import("@/lib/dojo/student-billing.server");
+    await reactivateEnrollments(context.supabase, (cancelled ?? []) as any[]);
     return { ok: true };
   });
 
@@ -833,15 +857,52 @@ export const saveDojoEnrollment = createServerFn({ method: "POST" })
   }).parse(i))
   .handler(async ({ data, context }) => {
     const { id, ...rest } = data;
+    const patch: any = { ...rest };
+    let enrollmentId = id;
     if (id) {
-      const { error } = await context.supabase.from("dojo_enrollments").update(rest).eq("id", id);
+      const { data: prev } = await context.supabase.from("dojo_enrollments").select("status").eq("id", id).maybeSingle();
+      if (data.status === "paused" && (prev as any)?.status !== "paused") patch.paused_from = todayISO();
+      if (data.status && data.status !== "paused") { patch.paused_from = null; patch.paused_until = null; }
+      const { error } = await context.supabase.from("dojo_enrollments").update(patch).eq("id", id);
       if (error) throw new Error(error.message);
-      return { id };
+    } else {
+      if (data.status === "paused") patch.paused_from = todayISO();
+      const { data: row, error } = await context.supabase.from("dojo_enrollments").insert({ ...patch, owner_id: ownerId(context) }).select("id").single();
+      if (error) throw new Error(error.message);
+      enrollmentId = row.id;
     }
-    const { data: row, error } = await context.supabase.from("dojo_enrollments").insert({ ...rest, owner_id: ownerId(context) }).select("id").single();
-    if (error) throw new Error(error.message);
-    return { id: row.id };
+    await syncStudentWithEnrollmentStatus(context.supabase, data.student_id, enrollmentId as string, data.status);
+    return { id: enrollmentId as string };
   });
+
+/**
+ * "Trancada" na matrícula e "Trancado" no aluno andam juntos: a etiqueta do
+ * aluno sempre corresponde ao que está sendo cobrado.
+ */
+async function syncStudentWithEnrollmentStatus(db: any, studentId: string, enrollmentId: string, status?: string) {
+  if (status !== "paused" && status !== "active") return;
+  const { cancelUpcomingInvoices, resumeStudentBilling } = await import("@/lib/dojo/student-billing.server");
+  const { data: stu } = await db.from("dojo_students").select("status").eq("id", studentId).maybeSingle();
+  const studentStatus = (stu as any)?.status ?? "active";
+  if (status === "paused") {
+    await cancelUpcomingInvoices(db, { studentId, enrollmentIds: [enrollmentId] });
+    const { count } = await db
+      .from("dojo_enrollments")
+      .select("id", { count: "exact", head: true })
+      .eq("student_id", studentId)
+      .eq("status", "active");
+    if (!count && studentStatus === "active") {
+      await db.from("dojo_students")
+        .update({ status: "frozen", frozen_since: new Date().toISOString(), frozen_until: null, cancelled_at: null })
+        .eq("id", studentId);
+    }
+    return;
+  }
+  if (studentStatus === "frozen") {
+    await db.from("dojo_students").update({ status: "active", frozen_since: null, frozen_until: null }).eq("id", studentId);
+    await resumeStudentBilling(db, studentId);
+  }
+}
 
 export const deleteDojoEnrollment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -862,7 +923,7 @@ export const listDojoInvoices = createServerFn({ method: "GET" })
   }).parse(i ?? {}))
   .handler(async ({ data, context }) => {
     let q = context.supabase.from("dojo_invoices")
-      .select("*, student:dojo_students(full_name, phone, email, guardian_phone)")
+      .select("*, student:dojo_students(full_name, phone, email, guardian_phone, status)")
       .order("due_date", { ascending: false }).limit(500);
     if (data.status && data.status !== "all") q = q.eq("status", data.status);
     if (data.from) q = q.gte("due_date", data.from);
@@ -1439,7 +1500,7 @@ export const generateMonthlyInvoices = createServerFn({ method: "POST" })
     const [y, m] = data.reference_month.split("-").map(Number);
     let created = 0;
     for (const e of (enrolls ?? []) as any[]) {
-      if (e.student?.status === "inactive" || e.student?.status === "frozen") continue; // aluno inativo não recebe cobrança
+      if (!isBillableStudentStatus(e.student?.status)) continue; // trancado/inativo/pré-cadastro não recebe cobrança
       const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
       const dueDay = Math.min(e.due_day ?? 5, daysInMonth);
       const dueDate = utcCalendarISO(new Date(Date.UTC(y, m - 1, dueDay)));
