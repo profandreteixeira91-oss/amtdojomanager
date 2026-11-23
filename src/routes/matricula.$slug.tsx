@@ -1,4 +1,4 @@
-import { createFileRoute, useLoaderData, useNavigate, useParams } from "@tanstack/react-router";
+import { createFileRoute, useLoaderData, useParams } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
   useEffect,
@@ -13,42 +13,39 @@ import {
   getPublicEnrollmentBundle,
   publicEnrollStudent,
   publicUploadEnrollmentPhoto,
+  type PublicBelt,
   type PublicEnrollmentBundle,
-  type PublicPlan,
 } from "@/lib/dojo/public-enrollment.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { paymentMethodLabel } from "@/lib/dojo/payment-methods";
-import { degreeUnit } from "@/lib/dojo/degree-label";
+import { BeltAuto } from "@/components/dojo/BeltSpecVisual";
+import { formatBeltFull, formatDegree } from "@/lib/dojo/degree-label";
 import { useForceLightTheme } from "@/hooks/useForceLightTheme";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   AlertCircle,
-  Banknote,
-  Barcode,
   Camera,
   Check,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ClipboardCheck,
   Clock,
-  CreditCard,
   HeartPulse,
   Loader2,
-  Lock,
   MapPin,
+  MessageCircle,
   Pencil,
-  Plus,
-  QrCode,
+  Send,
   ShieldCheck,
-  Trash2,
+  Swords,
   Upload,
   UserRound,
-  Wallet,
   X,
 } from "lucide-react";
 
@@ -64,7 +61,7 @@ export function loadEnrollmentBundle(slug: string): Promise<PublicEnrollmentBund
 export function enrollmentHead(bundle: PublicEnrollmentBundle | null | undefined) {
   const name = bundle?.academy.trade_name || bundle?.academy.legal_name || "Dojo";
   const title = `Matrícula online · ${name}`;
-  const description = `Faça sua matrícula no ${name} em poucos minutos: escolha o plano, preencha seus dados e pague online com segurança.`;
+  const description = `Faça seu pré-cadastro no ${name} em poucos minutos. A academia analisa e confirma sua matrícula.`;
   return {
     meta: [
       { title },
@@ -90,9 +87,6 @@ export const Route = createFileRoute("/matricula/$slug")({
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
-
-const brl = (n: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
 
 const DEFAULT_BRAND = "#b91c1c";
 
@@ -127,8 +121,6 @@ function shade(hex: string, amount: number): string {
 }
 
 const digits = (v: string) => v.replace(/\D/g, "");
-
-const capitalize = (v: string) => (v ? v.charAt(0).toUpperCase() + v.slice(1) : v);
 
 function maskPhone(v: string): string {
   const d = digits(v).slice(0, 11);
@@ -174,43 +166,8 @@ function ageFrom(birth: string): number | null {
   return age;
 }
 
-function frequencyText(p: PublicPlan): string {
-  const map: Record<string, string> = {
-    monthly: "por mês",
-    bimonthly: "a cada 2 meses",
-    quarterly: "por trimestre",
-    quadrimestral: "por quadrimestre",
-    semiannual: "por semestre",
-    annual: "por ano",
-  };
-  if (p.frequency === "custom")
-    return p.custom_months ? `a cada ${p.custom_months} meses` : "por período";
-  return map[p.frequency || "monthly"] ?? "por mês";
-}
-
-/** Nome da forma de pagamento; os códigos do gateway (cartão, boleto) não estão no catálogo manual. */
-const GATEWAY_METHOD_LABEL: Record<string, string> = {
-  pix: "PIX",
-  credit_card: "Cartão de crédito",
-  debit_card: "Cartão de débito",
-  boleto: "Boleto",
-  cash: "Dinheiro",
-  manual: "Combinar com a academia",
-  bank_transfer: "Transferência bancária",
-};
-
-function methodLabel(code: string): string {
-  const label = paymentMethodLabel(code);
-  return label && label !== code ? label : (GATEWAY_METHOD_LABEL[code] ?? code);
-}
-
-function methodIcon(code: string) {
-  if (code === "pix") return QrCode;
-  if (code.includes("card")) return CreditCard;
-  if (code === "boleto") return Barcode;
-  if (code === "cash") return Banknote;
-  return Wallet;
-}
+const sortBelts = (list: PublicBelt[]) =>
+  [...list].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
 /* ------------------------------------------------------------------ */
 /* Estado do formulário                                                */
@@ -234,7 +191,8 @@ type Anamnesis = {
   other?: string;
 };
 
-type ModalityRow = { modality: string; belt_id: string; degree: number };
+/** Uma linha por modalidade: faixa do padrão do sistema + grau. `beginner` usa a primeira faixa. */
+type ModalityRow = { modality: string; belt_id: string; degree: number; beginner: boolean };
 
 type Form = {
   full_name: string;
@@ -262,7 +220,6 @@ type Form = {
   emergency_contact_phone: string;
   emergency_contact_relationship: string;
   unit_id: string;
-  already_trains: boolean;
   modalities: ModalityRow[];
   anamnesis: Anamnesis;
   has_medical_clearance: boolean;
@@ -300,7 +257,6 @@ const EMPTY: Form = {
   emergency_contact_phone: "",
   emergency_contact_relationship: "",
   unit_id: "",
-  already_trains: false,
   modalities: [],
   anamnesis: {},
   has_medical_clearance: false,
@@ -313,11 +269,11 @@ const EMPTY: Form = {
 };
 
 const STEPS = [
-  { key: "plano", label: "Plano", title: "Escolha seu plano", icon: CreditCard },
   { key: "dados", label: "Dados", title: "Seus dados", icon: UserRound },
   { key: "endereco", label: "Endereço", title: "Endereço e contato de emergência", icon: MapPin },
-  { key: "treino", label: "Treino", title: "Treino e saúde", icon: HeartPulse },
-  { key: "confirmar", label: "Confirmar", title: "Foto e confirmação", icon: ShieldCheck },
+  { key: "modalidade", label: "Modalidade", title: "Modalidade e graduação", icon: Swords },
+  { key: "saude", label: "Saúde", title: "Saúde e objetivos", icon: HeartPulse },
+  { key: "enviar", label: "Enviar", title: "Confira e envie para análise", icon: Send },
 ] as const;
 const LAST = STEPS.length - 1;
 
@@ -359,6 +315,15 @@ const fieldCls = "h-11 text-base sm:text-sm";
 const selectCls =
   "h-11 w-full rounded-md border border-input bg-background px-3 text-base shadow-xs outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:text-sm";
 
+function ErrorText({ children }: { children?: string }) {
+  if (!children) return null;
+  return (
+    <p className="flex items-center gap-1 text-xs font-medium text-red-600" role="alert">
+      <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {children}
+    </p>
+  );
+}
+
 function Field({
   id,
   label,
@@ -384,9 +349,7 @@ function Field({
       </Label>
       {children}
       {error ? (
-        <p className="flex items-center gap-1 text-xs font-medium text-red-600" role="alert">
-          <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {error}
-        </p>
+        <ErrorText>{error}</ErrorText>
       ) : hint ? (
         <p className="text-xs text-neutral-500">{hint}</p>
       ) : null}
@@ -444,16 +407,8 @@ function Section({
   );
 }
 
-function Collapsible({
-  title,
-  children,
-  defaultOpen,
-}: {
-  title: string;
-  children: ReactNode;
-  defaultOpen?: boolean;
-}) {
-  const [open, setOpen] = useState(!!defaultOpen);
+function Collapsible({ title, children }: { title: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
   return (
     <div className="rounded-xl border border-neutral-200">
       <button
@@ -478,17 +433,15 @@ export function PublicEnrollmentPage() {
   useForceLightTheme();
   const { slug } = useParams({ strict: false }) as { slug: string };
   const bundle = useLoaderData({ strict: false }) as PublicEnrollmentBundle | null | undefined;
-  const navigate = useNavigate();
   const enrollFn = useServerFn(publicEnrollStudent);
   const uploadPhotoFn = useServerFn(publicUploadEnrollmentPhoto);
 
   const draftKey = `amt-matricula:${slug}`;
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<Form>(EMPTY);
-  const [planId, setPlanId] = useState<string | null>(null);
-  const [method, setMethod] = useState("");
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
+  const [sent, setSent] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [cepState, setCepState] = useState<"idle" | "loading" | "ok" | "fail">("idle");
   const [restored, setRestored] = useState(false);
@@ -496,25 +449,20 @@ export function PublicEnrollmentPage() {
   const topRef = useRef<HTMLDivElement | null>(null);
 
   const academy = bundle?.academy;
-  const plans = useMemo(() => bundle?.plans ?? [], [bundle]);
   const units = bundle?.units ?? [];
   const belts = useMemo(() => bundle?.belts ?? [], [bundle]);
+  const modalities = useMemo(() => bundle?.modalities ?? [], [bundle]);
+  const beltsOf = useMemo(() => {
+    const map = new Map<string, PublicBelt[]>();
+    for (const b of belts) {
+      if (!b.modality) continue;
+      map.set(b.modality, [...(map.get(b.modality) ?? []), b]);
+    }
+    for (const [k, v] of map) map.set(k, sortBelts(v));
+    return map;
+  }, [belts]);
   const brand = brandColor(academy?.brand_primary);
   const name = academy?.trade_name || academy?.legal_name || "Dojo";
-
-  const modalitiesAvail = useMemo(
-    () => Array.from(new Set(belts.map((b) => b.modality).filter(Boolean))) as string[],
-    [belts],
-  );
-  const selectedPlan = plans.find((p) => p.id === planId);
-  const methods = useMemo(() => {
-    if (!selectedPlan) return [] as string[];
-    const raw = Array.isArray(selectedPlan.payment_methods) ? selectedPlan.payment_methods : [];
-    const enabled = raw.filter((m) => m && (m.enabled === true || m.enabled === undefined));
-    return enabled.length ? enabled.map((m) => String(m.code)) : ["pix", "manual"];
-  }, [selectedPlan]);
-  const fee = Number(selectedPlan?.enrollment_fee ?? 0);
-  const total = selectedPlan ? Number(selectedPlan.amount ?? 0) + fee : 0;
   const age = ageFrom(form.birth_date);
   const minor = age !== null && age < 18;
 
@@ -525,8 +473,6 @@ export function PublicEnrollmentPage() {
       if (raw) {
         const d = JSON.parse(raw);
         setForm({ ...EMPTY, ...d.form, photo_url: d.form?.photo_url ?? "" });
-        if (d.planId) setPlanId(d.planId);
-        if (d.method) setMethod(d.method);
         if (typeof d.step === "number") setStep(Math.min(LAST, Math.max(0, d.step)));
       }
     } catch {
@@ -536,22 +482,27 @@ export function PublicEnrollmentPage() {
   }, [draftKey]);
 
   useEffect(() => {
-    if (!restored) return;
+    if (!restored || sent) return;
     try {
-      sessionStorage.setItem(draftKey, JSON.stringify({ form, planId, method, step }));
+      sessionStorage.setItem(draftKey, JSON.stringify({ form, step }));
     } catch {
       /* armazenamento indisponível */
     }
-  }, [draftKey, form, planId, method, step, restored]);
+  }, [draftKey, form, step, restored, sent]);
 
-  // Um plano só: já vem escolhido. Uma forma de pagamento só: idem.
+  // Uma modalidade só: já vem escolhida, como iniciante.
   useEffect(() => {
-    if (restored && !planId && plans.length === 1) setPlanId(plans[0].id);
-  }, [restored, planId, plans]);
-  useEffect(() => {
-    if (methods.length === 1 && method !== methods[0]) setMethod(methods[0]);
-    if (method && methods.length && !methods.includes(method)) setMethod("");
-  }, [methods, method]);
+    if (restored && modalities.length === 1 && form.modalities.length === 0) {
+      const first = beltsOf.get(modalities[0].id)?.[0];
+      if (first)
+        setForm((f) => ({
+          ...f,
+          modalities: [
+            { modality: modalities[0].id, belt_id: first.id, degree: 0, beginner: true },
+          ],
+        }));
+    }
+  }, [restored, modalities, beltsOf, form.modalities.length]);
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -559,6 +510,30 @@ export function PublicEnrollmentPage() {
   };
   const setAnamn = <K extends keyof Anamnesis>(k: K, v: Anamnesis[K]) =>
     setForm((f) => ({ ...f, anamnesis: { ...f.anamnesis, [k]: v } }));
+
+  function toggleModality(id: string) {
+    setErrors((e) => ({ ...e, modalities: undefined }));
+    setForm((f) => {
+      if (f.modalities.some((m) => m.modality === id)) {
+        return { ...f, modalities: f.modalities.filter((m) => m.modality !== id) };
+      }
+      const first = beltsOf.get(id)?.[0];
+      return {
+        ...f,
+        modalities: [
+          ...f.modalities,
+          { modality: id, belt_id: first?.id ?? "", degree: 0, beginner: true },
+        ],
+      };
+    });
+  }
+
+  function updateRow(id: string, patch: Partial<ModalityRow>) {
+    setForm((f) => ({
+      ...f,
+      modalities: f.modalities.map((m) => (m.modality === id ? { ...m, ...patch } : m)),
+    }));
+  }
 
   async function lookupCep(value: string) {
     const d = digits(value);
@@ -575,6 +550,7 @@ export function PublicEnrollmentPage() {
           city: j.localidade || f.city,
           state: (j.uf || f.state || "").slice(0, 2),
         }));
+        setErrors((e) => ({ ...e, city: undefined, state: undefined }));
         setCepState("ok");
         window.setTimeout(() => document.getElementById("f-number")?.focus(), 50);
       } else setCepState("fail");
@@ -606,22 +582,18 @@ export function PublicEnrollmentPage() {
     }
   }
 
+  /** Mesmas exigências da ficha do aluno no painel: o dono aprova sem precisar completar nada. */
   function validate(s: number): Errors {
     const e: Errors = {};
     if (s === 0) {
-      if (!planId) e.plan = "Escolha um plano para continuar.";
-      else if (!method) e.method = "Escolha a forma de pagamento.";
-    }
-    if (s === 1) {
       const n = form.full_name.trim();
       if (n.length < 2) e.full_name = "Informe o nome completo.";
       else if (!/\S+\s+\S+/.test(n)) e.full_name = "Informe nome e sobrenome.";
       if (digits(form.phone).length < 10) e.phone = "Informe um WhatsApp com DDD.";
       if (form.email && !validEmail(form.email)) e.email = "E-mail inválido.";
+      if (!form.birth_date) e.birth_date = "Informe a data de nascimento.";
+      else if (age === null || age < 0 || age > 110) e.birth_date = "Data de nascimento inválida.";
       if (form.cpf && !validCpf(form.cpf)) e.cpf = "CPF inválido. Confira os números.";
-      if (form.birth_date) {
-        if (age === null || age < 0 || age > 110) e.birth_date = "Data de nascimento inválida.";
-      }
       if (minor) {
         if (form.guardian_name.trim().length < 2)
           e.guardian_name = "Informe o nome do responsável.";
@@ -629,19 +601,27 @@ export function PublicEnrollmentPage() {
           e.guardian_phone = "Informe o WhatsApp do responsável.";
       }
     }
-    if (s === 2) {
+    if (s === 1) {
+      if (form.zip && digits(form.zip).length !== 8) e.zip = "CEP incompleto.";
+      if (!form.city.trim()) e.city = "Informe a cidade.";
+      if (form.state.trim().length !== 2) e.state = "UF";
       if (form.emergency_contact_phone && digits(form.emergency_contact_phone).length < 10)
         e.emergency_contact_phone = "Telefone incompleto.";
     }
+    if (s === 2) {
+      if (!form.modalities.length) e.modalities = "Escolha a modalidade que você vai treinar.";
+      else if (form.modalities.some((m) => !m.belt_id))
+        e.modalities = "Escolha a faixa de cada modalidade.";
+    }
     if (s === 3) {
-      if (form.already_trains && form.modalities.some((m) => !m.modality || !m.belt_id))
-        e.modalities = "Escolha a faixa de cada modalidade, ou remova a linha.";
       if (form.has_medical_clearance && !form.medical_clearance_date)
         e.medical_clearance_date = "Informe a data da liberação.";
     }
     if (s === LAST) {
-      if (!form.lgpd_consent) e.lgpd_consent = "Obrigatório para concluir a matrícula.";
-      if (!form.terms_accepted) e.terms_accepted = "Obrigatório para concluir a matrícula.";
+      if (!form.lgpd_consent) e.lgpd_consent = "Obrigatório para enviar o pré-cadastro.";
+      if (!form.terms_accepted) e.terms_accepted = "Obrigatório para enviar o pré-cadastro.";
+      if (!form.facial_recognition_consent)
+        e.facial_recognition_consent = "Obrigatório para enviar o pré-cadastro.";
     }
     return e;
   }
@@ -685,27 +665,22 @@ export function PublicEnrollmentPage() {
         return;
       }
     }
-    if (!planId) return;
     setSubmitting(true);
     try {
-      const { already_trains, ...rest } = form;
-      const objectives = form.anamnesis.objectives;
-      const res = await enrollFn({
+      const { modalities: rows, ...rest } = form;
+      await enrollFn({
         data: {
           ...rest,
           slug,
-          plan_id: planId,
-          payment_method: method || "manual",
-          include_enrollment_fee: true,
           full_name: form.full_name.trim(),
           email: form.email.trim(),
           unit_id: form.unit_id || null,
-          modalities: already_trains
-            ? form.modalities
-                .filter((m) => m.modality && m.belt_id)
-                .map((m) => ({ modality: m.modality, belt_id: m.belt_id, degree: m.degree ?? 0 }))
-            : [],
-          anamnesis: { ...form.anamnesis, objectives: objectives || undefined },
+          modalities: rows.map((m) => ({
+            modality: m.modality,
+            belt_id: m.belt_id,
+            degree: m.beginner ? 0 : m.degree,
+          })),
+          anamnesis: { ...form.anamnesis, objectives: form.anamnesis.objectives || undefined },
         },
       });
       try {
@@ -713,10 +688,10 @@ export function PublicEnrollmentPage() {
       } catch {
         /* nada */
       }
-      toast.success("Matrícula concluída! Abrindo o pagamento…");
-      navigate({ to: "/pay/$invoiceId", params: { invoiceId: res.invoice_id } });
+      setSent(true);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e: any) {
-      toast.error(e?.message || "Não foi possível concluir a matrícula. Tente de novo.");
+      toast.error(e?.message || "Não foi possível enviar o pré-cadastro. Tente de novo.");
     } finally {
       setSubmitting(false);
     }
@@ -749,171 +724,168 @@ export function PublicEnrollmentPage() {
   const current = STEPS[step];
   const objectivesSel = (form.anamnesis.objectives ?? "").split(", ").filter(Boolean);
   const conditionsCount = CONDITIONS.filter(([k]) => form.anamnesis[k]).length;
+  const beltOf = (id: string) => belts.find((b) => b.id === id);
+  const rowLabel = (m: ModalityRow) => {
+    const b = beltOf(m.belt_id);
+    const modName = modalities.find((x) => x.id === m.modality)?.label ?? m.modality;
+    return b
+      ? `${modName} · ${formatBeltFull(b.name, m.modality, m.beginner ? 0 : m.degree)}`
+      : modName;
+  };
 
-  /* ------------------------------ resumo ------------------------------ */
-
-  const summary = (
-    <div className="space-y-4">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Resumo</p>
-        {selectedPlan ? (
-          <>
-            <p className="mt-2 font-semibold text-neutral-900">{selectedPlan.name}</p>
-            <p className="text-sm text-neutral-600">
-              {brl(selectedPlan.amount)} {frequencyText(selectedPlan)}
-            </p>
-          </>
+  const header = (
+    <header
+      className="text-[var(--brand-ink)]"
+      style={{ background: `linear-gradient(135deg, ${brand} 0%, ${shade(brand, 0.55)} 100%)` }}
+    >
+      <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 pb-16 pt-6 sm:pt-8">
+        {academy.logo_url ? (
+          <img
+            src={academy.logo_url}
+            alt=""
+            className="h-14 w-14 shrink-0 rounded-2xl bg-white object-contain p-1 shadow-lg sm:h-16 sm:w-16"
+          />
         ) : (
-          <p className="mt-2 text-sm text-neutral-500">Escolha um plano para ver o valor.</p>
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-2xl font-bold sm:h-16 sm:w-16">
+            {name[0]?.toUpperCase()}
+          </div>
         )}
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wider opacity-80">
+            Matrícula online
+          </p>
+          <h1 className="truncate text-xl font-bold leading-tight sm:text-3xl">{name}</h1>
+          {academy.city || academy.state ? (
+            <p className="mt-0.5 flex items-center gap-1 text-xs opacity-80 sm:text-sm">
+              <MapPin className="h-3.5 w-3.5" />{" "}
+              {[academy.city, academy.state].filter(Boolean).join(" · ")}
+            </p>
+          ) : null}
+        </div>
       </div>
-      {selectedPlan ? (
-        <dl className="space-y-1.5 border-t border-neutral-200 pt-3 text-sm">
-          <div className="flex justify-between gap-3">
-            <dt className="text-neutral-600">1ª mensalidade</dt>
-            <dd className="tabular-nums">{brl(selectedPlan.amount)}</dd>
-          </div>
-          {fee > 0 ? (
-            <div className="flex justify-between gap-3">
-              <dt className="text-neutral-600">Taxa de matrícula</dt>
-              <dd className="tabular-nums">{brl(fee)}</dd>
+    </header>
+  );
+
+  /* --------------------------- enviado (fim) --------------------------- */
+
+  if (sent) {
+    return (
+      <div className="min-h-dvh bg-neutral-100 pb-12 text-neutral-900" style={brandVars}>
+        {header}
+        <div className="mx-auto -mt-10 max-w-xl px-4">
+          <main className="rounded-3xl bg-white p-6 text-center shadow-xl shadow-neutral-900/5 ring-1 ring-neutral-200 sm:p-10">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50">
+              <CheckCircle2 className="h-9 w-9 text-emerald-600" />
             </div>
-          ) : null}
-          <div className="flex justify-between gap-3 border-t border-neutral-200 pt-2 text-base font-semibold">
-            <dt>Total hoje</dt>
-            <dd className="tabular-nums text-[var(--brand)]">{brl(total)}</dd>
-          </div>
-          {method ? (
-            <p className="pt-1 text-xs text-neutral-500">Pagamento: {methodLabel(method)}</p>
-          ) : null}
-        </dl>
+            <h2 className="mt-5 text-2xl font-bold tracking-tight">Pré-cadastro enviado!</h2>
+            <p className="mt-2 text-sm text-neutral-600">
+              Obrigado, {form.full_name.split(" ")[0]}. O {name} recebeu seus dados e vai analisar a
+              sua matrícula.
+            </p>
+            <ol className="mt-8 space-y-4 text-left">
+              {[
+                {
+                  t: "A academia confere seus dados",
+                  d: "Modalidade, graduação e ficha de saúde.",
+                },
+                {
+                  t: "Você recebe o contato pelo WhatsApp",
+                  d: form.phone || "No número informado.",
+                },
+                {
+                  t: "Matrícula aprovada",
+                  d: "A academia inclui você no plano e informa o pagamento.",
+                },
+              ].map((s, i) => (
+                <li key={s.t} className="flex items-start gap-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--brand-soft)] text-sm font-bold text-[var(--brand)]">
+                    {i + 1}
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-neutral-900">{s.t}</p>
+                    <p className="text-xs text-neutral-500">{s.d}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </main>
+          <p className="mt-8 text-center text-xs text-neutral-500">
+            Matrícula online por{" "}
+            <span className="font-medium text-neutral-700">AMT Dojo Manager</span>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  /* --------------------------- lateral: como funciona --------------------------- */
+
+  const howItWorks = (
+    <div className="space-y-5">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+          Como funciona
+        </p>
+        <ol className="mt-3 space-y-3">
+          {[
+            {
+              icon: ClipboardCheck,
+              t: "Preencha seu pré-cadastro",
+              d: "Dados, modalidade e graduação.",
+            },
+            { icon: Clock, t: "A academia analisa", d: "Confere suas informações." },
+            {
+              icon: MessageCircle,
+              t: "Matrícula aprovada",
+              d: "Você entra no plano e recebe o pagamento pelo WhatsApp.",
+            },
+          ].map(({ icon: Icon, t, d }, i) => (
+            <li key={t} className="flex items-start gap-3">
+              <span
+                className={cn(
+                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
+                  i === 0
+                    ? "bg-[var(--brand)] text-[var(--brand-ink)]"
+                    : "bg-neutral-100 text-neutral-500",
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+              </span>
+              <div>
+                <p className="text-sm font-medium text-neutral-900">{t}</p>
+                <p className="text-xs text-neutral-500">{d}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+      {form.modalities.length ? (
+        <div className="border-t border-neutral-200 pt-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+            Sua graduação
+          </p>
+          <ul className="mt-2 space-y-1 text-sm text-neutral-800">
+            {form.modalities.map((m) => (
+              <li key={m.modality}>{rowLabel(m)}</li>
+            ))}
+          </ul>
+        </div>
       ) : null}
-      <ul className="space-y-2 border-t border-neutral-200 pt-3 text-xs text-neutral-600">
-        <li className="flex items-center gap-2">
-          <Lock className="h-3.5 w-3.5 text-emerald-600" /> Pagamento online seguro
-        </li>
+      <ul className="space-y-2 border-t border-neutral-200 pt-4 text-xs text-neutral-600">
         <li className="flex items-center gap-2">
           <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Dados protegidos (LGPD)
         </li>
         <li className="flex items-center gap-2">
           <Clock className="h-3.5 w-3.5 text-emerald-600" /> Leva cerca de 3 minutos
         </li>
+        <li className="flex items-center gap-2">
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Nenhum pagamento agora
+        </li>
       </ul>
     </div>
   );
 
   /* ------------------------------ passos ------------------------------ */
-
-  const stepPlan = (
-    <div className="space-y-6">
-      {plans.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-neutral-300 p-6 text-center text-sm text-neutral-600">
-          Nenhum plano disponível no momento. Fale com a academia para concluir sua matrícula.
-        </p>
-      ) : (
-        <div
-          role="radiogroup"
-          aria-label="Planos"
-          className="grid gap-3 sm:grid-cols-2"
-          data-field="f-plan"
-        >
-          {plans.map((p) => {
-            const active = p.id === planId;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => {
-                  setPlanId(p.id);
-                  setErrors({});
-                }}
-                className={cn(
-                  "relative rounded-2xl border-2 bg-white p-3.5 text-left transition sm:p-4",
-                  active
-                    ? "border-[var(--brand)] bg-[var(--brand-soft)]"
-                    : "border-neutral-200 hover:border-neutral-300",
-                )}
-              >
-                <span
-                  className={cn(
-                    "absolute right-4 top-4 flex h-5 w-5 items-center justify-center rounded-full border-2",
-                    active ? "border-[var(--brand)] bg-[var(--brand)]" : "border-neutral-300",
-                  )}
-                >
-                  {active ? <Check className="h-3 w-3 text-[var(--brand-ink)]" /> : null}
-                </span>
-                <p className="pr-8 font-semibold text-neutral-900">{p.name}</p>
-                {p.description ? (
-                  <p className="mt-1 text-xs text-neutral-600">{p.description}</p>
-                ) : null}
-                <p className="mt-2 text-xl font-bold tracking-tight text-neutral-900 sm:mt-3 sm:text-2xl">
-                  {brl(p.amount)}
-                  <span className="ml-1 text-xs font-normal text-neutral-500">
-                    {frequencyText(p)}
-                  </span>
-                </p>
-                {Number(p.enrollment_fee ?? 0) > 0 ? (
-                  <p className="mt-1 text-xs text-neutral-500">
-                    + taxa de matrícula de {brl(Number(p.enrollment_fee))}
-                  </p>
-                ) : (
-                  <p className="mt-1 text-xs font-medium text-emerald-700">Sem taxa de matrícula</p>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
-      {errors.plan ? (
-        <p className="flex items-center gap-1 text-sm font-medium text-red-600" role="alert">
-          <AlertCircle className="h-4 w-4" /> {errors.plan}
-        </p>
-      ) : null}
-
-      {selectedPlan && methods.length > 0 ? (
-        <Section title="Como você prefere pagar?">
-          <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:grid-cols-3" data-field="f-method">
-            {methods.map((code) => {
-              const Icon = methodIcon(code);
-              const active = method === code;
-              return (
-                <button
-                  key={code}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => {
-                    setMethod(code);
-                    setErrors({});
-                  }}
-                  className={cn(
-                    "flex min-h-12 items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-left text-sm font-medium transition",
-                    active
-                      ? "border-[var(--brand)] bg-[var(--brand-soft)]"
-                      : "border-neutral-200 bg-white hover:border-neutral-300",
-                  )}
-                >
-                  <Icon
-                    className={cn(
-                      "h-4 w-4 shrink-0",
-                      active ? "text-[var(--brand)]" : "text-neutral-500",
-                    )}
-                  />
-                  {methodLabel(code)}
-                </button>
-              );
-            })}
-          </div>
-          {errors.method ? (
-            <p className="flex items-center gap-1 text-sm font-medium text-red-600" role="alert">
-              <AlertCircle className="h-4 w-4" /> {errors.method}
-            </p>
-          ) : null}
-        </Section>
-      ) : null}
-    </div>
-  );
 
   const stepData = (
     <div className="space-y-6">
@@ -971,7 +943,7 @@ export function PublicEnrollmentPage() {
             placeholder="voce@email.com"
           />
         </Field>
-        <Field id="f-birth_date" label="Data de nascimento" error={errors.birth_date}>
+        <Field id="f-birth_date" label="Data de nascimento" required error={errors.birth_date}>
           <Input
             id="f-birth_date"
             className={fieldCls}
@@ -1112,6 +1084,7 @@ export function PublicEnrollmentPage() {
             id="f-zip"
             label="CEP"
             className="sm:col-span-2"
+            error={errors.zip}
             hint={
               cepState === "loading" ? (
                 <span className="inline-flex items-center gap-1">
@@ -1177,7 +1150,7 @@ export function PublicEnrollmentPage() {
               onChange={(e) => set("neighborhood", e.target.value)}
             />
           </Field>
-          <Field id="f-city" label="Cidade" className="sm:col-span-2">
+          <Field id="f-city" label="Cidade" required error={errors.city} className="sm:col-span-2">
             <Input
               id="f-city"
               className={fieldCls}
@@ -1186,7 +1159,7 @@ export function PublicEnrollmentPage() {
               onChange={(e) => set("city", e.target.value)}
             />
           </Field>
-          <Field id="f-state" label="UF" className="sm:col-span-1">
+          <Field id="f-state" label="UF" required error={errors.state} className="sm:col-span-1">
             <Input
               id="f-state"
               className={fieldCls}
@@ -1263,8 +1236,135 @@ export function PublicEnrollmentPage() {
     </div>
   );
 
-  const stepTraining = (
+  const stepModality = (
     <div className="space-y-8">
+      {modalities.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-neutral-300 p-6 text-center text-sm text-neutral-600">
+          A academia ainda não configurou as modalidades. Fale com a recepção para concluir a
+          matrícula.
+        </p>
+      ) : (
+        <Section
+          title="Qual modalidade você vai treinar?"
+          description={modalities.length > 1 ? "Pode escolher mais de uma." : undefined}
+        >
+          <div className="flex flex-wrap gap-2" data-field="f-modalities">
+            {modalities.map((m) => (
+              <Chip
+                key={m.id}
+                active={form.modalities.some((r) => r.modality === m.id)}
+                onClick={() => toggleModality(m.id)}
+                className="px-4"
+              >
+                {m.label}
+              </Chip>
+            ))}
+          </div>
+          <ErrorText>{errors.modalities}</ErrorText>
+        </Section>
+      )}
+
+      {form.modalities.map((row) => {
+        const list = beltsOf.get(row.modality) ?? [];
+        const modName = modalities.find((x) => x.id === row.modality)?.label ?? row.modality;
+        const belt = beltOf(row.belt_id);
+        const maxDeg = Number(belt?.max_degrees ?? 0);
+        const first = list[0];
+        return (
+          <section
+            key={row.modality}
+            className="space-y-4 rounded-2xl border border-neutral-200 p-4 sm:p-5"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-neutral-900">Graduação · {modName}</h3>
+              {form.modalities.length > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => toggleModality(row.modality)}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-neutral-500 hover:bg-neutral-100"
+                >
+                  <X className="h-3.5 w-3.5" /> Remover
+                </button>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Chip
+                active={row.beginner}
+                onClick={() =>
+                  updateRow(row.modality, { beginner: true, belt_id: first?.id ?? "", degree: 0 })
+                }
+              >
+                Sou iniciante
+              </Chip>
+              <Chip
+                active={!row.beginner}
+                onClick={() => updateRow(row.modality, { beginner: false })}
+              >
+                Já tenho graduação
+              </Chip>
+            </div>
+            {!row.beginner ? (
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Field
+                  id={`f-belt-${row.modality}`}
+                  label="Faixa atual"
+                  required
+                  className="sm:col-span-2"
+                >
+                  <select
+                    id={`f-belt-${row.modality}`}
+                    className={selectCls}
+                    value={row.belt_id}
+                    onChange={(e) =>
+                      updateRow(row.modality, { belt_id: e.target.value, degree: 0 })
+                    }
+                  >
+                    {list.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                {maxDeg > 0 ? (
+                  <Field id={`f-deg-${row.modality}`} label="Grau">
+                    <select
+                      id={`f-deg-${row.modality}`}
+                      className={selectCls}
+                      value={Math.min(row.degree, maxDeg)}
+                      onChange={(e) => updateRow(row.modality, { degree: Number(e.target.value) })}
+                    >
+                      {Array.from({ length: maxDeg + 1 }, (_, d) => (
+                        <option key={d} value={d}>
+                          {formatDegree(d, row.modality, belt?.name)}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                ) : null}
+              </div>
+            ) : null}
+            {belt ? (
+              <div className="rounded-xl bg-neutral-50 p-4">
+                <BeltAuto
+                  belt={belt}
+                  degree={row.beginner ? 0 : row.degree}
+                  className="w-full max-w-sm"
+                />
+                <p className="mt-2 text-sm font-medium text-neutral-800">
+                  {formatBeltFull(belt.name, row.modality, row.beginner ? 0 : row.degree)}
+                </p>
+                {row.beginner ? (
+                  <p className="text-xs text-neutral-500">
+                    Quem está começando entra na primeira faixa.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </section>
+        );
+      })}
+
       {units.length > 0 ? (
         <Section title="Onde você vai treinar?">
           <div className="grid gap-2 sm:grid-cols-2">
@@ -1281,174 +1381,11 @@ export function PublicEnrollmentPage() {
           </div>
         </Section>
       ) : null}
+    </div>
+  );
 
-      {belts.length > 0 ? (
-        <Section
-          title="Você já treina?"
-          description="Se já tem graduação, informe para começar na faixa certa."
-        >
-          <div className="flex flex-wrap gap-2">
-            <Chip
-              active={!form.already_trains}
-              onClick={() => setForm((f) => ({ ...f, already_trains: false }))}
-            >
-              Sou iniciante
-            </Chip>
-            <Chip
-              active={form.already_trains}
-              onClick={() =>
-                setForm((f) => ({
-                  ...f,
-                  already_trains: true,
-                  modalities: f.modalities.length
-                    ? f.modalities
-                    : [{ modality: modalitiesAvail[0] ?? "", belt_id: "", degree: 0 }],
-                }))
-              }
-            >
-              Já tenho graduação
-            </Chip>
-          </div>
-          {form.already_trains ? (
-            <div className="space-y-3" data-field="f-modalities">
-              {form.modalities.map((m, idx) => {
-                const beltsOfMod = belts.filter((b) => b.modality === m.modality);
-                const belt = belts.find((b) => b.id === m.belt_id);
-                const maxDeg = Number(belt?.max_degrees ?? 0);
-                const update = (patch: Partial<ModalityRow>) =>
-                  setForm((f) => {
-                    const rows = f.modalities.slice();
-                    rows[idx] = { ...rows[idx], ...patch };
-                    return { ...f, modalities: rows };
-                  });
-                return (
-                  <div
-                    key={idx}
-                    className="grid gap-3 rounded-xl border border-neutral-200 p-3 sm:grid-cols-12 sm:items-end"
-                  >
-                    {modalitiesAvail.length > 1 ? (
-                      <Field id={`f-mod-${idx}`} label="Modalidade" className="sm:col-span-4">
-                        <select
-                          id={`f-mod-${idx}`}
-                          className={selectCls}
-                          value={m.modality}
-                          onChange={(e) =>
-                            update({ modality: e.target.value, belt_id: "", degree: 0 })
-                          }
-                        >
-                          {modalitiesAvail.map((mod) => (
-                            <option key={mod} value={mod}>
-                              {capitalize(mod)}
-                            </option>
-                          ))}
-                        </select>
-                      </Field>
-                    ) : null}
-                    <Field
-                      id={`f-belt-${idx}`}
-                      label={
-                        modalitiesAvail.length > 1
-                          ? "Faixa"
-                          : `Faixa${m.modality ? ` (${capitalize(m.modality)})` : ""}`
-                      }
-                      className={modalitiesAvail.length > 1 ? "sm:col-span-4" : "sm:col-span-7"}
-                    >
-                      <select
-                        id={`f-belt-${idx}`}
-                        className={selectCls}
-                        value={m.belt_id}
-                        onChange={(e) => update({ belt_id: e.target.value, degree: 0 })}
-                      >
-                        <option value="">Selecione</option>
-                        {beltsOfMod.map((b) => (
-                          <option key={b.id} value={b.id}>
-                            {b.name}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                    {maxDeg > 0 ? (
-                      <Field
-                        id={`f-deg-${idx}`}
-                        label={degreeUnit(m.modality)}
-                        className="sm:col-span-3"
-                      >
-                        <select
-                          id={`f-deg-${idx}`}
-                          className={selectCls}
-                          value={m.degree}
-                          onChange={(e) => update({ degree: Number(e.target.value) })}
-                        >
-                          {Array.from({ length: maxDeg + 1 }, (_, i) => (
-                            <option key={i} value={i}>
-                              {i === 0 ? "Sem grau" : i}
-                            </option>
-                          ))}
-                        </select>
-                      </Field>
-                    ) : (
-                      <div className="hidden sm:col-span-3 sm:block" />
-                    )}
-                    <div className="flex sm:col-span-1 sm:justify-end">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-11 text-neutral-500 hover:text-red-600"
-                        aria-label="Remover modalidade"
-                        onClick={() =>
-                          setForm((f) => {
-                            const rows = f.modalities.filter((_, i) => i !== idx);
-                            return { ...f, modalities: rows, already_trains: rows.length > 0 };
-                          })
-                        }
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sm:hidden">Remover</span>
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-              {modalitiesAvail.length > 1 && form.modalities.length < modalitiesAvail.length ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-10"
-                  onClick={() =>
-                    setForm((f) => ({
-                      ...f,
-                      modalities: [
-                        ...f.modalities,
-                        {
-                          modality:
-                            modalitiesAvail.find(
-                              (x) => !f.modalities.some((r) => r.modality === x),
-                            ) ?? modalitiesAvail[0],
-                          belt_id: "",
-                          degree: 0,
-                        },
-                      ],
-                    }))
-                  }
-                >
-                  <Plus className="mr-1 h-4 w-4" /> Outra modalidade
-                </Button>
-              ) : null}
-              {errors.modalities ? (
-                <p
-                  className="flex items-center gap-1 text-xs font-medium text-red-600"
-                  role="alert"
-                >
-                  <AlertCircle className="h-3.5 w-3.5" /> {errors.modalities}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-        </Section>
-      ) : null}
-
+  const stepHealth = (
+    <div className="space-y-8">
       <Section
         title="Saúde"
         description="Ajuda o professor a adaptar o treino com segurança. Marque o que se aplica."
@@ -1648,14 +1585,6 @@ export function PublicEnrollmentPage() {
   );
 
   const unitName = units.find((u) => u.id === form.unit_id)?.name;
-  const grads = form.already_trains
-    ? form.modalities
-        .filter((m) => m.belt_id)
-        .map((m) => {
-          const b = belts.find((x) => x.id === m.belt_id);
-          return `${b?.name ?? ""}${m.degree ? ` · ${m.degree} ${degreeUnit(m.modality).toLowerCase()}` : ""}`;
-        })
-    : [];
 
   const stepConfirm = (
     <div className="space-y-8">
@@ -1722,14 +1651,6 @@ export function PublicEnrollmentPage() {
       <Section title="Confira seus dados">
         <div className="divide-y divide-neutral-200 rounded-xl border border-neutral-200 px-4">
           {reviewRow(
-            "Plano",
-            selectedPlan
-              ? `${selectedPlan.name} · ${brl(selectedPlan.amount)} ${frequencyText(selectedPlan)}`
-              : "—",
-            0,
-          )}
-          {reviewRow("Pagamento", method ? methodLabel(method) : "—", 0)}
-          {reviewRow(
             "Aluno",
             <>
               {form.full_name || "—"}
@@ -1742,7 +1663,7 @@ export function PublicEnrollmentPage() {
                 </span>
               ) : null}
             </>,
-            1,
+            0,
           )}
           {reviewRow(
             "Endereço",
@@ -1753,12 +1674,25 @@ export function PublicEnrollmentPage() {
             ]
               .filter(Boolean)
               .join(" · ") || "Não informado",
-            2,
+            1,
           )}
           {reviewRow(
-            "Treino",
-            [unitName, grads.length ? grads.join(" · ") : "Iniciante"].filter(Boolean).join(" · "),
-            3,
+            "Modalidade e graduação",
+            <>
+              {form.modalities.length
+                ? form.modalities.map((m) => (
+                    <span key={m.modality} className="block">
+                      {rowLabel(m)}
+                    </span>
+                  ))
+                : "—"}
+              {unitName ? (
+                <span className="block text-xs font-normal text-neutral-600">
+                  Unidade: {unitName}
+                </span>
+              ) : null}
+            </>,
+            2,
           )}
         </div>
       </Section>
@@ -1778,17 +1712,17 @@ export function PublicEnrollmentPage() {
                 "Estou ciente dos riscos da prática esportiva e aceito o regulamento interno e o termo de responsabilidade da academia.",
               ],
               [
+                "facial_recognition_consent",
+                true,
+                "Autorizo o uso da minha foto para identificação por reconhecimento facial no check-in da academia.",
+              ],
+              [
                 "image_rights_consent",
                 false,
                 "Autorizo o uso da minha imagem em fotos e vídeos de divulgação da academia (redes sociais, site e materiais internos).",
               ],
-              [
-                "facial_recognition_consent",
-                false,
-                "Autorizo o uso da minha foto para reconhecimento facial no check-in.",
-              ],
             ] as Array<[keyof Form, boolean, string]>
-          ).map(([k, required, text]) => (
+          ).map(([k, required, txt]) => (
             <div key={k} data-field={`f-${k}`}>
               <label
                 className={cn(
@@ -1805,7 +1739,7 @@ export function PublicEnrollmentPage() {
                   onCheckedChange={(v) => set(k, Boolean(v) as never)}
                 />
                 <span>
-                  {text}
+                  {txt}
                   {required ? (
                     <span className="ml-1 text-xs font-semibold text-[var(--brand)]">
                       (obrigatório)
@@ -1816,61 +1750,42 @@ export function PublicEnrollmentPage() {
                 </span>
               </label>
               {errors[k] ? (
-                <p
-                  className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"
-                  role="alert"
-                >
-                  <AlertCircle className="h-3.5 w-3.5" /> {errors[k]}
-                </p>
+                <div className="mt-1">
+                  <ErrorText>{errors[k]}</ErrorText>
+                </div>
               ) : null}
             </div>
           ))}
           <p className="text-xs text-neutral-500">
-            Os aceites ficam registrados com data e hora. Ao concluir, você segue para o pagamento
-            seguro da academia.
+            Os aceites ficam registrados com data e hora. Nenhum pagamento é feito agora: a academia
+            analisa o pré-cadastro e entra em contato para concluir a matrícula.
           </p>
         </div>
       </Section>
     </div>
   );
 
-  const bodies = [stepPlan, stepData, stepAddress, stepTraining, stepConfirm];
-  const nextLabel = step === LAST ? "Concluir e ir para o pagamento" : "Continuar";
+  const bodies = [stepData, stepAddress, stepModality, stepHealth, stepConfirm];
 
   /* ------------------------------ layout ------------------------------ */
 
+  const actionLabel = submitting ? (
+    <>
+      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando…
+    </>
+  ) : step === LAST ? (
+    <>
+      Enviar para análise <Send className="ml-2 h-4 w-4" />
+    </>
+  ) : (
+    <>
+      Continuar <ChevronRight className="ml-1 h-4 w-4" />
+    </>
+  );
+
   return (
     <div className="min-h-dvh bg-neutral-100 pb-28 text-neutral-900 lg:pb-12" style={brandVars}>
-      <header
-        className="text-[var(--brand-ink)]"
-        style={{ background: `linear-gradient(135deg, ${brand} 0%, ${shade(brand, 0.55)} 100%)` }}
-      >
-        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 pb-16 pt-6 sm:pt-8">
-          {academy.logo_url ? (
-            <img
-              src={academy.logo_url}
-              alt=""
-              className="h-14 w-14 shrink-0 rounded-2xl bg-white object-contain p-1 shadow-lg sm:h-16 sm:w-16"
-            />
-          ) : (
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-2xl font-bold sm:h-16 sm:w-16">
-              {name[0]?.toUpperCase()}
-            </div>
-          )}
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider opacity-80">
-              Matrícula online
-            </p>
-            <h1 className="truncate text-xl font-bold leading-tight sm:text-3xl">{name}</h1>
-            {academy.city || academy.state ? (
-              <p className="mt-0.5 flex items-center gap-1 text-xs opacity-80 sm:text-sm">
-                <MapPin className="h-3.5 w-3.5" />{" "}
-                {[academy.city, academy.state].filter(Boolean).join(" · ")}
-              </p>
-            ) : null}
-          </div>
-        </div>
-      </header>
+      {header}
 
       <div ref={topRef} className="mx-auto -mt-10 max-w-6xl scroll-mt-4 px-4">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -1952,28 +1867,12 @@ export function PublicEnrollmentPage() {
                   disabled={submitting}
                   className="h-11 bg-[var(--brand)] px-6 text-[var(--brand-ink)] hover:bg-[var(--brand)] hover:opacity-90"
                 >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Concluindo…
-                    </>
-                  ) : (
-                    <>
-                      {nextLabel} <ChevronRight className="ml-1 h-4 w-4" />
-                    </>
-                  )}
+                  {actionLabel}
                 </Button>
               </div>
 
-              {/* Ações (celular): barra fixa com o total */}
+              {/* Ações (celular): barra fixa */}
               <div className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200 bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 shadow-[0_-8px_24px_rgba(0,0,0,0.06)] backdrop-blur lg:hidden">
-                {selectedPlan ? (
-                  <div className="mb-2 flex items-center justify-between text-xs text-neutral-600">
-                    <span className="truncate">{selectedPlan.name}</span>
-                    <span>
-                      Total hoje <b className="text-sm text-neutral-900">{brl(total)}</b>
-                    </span>
-                  </div>
-                ) : null}
                 <div className="flex gap-2">
                   {step > 0 ? (
                     <Button
@@ -1992,16 +1891,7 @@ export function PublicEnrollmentPage() {
                     disabled={submitting}
                     className="h-12 flex-1 bg-[var(--brand)] text-base font-semibold text-[var(--brand-ink)] hover:bg-[var(--brand)] hover:opacity-90"
                   >
-                    {submitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Concluindo…
-                      </>
-                    ) : (
-                      <>
-                        {step === LAST ? "Concluir e pagar" : "Continuar"}{" "}
-                        <ChevronRight className="ml-1 h-4 w-4" />
-                      </>
-                    )}
+                    {actionLabel}
                   </Button>
                 </div>
               </div>
@@ -2010,7 +1900,7 @@ export function PublicEnrollmentPage() {
 
           <aside className="hidden lg:block">
             <div className="sticky top-6 rounded-3xl bg-white p-6 shadow-xl shadow-neutral-900/5 ring-1 ring-neutral-200">
-              {summary}
+              {howItWorks}
             </div>
           </aside>
         </div>

@@ -40,10 +40,12 @@ import autismIcon from "@/assets/autism-tea.png.asset.json";
 import { printAllStudentSummaries } from "@/lib/dojo/students-bulk-print";
 import { maskCPF, maskCEP, maskPhone, clampDueDay, isValidCPF, isValidCEP, isValidPhone, parseAmountBR } from "@/lib/br-masks";
 import { toast } from "sonner";
-import { Trash2, Pencil, UserPlus, FileDown, Upload, Printer, User, MapPin, Phone, Award, Wallet, HeartPulse, Camera, ShieldCheck, FileText, Users, UserCheck, Snowflake, UserX, Search, Sparkles, Link as LinkIcon, Copy, ExternalLink, Check, AlertCircle, Loader2, X, ChevronLeft, ChevronRight, IdCard, Droplet, Baby, Mail, LifeBuoy, Building2, StickyNote, Stethoscope, BadgeCheck, Fingerprint } from "lucide-react";
+import { Trash2, Pencil, UserPlus, FileDown, Upload, Printer, User, MapPin, Phone, Award, Wallet, HeartPulse, Camera, ShieldCheck, FileText, Users, UserCheck, Snowflake, UserX, Search, Sparkles, Link as LinkIcon, Copy, ExternalLink, Check, AlertCircle, Loader2, X, ChevronLeft, ChevronRight, IdCard, Droplet, Baby, Mail, LifeBuoy, Building2, StickyNote, Stethoscope, BadgeCheck, Fingerprint, ClipboardCheck, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { todayISO, brl } from "@/lib/format";
 import { currentBeltEntries, rankedBelts, beltLabel, beltEntryKey } from "@/lib/dojo/current-belts";
+import { studentStatusLabel, studentStatusTone, type StudentStatusTone } from "@/lib/dojo/student-status";
+import { modalityLabel } from "@/lib/dojo/modalities";
 import { RouteErrorCard } from "@/components/dojo/SectionErrorBoundary";
 import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
 
@@ -84,6 +86,14 @@ const SELECT_CLS =
   "flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-base shadow-xs transition-[border-color,box-shadow] duration-150 hover:border-foreground/25 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/15 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm";
 
 /** Idade completa a partir de AAAA-MM-DD (null se vazia ou inválida). */
+const STATUS_PILL: Record<StudentStatusTone, string> = {
+  ok: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20",
+  warn: "bg-amber-50 text-amber-700 ring-1 ring-amber-600/20",
+  muted: "bg-neutral-100 text-neutral-600 ring-1 ring-neutral-500/20",
+  danger: "bg-red-50 text-red-700 ring-1 ring-red-600/20",
+  info: "bg-sky-50 text-sky-700 ring-1 ring-sky-600/20",
+};
+
 function ageFrom(birth: string): number | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(birth ?? "");
   if (!m) return null;
@@ -225,6 +235,11 @@ function StudentsPage() {
   const PAGE_SIZE = 20;
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<StudentForm>(emptyForm);
+  // Pré-cadastro da matrícula online sendo analisado: salvar = aprovar (aluno ativo + plano).
+  const [approving, setApproving] = useState(false);
+  useEffect(() => {
+    if (!open) setApproving(false);
+  }, [open]);
   // Snapshot das modalidades/graduações carregadas ao abrir o modal — usado para
   // detectar o que foi adicionado/alterado e registrar as graduações no salvar.
   const initialModsRef = useRef<string[]>([]);
@@ -309,6 +324,7 @@ function StudentsPage() {
   }, [q.data]);
 
   const filtered = (q.data ?? []).filter((s: any) => {
+    if (s.status === "pending") return false;
     if (status !== "all" && s.status !== status) return false;
     if (beltFilter !== "all" && s.current_belt_id !== beltFilter) return false;
     if (unitFilter !== "all" && s.unit_id !== unitFilter) return false;
@@ -522,6 +538,12 @@ function StudentsPage() {
       toast.error("É necessário registrar o consentimento LGPD, Biometria Facial e o aceite dos termos");
       return;
     }
+    // Aprovação do pré-cadastro: o plano é obrigatório (é ele que gera a matrícula e a cobrança).
+    if (approving && !enrollment.plan_id) {
+      toast.error("Escolha o plano do aluno para aprovar a matrícula");
+      setTab("plano");
+      return;
+    }
     // Ao criar novo aluno, exigir plano
     const isNew = !form.id;
     if (isNew && !enrollment.plan_id) {
@@ -537,6 +559,7 @@ function StudentsPage() {
       const primary = validMods[0] ?? null;
       const payload: any = {
         ...form,
+        status: approving ? "active" : form.status,
         unit_id: form.unit_id,
         current_belt_id: primary?.belt_id ?? form.current_belt_id ?? null,
         current_degree: Number(primary?.degree ?? form.current_degree ?? 0),
@@ -629,6 +652,7 @@ function StudentsPage() {
       } else {
         toast.success("Aluno salvo");
       }
+      if (approving) toast.success(`Matrícula de ${form.full_name.split(" ")[0]} aprovada`);
 
       // ===== Contrato gerado no ato da matrícula =====
       if (studentId && contractSel.template_id) {
@@ -756,7 +780,24 @@ function StudentsPage() {
   };
 
 
-  const allStudents = (q.data ?? []) as any[];
+  const pendingStudents = ((q.data ?? []) as any[])
+    .filter((s) => s.status === "pending")
+    .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")));
+  const allStudents = ((q.data ?? []) as any[]).filter((s) => s.status !== "pending");
+  const openApproval = (s: any) => {
+    openEdit(s);
+    setApproving(true);
+  };
+  const rejectPending = async (s: any) => {
+    if (!confirm(`Recusar o pré-cadastro de ${s.full_name}? A ficha enviada será excluída.`)) return;
+    try {
+      await delFn({ data: { id: s.id } });
+      toast.success("Pré-cadastro recusado");
+      qc.invalidateQueries({ queryKey: ["dojo-students"] });
+    } catch (e: any) {
+      toast.error("Não foi possível recusar", { description: e?.message });
+    }
+  };
   const kpiTotal = allStudents.length;
   const kpiActive = allStudents.filter((s) => s.status === "active").length;
   const kpiFrozen = allStudents.filter((s) => s.status === "frozen").length;
@@ -786,7 +827,7 @@ function StudentsPage() {
                   <span className="font-semibold text-neutral-900">
                     {filtered.length} {filtered.length === 1 ? "aluno encontrado" : "alunos encontrados"}
                   </span>
-                  {q.data && q.data.length !== filtered.length ? ` de ${q.data.length} no total` : ""}
+                  {allStudents.length !== filtered.length ? ` de ${allStudents.length} no total` : ""}
                   {" · "}Cadastro completo, anamnese, graduações e contratos em um único lugar.
                 </p>
               </div>
@@ -907,7 +948,7 @@ function StudentsPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/55">
-                      AMT Dojo Manager · {form.id ? "Ficha do aluno" : "Matrícula"}
+                      AMT Dojo Manager · {approving ? "Pré-cadastro para aprovar" : form.id ? "Ficha do aluno" : "Matrícula"}
                     </p>
                     <DialogTitle className="mt-0.5 truncate text-lg font-semibold leading-tight text-white">
                       {form.id ? form.full_name.trim() || "Editar aluno" : "Cadastrar novo aluno"}
@@ -935,6 +976,15 @@ function StudentsPage() {
                   />
                 </div>
               </DialogHeader>
+              {approving && (
+                <div className="flex shrink-0 items-start gap-2 border-b border-amber-200 bg-amber-50 px-5 py-2.5 text-xs text-amber-900 sm:px-6 sm:text-sm">
+                  <ClipboardCheck className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    Pré-cadastro da matrícula online. Confira os dados, escolha o plano em <b>Plano &amp; Cobrança</b> e
+                    clique em <b>Aprovar matrícula</b>.
+                  </span>
+                </div>
+              )}
 
               <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col lg:flex-row">
                 <aside className="shrink-0 border-b bg-neutral-50/80 lg:flex lg:w-72 lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r">
@@ -1762,7 +1812,11 @@ function StudentsPage() {
 
                   <div className="flex shrink-0 items-center gap-2 border-t bg-white/90 px-4 py-3 backdrop-blur sm:px-6">
                     <p className="hidden min-w-0 flex-1 truncate text-[11px] text-muted-foreground sm:block">
-                      {form.id ? "As alterações só valem ao clicar em Salvar." : "Ao concluir, o aluno é matriculado no plano selecionado."}
+                      {approving
+                        ? "Ao aprovar, o aluno fica ativo e é matriculado no plano escolhido."
+                        : form.id
+                          ? "As alterações só valem ao clicar em Salvar."
+                          : "Ao concluir, o aluno é matriculado no plano selecionado."}
                     </p>
                     <div className="ml-auto flex items-center gap-2">
                       <Button variant="ghost" className="rounded-xl" onClick={() => setOpen(false)} disabled={saving}>
@@ -1771,7 +1825,7 @@ function StudentsPage() {
                       {form.id ? (
                         <Button data-tour="student-save" onClick={onSave} disabled={saving} className="rounded-xl px-5 shadow-sm transition-transform active:scale-[0.98]">
                           {saving ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Check className="mr-1.5 h-4 w-4" />}
-                          Salvar alterações
+                          {approving ? "Aprovar matrícula" : "Salvar alterações"}
                         </Button>
                       ) : (
                         <>
@@ -1851,6 +1905,65 @@ function StudentsPage() {
       </div>
 
 
+      {/* Pré-cadastros da matrícula online aguardando análise */}
+      {pendingStudents.length > 0 && (
+        <section id="pre-cadastros" className="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/60 shadow-xs">
+          <div className="flex flex-wrap items-center gap-3 border-b border-amber-200 px-4 py-3 sm:px-5">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-500 text-white">
+              <ClipboardCheck className="h-[18px] w-[18px]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-bold text-neutral-950">
+                {pendingStudents.length} {pendingStudents.length === 1 ? "pré-cadastro aguardando" : "pré-cadastros aguardando"} análise
+              </h2>
+              <p className="text-xs text-neutral-600">
+                Enviados pela matrícula online. Abra a ficha, confira os dados, escolha o plano e aprove.
+              </p>
+            </div>
+          </div>
+          <ul className="divide-y divide-amber-200/70">
+            {pendingStudents.map((s) => {
+              const cb = currentBeltEntries(s).find((x: any) => x?.belt);
+              const beltText = cb?.belt ? formatBeltFull(cb.belt.name, cb.modality, cb.degree) : null;
+              const age = ageFrom(s.birth_date ?? "");
+              const sent = s.created_at ? new Date(s.created_at) : null;
+              return (
+                <li key={s.id} className="flex flex-col gap-3 bg-white/70 px-4 py-3 sm:flex-row sm:items-center sm:px-5">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-neutral-950">
+                      {s.full_name}
+                      {age != null ? <span className="font-normal text-neutral-500"> · {age} anos</span> : null}
+                    </p>
+                    <p className="truncate text-xs text-neutral-600">
+                      {[s.phone, beltText ? `${modalityLabel(cb?.modality)} · ${beltText}` : null].filter(Boolean).join(" · ")}
+                    </p>
+                    {sent ? (
+                      <p className="mt-0.5 flex items-center gap-1 text-[11px] text-neutral-500">
+                        <Clock className="h-3 w-3" /> Enviado em {sent.toLocaleDateString("pt-BR")} às{" "}
+                        {sent.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-9 rounded-lg border-neutral-200 bg-white text-neutral-700 hover:text-red-700"
+                      onClick={() => void rejectPending(s)}
+                    >
+                      <X className="mr-1 h-4 w-4" /> Recusar
+                    </Button>
+                    <Button size="sm" className="h-9 rounded-lg" onClick={() => openApproval(s)}>
+                      <ClipboardCheck className="mr-1 h-4 w-4" /> Analisar e aprovar
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StudentKpi icon={Users} label="Total de alunos" value={kpiTotal} accent="from-red-500 to-red-700" />
@@ -1905,13 +2018,8 @@ function StudentsPage() {
 
         <div className="divide-y divide-neutral-100">
         {pageItems.map((s: any) => {
-          const statusLabel = s.status === "active" ? "Ativo" : s.status === "frozen" ? "Trancado" : "Inativo";
-          const statusClass =
-            s.status === "active"
-              ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20"
-              : s.status === "frozen"
-                ? "bg-amber-50 text-amber-700 ring-1 ring-amber-600/20"
-                : "bg-neutral-100 text-neutral-600 ring-1 ring-neutral-500/20";
+          const statusLabel = studentStatusLabel(s.status);
+          const statusClass = STATUS_PILL[studentStatusTone(s.status)];
           const contact = s.email ?? s.phone;
           return (
             <div
