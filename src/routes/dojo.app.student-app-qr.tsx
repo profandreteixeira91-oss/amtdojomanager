@@ -195,7 +195,7 @@ function StudentAppQrPage() {
 
         <div
           id="poster"
-          className="poster relative mx-auto flex flex-col items-center overflow-hidden rounded-3xl bg-white shadow-xl ring-1 ring-neutral-200 print:rounded-none print:shadow-none print:ring-0"
+          className="poster dojo-keep-light relative mx-auto flex flex-col items-center overflow-hidden rounded-3xl bg-white shadow-xl ring-1 ring-neutral-200 print:rounded-none print:shadow-none print:ring-0"
           style={{ aspectRatio: "1 / 1.414", minHeight: "600px" }}
         >
           {/* Faixa superior */}

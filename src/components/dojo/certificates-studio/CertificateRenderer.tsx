@@ -196,7 +196,7 @@ export function CertificateRenderer({ doc, values, className }: { doc: EditorSch
   const sortedEls = useMemo(() => [...doc.elements].sort((a, b) => (a.z ?? 0) - (b.z ?? 0)), [doc.elements]);
   return (
     <div
-      className={className}
+      className={className ? `dojo-keep-light ${className}` : "dojo-keep-light"}
       style={{
         position: "relative",
         width: doc.page.width,

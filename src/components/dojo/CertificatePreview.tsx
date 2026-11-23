@@ -80,6 +80,7 @@ export function CertificateCanvas({
 
   return (
     <div
+      className="dojo-keep-light"
       style={{
         position: "relative",
         width: `${W * scale}px`,

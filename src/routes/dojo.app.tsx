@@ -62,6 +62,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DojoLogo } from "@/components/dojo/DojoLogo";
+import { DojoThemeSwitcher } from "@/components/dojo/DojoThemeSwitcher";
+import { useApplyDojoPanelTheme } from "@/hooks/useDojoPanelTheme";
 import { TrialBadge, AccountTrialInline, TrialDropdownCard, TrialBanner, TrialExpiredOverlay, PixDueBanner } from "@/components/dojo/TrialBadge";
 import { UnsavedChangesProvider } from "@/components/common/UnsavedChangesGuard";
 import { DojoPermissionsProvider, useDojoPermissions } from "@/components/dojo/DojoPermissionsProvider";
@@ -293,24 +295,9 @@ function DojoLayout() {
   }, []);
 
 
-  // Força tema claro em todo o Dojo Manager (inclusive popups/dialogs portados fora do escopo .dojo-theme)
-  useEffect(() => {
-    const root = document.documentElement;
-    const hadDark = root.classList.contains("dark");
-    const prevColorScheme = root.style.colorScheme;
-    const forceLight = () => {
-      if (root.classList.contains("dark")) root.classList.remove("dark");
-      root.style.colorScheme = "light";
-    };
-    forceLight();
-    const observer = new MutationObserver(forceLight);
-    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
-    return () => {
-      observer.disconnect();
-      if (hadDark) root.classList.add("dark");
-      root.style.colorScheme = prevColorScheme;
-    };
-  }, []);
+  // Tema do painel: automático (escuro das 18h às 6h), claro ou escuro, escolhido no
+  // botão da barra superior. Vale também para diálogos portados para fora do .dojo-theme.
+  useApplyDojoPanelTheme();
 
 
   const handleLogout = async () => {
@@ -594,6 +581,7 @@ function DojoLayoutInner({
           >
             <Search className="h-4 w-4" />
           </button>
+          <DojoThemeSwitcher />
           <Link
             to="/dojo/app/notifications"
             title="App & Notificações"

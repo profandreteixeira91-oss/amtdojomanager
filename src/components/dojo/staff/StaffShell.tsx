@@ -26,6 +26,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { DojoLogo } from "@/components/dojo/DojoLogo";
+import { DojoThemeSwitcher } from "@/components/dojo/DojoThemeSwitcher";
+import { useApplyDojoPanelTheme } from "@/hooks/useDojoPanelTheme";
 import { DojoPageHero } from "@/components/dojo/DojoPageHero";
 import { visibleStaffModules, type StaffModule } from "@/lib/dojo/staff-modules";
 import { useStaff } from "@/components/dojo/staff/staff-context";
@@ -46,6 +48,7 @@ const ICONS: Record<StaffModule["icon"], React.ComponentType<{ className?: strin
 };
 
 export function StaffShell({ children }: { children: ReactNode }) {
+  useApplyDojoPanelTheme();
   const staff = useStaff();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -87,6 +90,7 @@ export function StaffShell({ children }: { children: ReactNode }) {
               <span className="shrink-0 font-medium text-primary">Portal da Equipe</span>
             </div>
           </div>
+          <DojoThemeSwitcher />
           <Link to="/dojo/staff/profile" aria-label="Meu perfil">
             <Button variant="ghost" size="icon" className="text-neutral-600 hover:text-neutral-900">
               <UserCircle className="h-5 w-5" />

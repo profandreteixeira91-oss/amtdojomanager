@@ -237,7 +237,7 @@ function ApkVersionsPage() {
         {/* Painel do link permanente */}
         <Card className="mb-4 p-4">
           <div className="grid gap-4 md:grid-cols-[220px_1fr]">
-            <div className="grid place-items-center rounded-xl border bg-white p-3">
+            <div className="dojo-keep-light grid place-items-center rounded-xl border bg-white p-3">
               {publicPageUrl ? (
                 <canvas ref={qrRef} className="h-[220px] w-[220px]" />
               ) : (
