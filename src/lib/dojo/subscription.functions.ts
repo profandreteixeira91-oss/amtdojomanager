@@ -46,6 +46,16 @@ function mpNotificationUrl(origin: string): string {
 export const PLAN_AMOUNT = 99.9;
 export const TRIAL_DAYS = 14;
 
+/**
+ * Conta ainda dentro do teste grátis. Quem escolhe a forma de pagamento durante
+ * o teste continua "em teste" até o fim dele: a cobrança gerada não vira
+ * "pendente" (nem no painel do dono, nem no /admin).
+ */
+function isInTrial(sub: { status?: string | null; trial_ends_at?: string | null }): boolean {
+  if (!sub.trial_ends_at || new Date(sub.trial_ends_at).getTime() <= Date.now()) return false;
+  return sub.status === "trialing" || sub.status === "pending";
+}
+
 /** Valor mensal de uma assinatura: legacy mantém o valor antigo. */
 export function subscriptionAmount(sub: { plan_code?: string | null }): number {
   return isSaasPlanCode(sub.plan_code) ? SAAS_PLANS[sub.plan_code].price : PLAN_AMOUNT;
@@ -323,7 +333,8 @@ export const startMySubscription = createServerFn({ method: "POST" })
       .from("dojo_subscriptions")
       .update({
         mp_preapproval_id: String(preapproval.id),
-        status: "pending",
+        // Em teste continua em teste; fora dele, aguarda o pagamento.
+        status: isInTrial(sub) ? "trialing" : "pending",
         last_event: preapproval,
       } as never)
       .eq("id", sub.id);
@@ -403,7 +414,7 @@ export const subscribeWithCardToken = createServerFn({ method: "POST" })
       last_event: preapproval,
     };
     if (preapproval.status === "authorized") patch.status = "active";
-    else if (preapproval.status === "pending") patch.status = "pending";
+    else if (preapproval.status === "pending") patch.status = isInTrial(sub) ? "trialing" : "pending";
     if (preapproval.next_payment_date) patch.current_period_end = preapproval.next_payment_date;
 
     await context.supabase

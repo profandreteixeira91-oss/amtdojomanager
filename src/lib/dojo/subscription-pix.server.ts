@@ -46,11 +46,25 @@ export type PixCharge = {
  */
 export async function createSubscriptionPixCharge(
   admin: Admin,
-  sub: { id: string; last_payment_id?: string | null; next_due_date?: string | null },
+  sub: {
+    id: string;
+    last_payment_id?: string | null;
+    next_due_date?: string | null;
+    trial_ends_at?: string | null;
+  },
   input: { amount: number; payerEmail: string; description: string; notificationUrl?: string | null },
 ): Promise<PixCharge> {
   const today = new Date().toISOString().slice(0, 10);
-  const dueDate = sub.next_due_date && sub.next_due_date > today ? sub.next_due_date : today;
+  // PIX gerado durante o teste vence no fim do teste: pagar antes não encurta o
+  // teste (o mês pago conta a partir do vencimento) e a conta não fica "vencida".
+  const trialEnd =
+    sub.trial_ends_at && new Date(sub.trial_ends_at).getTime() > Date.now()
+      ? new Date(sub.trial_ends_at).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" })
+      : null;
+  const dueDate = [sub.next_due_date, trialEnd, today]
+    .filter((d): d is string => !!d)
+    .sort()
+    .at(-1) as string;
   const expiresAt = addDays(dueDate, PIX_GRACE_DAYS);
 
   const res = await fetch("https://api.mercadopago.com/v1/payments", {
