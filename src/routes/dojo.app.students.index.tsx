@@ -2009,7 +2009,7 @@ function StudentsPage() {
 
       <div className="overflow-hidden rounded-2xl border border-neutral-200/80 bg-white shadow-[0_1px_2px_rgba(16,24,40,.04),0_8px_24px_-12px_rgba(16,24,40,.12)]">
         {/* Cabeçalho (desktop) */}
-        <div className="hidden bg-neutral-50/80 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-500 sm:grid sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1.5fr)_auto_auto] sm:items-center sm:gap-4">
+        <div className="hidden bg-neutral-50/80 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-500 sm:grid sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1.5fr)_7.5rem_9rem] sm:items-center sm:gap-4">
           <span>Aluno</span>
           <span>Graduação</span>
           <span className="text-center">Situação</span>
@@ -2024,7 +2024,7 @@ function StudentsPage() {
           return (
             <div
               key={s.id}
-              className="group px-4 py-3 transition-colors hover:bg-neutral-50/70 sm:grid sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1.5fr)_auto_auto] sm:items-center sm:gap-4 sm:px-5"
+              className="group px-4 py-3 transition-colors hover:bg-neutral-50/70 sm:grid sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1.5fr)_7.5rem_9rem] sm:items-center sm:gap-4 sm:px-5"
             >
               {/* Aluno */}
               <div className="flex items-start gap-3">
@@ -2061,8 +2061,9 @@ function StudentsPage() {
                   </div>
                 </div>
                 <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium sm:hidden ${statusClass}`}
+                  className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-medium sm:hidden ${statusClass}`}
                 >
+                  <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
                   {statusLabel}
                 </span>
               </div>
@@ -2099,8 +2100,9 @@ function StudentsPage() {
 
               {/* Status desktop */}
               <span
-                className={`hidden shrink-0 justify-self-center rounded-full px-2.5 py-0.5 text-[11px] font-medium sm:inline-flex ${statusClass}`}
+                className={`hidden w-[7.5rem] items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-medium sm:inline-flex ${statusClass}`}
               >
+                <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
                 {statusLabel}
               </span>
 
