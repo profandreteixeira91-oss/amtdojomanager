@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { useFinanceMonth } from "./month";
+import { monthLongLabel } from "@/lib/dojo/finance-dates";
 import { useServerFn } from "@tanstack/react-start";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -95,12 +97,18 @@ function SkeletonCard() {
 
 export function FinanceDashboard() {
   const fn = useServerFn(dojoFinanceDashboard);
+  const { month: selMonth, current } = useFinanceMonth();
+  // "Todos os meses" não cabe nos cartões do mês: mostra o mês atual.
+  const monthParam = selMonth === "all" ? current : selMonth;
   const { data, isLoading, error } = useQuery({
-    queryKey: ["dojo-finance-dashboard"],
-    queryFn: () => fn({ data: {} }),
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    queryKey: ["dojo-finance-dashboard", monthParam],
+    queryFn: () => fn({ data: { month: monthParam } }),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    placeholderData: (prev) => prev,
   });
+  const monthTag = monthLongLabel(monthParam);
 
   if (error) {
     return (
@@ -168,14 +176,14 @@ export function FinanceDashboard() {
 
         <Kpi
           icon={TrendingUp}
-          label="Receita bruta (mês)"
+          label={`Receita bruta · ${monthTag}`}
           value={brl(month.gross)}
           tone="positive"
           hint={`${month.payersCount} pagante(s)`}
         />
         <Kpi
           icon={CircleDollarSign}
-          label="Receita líquida"
+          label={`Receita líquida · ${monthTag}`}
           value={brl(month.net)}
           tone="positive"
           hint="Após taxas gateway + AMT"
@@ -189,13 +197,13 @@ export function FinanceDashboard() {
         />
         <Kpi
           icon={TrendingDown}
-          label="Despesas (mês)"
+          label={`Despesas · ${monthTag}`}
           value={brl(month.expenses)}
           tone="negative"
         />
         <Kpi
           icon={Calculator}
-          label="Lucro líquido"
+          label={`Lucro líquido · ${monthTag}`}
           value={brl(month.profit)}
           tone={month.profit >= 0 ? "positive" : "negative"}
           hint="Líquido − despesas"

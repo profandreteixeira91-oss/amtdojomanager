@@ -21,6 +21,7 @@ import { listDojoPlans } from "@/lib/dojo/dojo.functions";
 import { useInvoices, type InvoiceRow } from "./shared";
 import { TuitionByStudent, type TuitionInvoice } from "./TuitionList";
 import { PrepayDialog } from "./PrepayDialog";
+import { useFinanceMonth } from "./month";
 
 const brl = (n: number | null | undefined) =>
   Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -49,7 +50,11 @@ export function FinanceTuition() {
     qc.invalidateQueries({ queryKey: ["dojo-student"] });
   };
 
-  const rows = ((invs.data ?? []) as InvoiceRow[]) as unknown as TuitionInvoice[];
+  const { month } = useFinanceMonth();
+  // Mensalidade é do mês em que vence (competência), paga ou não.
+  const rows = (((invs.data ?? []) as InvoiceRow[]) as unknown as TuitionInvoice[]).filter(
+    (r) => month === "all" || String(r.due_date).startsWith(month),
+  );
   const term = q.trim().toLowerCase();
   const filtered = term
     ? rows.filter((r) => (r.student?.full_name ?? "").toLowerCase().includes(term))

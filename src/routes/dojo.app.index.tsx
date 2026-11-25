@@ -28,6 +28,7 @@ import { formatBeltFull } from "@/lib/dojo/degree-label";
 import { currentBeltEntries, rankedBelts, beltLabel, beltEntryKey } from "@/lib/dojo/current-belts";
 
 import { useUnitScope } from "@/components/dojo/UnitScope";
+import { useFinanceRealtime } from "@/components/dojo/finance/month";
 import { SetupWizardModal } from "@/components/dojo/onboarding/SetupWizardModal";
 import {
   Users,
@@ -299,6 +300,8 @@ function DojoDashboard() {
   const attFn = useServerFn(attendanceStats);
   const classesFn = useServerFn(listClasses);
 
+  // Receita/recebimentos do painel se atualizam quando entra um pagamento.
+  useFinanceRealtime();
   const fin = useQuery({ queryKey: ["dojo-finance"], queryFn: () => finFn({ data: {} }) });
   const finDash = useQuery({
     queryKey: ["dojo-finance-dash"],

@@ -25,13 +25,20 @@ import {
   FinanceSettings,
 } from "@/components/dojo/finance/Config";
 import { PinGate } from "@/components/dojo/PinGate";
+import {
+  FinanceMonthPicker,
+  FinanceMonthProvider,
+  useFinanceRealtime,
+} from "@/components/dojo/finance/month";
 import { DojoPageHero, SUBNAV_CLS, SUBNAV_ROW_CLS, subnavItemClass } from "@/components/dojo/DojoPageHero";
 
 export const Route = createFileRoute("/dojo/app/finance")({
   head: () => ({ meta: [{ title: "Financeiro — AMT Dojo Manager" }] }),
   component: () => (
     <PinGate moduleName="Financeiro">
-      <FinancePage />
+      <FinanceMonthProvider>
+        <FinancePage />
+      </FinanceMonthProvider>
     </PinGate>
   ),
 });
@@ -101,6 +108,10 @@ function FinancePage() {
   };
 
   const current = sections.find((s) => s.id === active)!;
+  // Números do financeiro se atualizam sozinhos quando algo muda.
+  useFinanceRealtime();
+  // Telas que respeitam o filtro de mês.
+  const monthAware = ["dashboard", "receivables", "charges", "payables", "tuition", "cashflow"].includes(active);
 
   return (
     <div className="mx-auto flex w-full max-w-7xl min-w-0 flex-col gap-6 overflow-x-hidden md:gap-7">
@@ -128,18 +139,21 @@ function FinancePage() {
 
       {/* Conteúdo */}
       <div className="min-w-0">
-        <div className="mb-4">
-          <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-red-600">{current.group}</div>
-          <h2 className="mt-1 text-xl font-bold tracking-tight text-neutral-950 md:text-2xl">{current.label}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {current.group === "Visão geral"
-              ? "Indicadores executivos em tempo real"
-              : current.group === "Movimentações"
-              ? "Lançamentos, cobranças e recebimentos"
-              : current.group === "Consolidados"
-              ? "Análises consolidadas e projeções"
-              : "Cadastros, relatórios e configurações"}
-          </p>
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-red-600">{current.group}</div>
+            <h2 className="mt-1 text-xl font-bold tracking-tight text-neutral-950 md:text-2xl">{current.label}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {current.group === "Visão geral"
+                ? "Indicadores executivos em tempo real"
+                : current.group === "Movimentações"
+                ? "Lançamentos, cobranças e recebimentos"
+                : current.group === "Consolidados"
+                ? "Análises consolidadas e projeções"
+                : "Cadastros, relatórios e configurações"}
+            </p>
+          </div>
+          {monthAware && <FinanceMonthPicker />}
         </div>
         {renderSection()}
       </div>
