@@ -2,6 +2,10 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { adminClient, assertControlCenterAdmin, corsHeaders, errorResponse, HttpError, json, withCors } from "../_shared/control-center.ts";
 import { BOT_SETTINGS_KEY, type BotDeps, botSettings, scheduleBot } from "./bot.ts";
+import {
+  type FollowupDeps, followupExtend, followupOnInbound, followupOverview, followupResume, followupStop,
+  runFollowups, saveFollowupSettings,
+} from "./followup.ts";
 
 // Atendimento da AMT pelo Control Center (amtsistemas.com.br/admin): WhatsApp do suporte (Evolution API,
 // instância amt-suporte, o número 551151040791 conectado), chamados do Dojo Manager e o chat do site.
@@ -25,6 +29,10 @@ import { BOT_SETTINGS_KEY, type BotDeps, botSettings, scheduleBot } from "./bot.
 //
 // Assistente Virtual AMT Sistemas (bot.ts): responde às mensagens recebidas por regras, com menu e diagnóstico,
 // e passa a conversa para um atendente. Liga/desliga em app_settings 'support_whatsapp_bot' (ações bot_settings*).
+//
+// Follow-up do teste grátis (followup.ts): mensagens nos dias 1, 3 e 7 depois do fim do teste para quem não
+// assinou o Dojo Manager. pg_cron chama POST ?cron=followup de hora em hora com x-cron-secret (o mesmo segredo
+// 'cron_secret' do Vault usado pelos crons do Dojo, conferido pela função support_cron_secret_ok).
 //
 // Deploy: npx supabase functions deploy support-inbox --project-ref gudjmkiyprgwgxmzbgji --use-api --no-verify-jwt
 
@@ -229,6 +237,27 @@ function botDeps(): BotDeps {
   };
 }
 
+/** O que o follow-up do teste usa daqui: envio pela Evolution e registro na caixa do /admin. */
+function followupDeps(sb: SupabaseClient): FollowupDeps {
+  return {
+    sendText: (to, text) => {
+      const number = recipient(to);
+      if (!number) throw new Error("Número inválido.");
+      return evo<any>("POST", `/message/sendText/${enc(requireConfig().instance)}`, { number, text, delay: 1200 });
+    },
+    recordOutgoing: async (to, res, text) => {
+      await recordOutgoing(sb, to, res, { type: "text", body: text });
+      const id: string | undefined = res?.key?.id;
+      if (!id) return null;
+      // Origem própria: aparece como follow-up e não conta como resposta da equipe.
+      await sb.from("support_wa_messages").update({ source: "followup" }).eq("message_id", id);
+      const { data } = await sb.from("support_wa_messages").select("chat_id").eq("message_id", id).maybeSingle();
+      return (data?.chat_id as string | undefined) ?? null;
+    },
+    normalizePhone,
+  };
+}
+
 /* ------------------------- Conversas e mensagens ------------------------- */
 
 type Parsed = {
@@ -404,8 +433,17 @@ async function handleEvent(sb: SupabaseClient, payload: any) {
       if (!p) continue;
       const chatId = await upsertChat(sb, p.remote_jid, { phone: p.phone, name: p.push_name });
       const inserted = await insertMessages(sb, chatId, [p]);
-      // Mensagem nova do cliente (não reentrega): o Assistente Virtual decide se responde.
-      if (inserted && !p.from_me) scheduleBot(sb, chatId, p.message_id, botDeps());
+      // Mensagem nova do cliente (não reentrega): resposta a um follow-up do teste para a sequência;
+      // senão, o Assistente Virtual decide se responde.
+      if (inserted && !p.from_me) {
+        let handled = false;
+        try {
+          handled = await followupOnInbound(sb, chatId, p.body, followupDeps(sb));
+        } catch (err) {
+          console.error("support-inbox: follow-up na resposta", err instanceof Error ? err.message : err);
+        }
+        if (!handled) scheduleBot(sb, chatId, p.message_id, botDeps());
+      }
     }
   } else if (event === "messages.update") {
     for (const u of items) {
@@ -733,6 +771,22 @@ async function panel(sb: SupabaseClient, body: Record<string, unknown>): Promise
       if (error) throw new Error(error.message);
       return next;
     }
+    case "followup_overview":
+      return await followupOverview(sb, followupDeps(sb));
+    case "followup_settings_save":
+      return await saveFollowupSettings(sb, typeof body.enabled === "boolean" ? { enabled: body.enabled } : {});
+    case "followup_stop":
+    case "followup_resume":
+    case "followup_extend": {
+      const ownerId = String(body.owner_id ?? "");
+      if (!UUID_RE.test(ownerId)) throw new HttpError(400, "Academia inválida.");
+      if (action === "followup_stop") return (await followupStop(sb, ownerId), { ok: true });
+      if (action === "followup_resume") return (await followupResume(sb, ownerId), { ok: true });
+      return await followupExtend(sb, ownerId, followupDeps(sb));
+    }
+    case "followup_run":
+      // "Verificar agora" no /admin: mesmas regras do cron, inclusive o horário comercial.
+      return await runFollowups(sb, followupDeps(sb));
     case "counters": {
       // Contadores do menu do /admin: conversas com mensagem não lida e chamados com mensagem nova.
       const [chats, tickets] = await Promise.all([
@@ -988,7 +1042,24 @@ async function webhook(req: Request): Promise<Response> {
   }
 }
 
+/** Cron do follow-up: segredo 'cron_secret' do Vault, conferido no banco (não há cópia dele na função). */
+async function cron(req: Request): Promise<Response> {
+  if (req.method !== "POST") return json({ ok: false }, 405);
+  const provided = (req.headers.get("x-cron-secret") ?? "").trim();
+  if (provided.length < 32) return json({ ok: false }, 401);
+  const sb = adminClient();
+  const { data: ok, error } = await sb.rpc("support_cron_secret_ok", { p_secret: provided });
+  if (error || ok !== true) return json({ ok: false }, 401);
+  try {
+    return json({ ok: true, ...(await runFollowups(sb, followupDeps(sb))) });
+  } catch (err) {
+    console.error("support-inbox: cron do follow-up", err instanceof Error ? err.message : err);
+    return json({ ok: false }, 500);
+  }
+}
+
 Deno.serve(async (req: Request) => {
+  if (new URL(req.url).searchParams.get("cron") === "followup") return cron(req);
   if (new URL(req.url).searchParams.get("hook") === "1") {
     return req.method === "POST" ? webhook(req) : json({ ok: true, service: "support-inbox-webhook" });
   }
