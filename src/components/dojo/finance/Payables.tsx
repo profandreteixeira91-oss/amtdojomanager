@@ -15,6 +15,8 @@ import { Search, Plus, CheckCircle2, Trash2, Eye } from "lucide-react";
 import { brl, brDate, daysBetween, isoDate, useExpenses, useFinanceSettings, type ExpenseRow } from "./shared";
 import { todayISO } from "@/lib/dates";
 import { EntryDrawer } from "./EntryDrawer";
+import { inFinanceMonth, useFinanceMonth } from "./month";
+import { entryMonth } from "@/lib/dojo/finance-dates";
 import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
 
 export function FinancePayables() {
@@ -41,9 +43,22 @@ export function FinancePayables() {
     qc.invalidateQueries({ queryKey: ["dojo-finance"] });
   };
 
+  const { month, setMonth } = useFinanceMonth();
+  const olderOverdue = useMemo(() => {
+    if (month === "all") return { count: 0, total: 0 };
+    const today = todayISO();
+    const list = ((exps.data ?? []) as ExpenseRow[]).filter(
+      (r) => r.status !== "paid" && r.due_date < today && r.due_date.slice(0, 7) < month,
+    );
+    return { count: list.length, total: list.reduce((s, r) => s + Number(r.amount || 0), 0) };
+  }, [exps.data, month]);
+
   const rows = useMemo(() => {
-    let list = (exps.data ?? []) as ExpenseRow[];
-    if (status !== "all") list = list.filter((r) => r.status === status);
+    let list = ((exps.data ?? []) as ExpenseRow[]).filter((r) => inFinanceMonth(entryMonth(r), month));
+    const today = todayISO();
+    if (status === "overdue") list = list.filter((r) => r.status !== "paid" && r.due_date < today);
+    else if (status === "pending") list = list.filter((r) => r.status !== "paid" && r.due_date >= today);
+    else if (status !== "all") list = list.filter((r) => r.status === status);
     const t = q.trim().toLowerCase();
     if (t)
       list = list.filter(
@@ -53,7 +68,7 @@ export function FinancePayables() {
           String(r.amount).includes(t),
       );
     return list;
-  }, [exps.data, q, status]);
+  }, [exps.data, q, status, month]);
 
   const handleAdd = async () => {
     if (!form.description || !form.amount) return toast.error("Preencha descrição e valor");
@@ -98,12 +113,35 @@ export function FinancePayables() {
   };
   const handleDelete = async (id: string) => {
     if (!confirm("Excluir esta despesa?")) return;
-    await delFn({ data: { id } });
-    refresh();
+    try {
+      await delFn({ data: { id } });
+      toast.success("Despesa excluída");
+      refresh();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
   };
 
   return (
     <div className="space-y-4">
+      {olderOverdue.count > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          <span>
+            <strong>{olderOverdue.count}</strong> despesa(s) atrasada(s) de meses anteriores · {brl(olderOverdue.total)}
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 border-red-300 bg-white text-xs text-red-800 hover:bg-red-100"
+            onClick={() => {
+              setMonth("all");
+              setStatus("overdue");
+            }}
+          >
+            Ver todas
+          </Button>
+        </div>
+      )}
       <Card className="p-3 border border-[color:var(--dojo-border)]">
         <div className="flex flex-wrap gap-2 items-center">
           <div className="relative flex-1 min-w-[220px]">

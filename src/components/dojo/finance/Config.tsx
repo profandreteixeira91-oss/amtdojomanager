@@ -13,7 +13,7 @@ import { brl, useFinanceKpis, useFinanceSettings } from "./shared";
 import { openBrandedPrintDocument, escapeHtml } from "@/lib/dojo/print-document";
 import { useDojoBranding } from "@/hooks/useDojoBranding";
 import { brDate } from "@/lib/format";
-import { todayISO } from "@/lib/dates";
+import { diffDaysISO, todayISO } from "@/lib/dates";
 
 function printFinanceReport(k: ReturnType<typeof useFinanceKpis>, branding: any) {
   const kpiCards = [
@@ -142,7 +142,6 @@ type ReportDataset = {
 };
 
 function buildReport(id: string, k: ReturnType<typeof useFinanceKpis>): ReportDataset {
-  const today = new Date();
   const inv = k.invoices as any[];
   const exp = k.expenses as any[];
   const fmtDate = (d: any) => (d ? brDate(d) : "");
@@ -227,9 +226,9 @@ function buildReport(id: string, k: ReturnType<typeof useFinanceKpis>): ReportDa
     }
     case "inadim": {
       const rows = inv
-        .filter((r) => r.status !== "paid" && r.status !== "cancelled" && r.due_date && new Date(r.due_date) < today)
+        .filter((r) => r.status !== "paid" && r.status !== "cancelled" && r.due_date && r.due_date < todayISO())
         .map((r) => {
-          const diasAtraso = Math.floor((today.getTime() - new Date(r.due_date).getTime()) / 86400000);
+          const diasAtraso = diffDaysISO(r.due_date, todayISO());
           return {
             aluno: r.student?.full_name ?? "",
             descricao: r.description ?? "",

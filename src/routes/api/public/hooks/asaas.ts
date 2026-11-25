@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { paidAtFromProvider } from "@/lib/dojo/finance-dates";
 
 /**
  * Webhook Asaas — sincroniza as cobranças das subcontas com `dojo_invoices`
@@ -247,9 +248,7 @@ export const Route = createFileRoute("/api/public/hooks/asaas")({
                 : null;
         const paidAt =
           status === "paid"
-            ? source.paymentDate || source.clientPaymentDate || source.confirmedDate
-              ? new Date(source.paymentDate || source.clientPaymentDate || source.confirmedDate).toISOString()
-              : new Date().toISOString()
+            ? paidAtFromProvider(source.paymentDate || source.clientPaymentDate || source.confirmedDate)
             : undefined;
 
         const patch: Record<string, any> = {

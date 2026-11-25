@@ -1,4 +1,4 @@
-import { addDaysISO, calendarISO, dayISO, isoToDate, todayISO } from "@/lib/dates";
+import { addDaysISO, addMonthsISO, dayISO, monthStartISO, todayISO } from "@/lib/dates";
 /**
  * Fase 4 — Dashboard financeiro do AMT Pay.
  *
@@ -17,6 +17,7 @@ import { addDaysISO, calendarISO, dayISO, isoToDate, todayISO } from "@/lib/date
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { cashDayISO } from "@/lib/dojo/finance-dates";
 import { isBillableStudentStatus } from "@/lib/dojo/student-status";
 
 type MonthPoint = {
@@ -33,25 +34,39 @@ type ProjectionPoint = { label: string; days: number; amount: number };
 
 const num = (v: unknown) => Number(v ?? 0);
 
-function monthKey(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+/** Rótulo curto do mês ("nov.") a partir de "YYYY-MM", sem depender do fuso. */
+function monthShort(key: string) {
+  const [y, m] = key.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, 15)).toLocaleDateString("pt-BR", { month: "short", timeZone: "UTC" });
 }
+
+/**
+ * Regime de caixa, em dias do Brasil: o que foi pago conta no dia/mês do
+ * pagamento. O Worker roda em UTC — `new Date()` e `new Date("YYYY-MM-DD")`
+ * empurravam o fim do mês para o mês seguinte.
+ */
+const cashDay = cashDayISO;
 
 export const dojoFinanceDashboard = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((i: unknown) =>
-    z.object({ monthsBack: z.number().int().min(1).max(24).optional() }).parse(i ?? {}),
+    z
+      .object({
+        monthsBack: z.number().int().min(1).max(24).optional(),
+        // Mês escolhido no filtro do financeiro ("YYYY-MM"); padrão: mês atual.
+        month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+      })
+      .parse(i ?? {}),
   )
   .handler(async ({ data, context }) => {
     const supabase = context.supabase;
     const monthsBack = data.monthsBack ?? 11;
 
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-    const rangeStart = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
-    // Dias de calendário (YYYY-MM-DD, fuso do Brasil) para a projeção de fluxo
+    // Dias de calendário (YYYY-MM-DD, fuso do Brasil)
     const today = todayISO();
+    const curMonth = data.month ?? today.slice(0, 7);
+    const refDay = `${curMonth}-01`;
+    const rangeStartISO = monthStartISO(addMonthsISO(refDay, -monthsBack));
     const in60 = addDaysISO(today, 60);
 
     // -----------------------------------------------------------------
@@ -70,9 +85,7 @@ export const dojoFinanceDashboard = createServerFn({ method: "GET" })
       .select(
         "id, amount, gross_amount, net_amount, gateway_fee_amount, platform_fee_amount, status, due_date, paid_at, method, student_id",
       )
-      .or(
-        `due_date.gte.${calendarISO(rangeStart)},paid_at.gte.${rangeStart.toISOString()}`,
-      );
+      .or(`due_date.gte.${rangeStartISO},paid_at.gte.${rangeStartISO}T00:00:00-03:00`);
 
     // -----------------------------------------------------------------
     // 3) Despesas dos últimos monthsBack meses
@@ -80,7 +93,7 @@ export const dojoFinanceDashboard = createServerFn({ method: "GET" })
     const expensesP = supabase
       .from("dojo_expenses")
       .select("amount, status, due_date, paid_at, category")
-      .gte("due_date", calendarISO(rangeStart));
+      .or(`due_date.gte.${rangeStartISO},paid_at.gte.${rangeStartISO}T00:00:00-03:00`);
 
     // -----------------------------------------------------------------
     // 4) Recorrências ativas para MRR e projeção
@@ -144,14 +157,8 @@ export const dojoFinanceDashboard = createServerFn({ method: "GET" })
     // -----------------------------------------------------------------
     // KPIs do mês corrente
     // -----------------------------------------------------------------
-    const inMonth = (d?: string | null) => {
-      if (!d) return false;
-      const t = new Date(d).getTime();
-      return t >= monthStart.getTime() && t <= monthEnd.getTime();
-    };
-
     const paidInvoicesMonth = invoices.filter(
-      (i) => i.status === "paid" && (inMonth(i.paid_at) || inMonth(i.due_date)),
+      (i) => i.status === "paid" && cashDay(i).startsWith(curMonth),
     );
     const grossMonth = paidInvoicesMonth.reduce(
       (s, i) => s + num(i.gross_amount ?? i.amount),
@@ -173,7 +180,7 @@ export const dojoFinanceDashboard = createServerFn({ method: "GET" })
     const feeRateMonth = grossMonth > 0 ? (totalFeesMonth / grossMonth) * 100 : 0;
 
     const expensesMonth = expenses
-      .filter((e) => e.status === "paid" && (inMonth(e.paid_at) || inMonth(e.due_date)))
+      .filter((e) => e.status === "paid" && cashDay(e).startsWith(curMonth))
       .reduce((s, e) => s + num(e.amount), 0);
 
     const netProfitMonth = netMonth - expensesMonth;
@@ -182,13 +189,19 @@ export const dojoFinanceDashboard = createServerFn({ method: "GET" })
     const openInvoices = invoices.filter(
       (i) => i.status !== "paid" && i.status !== "cancelled",
     );
-    const overdue = openInvoices.filter((i) => new Date(i.due_date) < now);
+    // Vencida = venceu ANTES de hoje (quem vence hoje ainda está no prazo).
+    const overdue = openInvoices.filter((i) => String(i.due_date).slice(0, 10) < today);
     const overdueAmount = overdue.reduce((s, i) => s + num(i.amount), 0);
     const pendingReceivables = openInvoices.reduce((s, i) => s + num(i.amount), 0);
     const totalDueMonth = invoices
-      .filter((i) => inMonth(i.due_date) && i.status !== "cancelled")
+      .filter((i) => String(i.due_date).startsWith(curMonth) && i.status !== "cancelled")
       .reduce((s, i) => s + num(i.amount), 0);
-    const overdueRate = totalDueMonth > 0 ? (overdueAmount / totalDueMonth) * 100 : 0;
+    // Inadimplência do mês: vencido e não pago do mês ÷ tudo que vence no mês
+    // (antes somava atrasos de qualquer mês e passava de 100%).
+    const overdueMonthAmount = overdue
+      .filter((i) => String(i.due_date).startsWith(curMonth))
+      .reduce((s, i) => s + num(i.amount), 0);
+    const overdueRate = totalDueMonth > 0 ? (overdueMonthAmount / totalDueMonth) * 100 : 0;
 
     // Ticket médio
     const uniqueStudentsPaid = new Set(
@@ -221,13 +234,10 @@ export const dojoFinanceDashboard = createServerFn({ method: "GET" })
     // -----------------------------------------------------------------
     const months: MonthPoint[] = [];
     for (let i = monthsBack; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = monthKey(d);
-      const label = d.toLocaleDateString("pt-BR", { month: "short" });
-      const matches = (dt?: string | null) => (dt ?? "").startsWith(key);
-      const paid = invoices.filter(
-        (iv) => iv.status === "paid" && (matches(iv.paid_at) || matches(iv.due_date)),
-      );
+      const key = monthStartISO(addMonthsISO(refDay, -i)).slice(0, 7);
+      const label = monthShort(key);
+      // Cada pagamento entra em UM mês: o do pagamento.
+      const paid = invoices.filter((iv) => iv.status === "paid" && cashDay(iv).startsWith(key));
       const gross = paid.reduce((s, iv) => s + num(iv.gross_amount ?? iv.amount), 0);
       const net = paid.reduce((s, iv) => s + num(iv.net_amount ?? iv.amount), 0);
       const fees = paid.reduce(
@@ -235,9 +245,7 @@ export const dojoFinanceDashboard = createServerFn({ method: "GET" })
         0,
       );
       const desp = expenses
-        .filter(
-          (ex) => ex.status === "paid" && (matches(ex.paid_at) || matches(ex.due_date)),
-        )
+        .filter((ex) => ex.status === "paid" && cashDay(ex).startsWith(key))
         .reduce((s, ex) => s + num(ex.amount), 0);
       months.push({ key, label, gross, net, fees, expenses: desp, balance: net - desp });
     }

@@ -24,6 +24,8 @@ import { Search, CheckCircle2, Trash2, Eye, AlertCircle, CalendarIcon } from "lu
 import { brl, brDate, daysBetween, isoDate, useInvoices, type InvoiceRow } from "./shared";
 import { todayISO, diffDaysISO } from "@/lib/dates";
 import { EntryDrawer } from "./EntryDrawer";
+import { inFinanceMonth, useFinanceMonth } from "./month";
+import { entryMonth } from "@/lib/dojo/finance-dates";
 import { ShareInvoiceMenu } from "./ShareInvoice";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -76,7 +78,7 @@ export function FinanceReceivables() {
   const [payMethod, setPayMethod] = useState<string>("cash");
   const [paying, setPaying] = useState(false);
   const [calOpen, setCalOpen] = useState(false);
-  const invs = useInvoices(status);
+  const invs = useInvoices("all");
   const payFn = useServerFn(markDojoInvoicePaid);
   const delFn = useServerFn(deleteDojoInvoice);
   const qc = useQueryClient();
@@ -85,8 +87,22 @@ export function FinanceReceivables() {
     qc.invalidateQueries({ queryKey: ["dojo-finance"] });
   };
 
+  const { month, setMonth } = useFinanceMonth();
+  // Vencidas de meses anteriores ao escolhido: não somem de vista.
+  const olderOverdue = useMemo(() => {
+    if (month === "all") return { count: 0, total: 0 };
+    const rows = ((invs.data ?? []) as InvoiceRow[]).filter(
+      (r) => effectiveKey(r) === "overdue" && r.due_date.slice(0, 7) < month,
+    );
+    return { count: rows.length, total: rows.reduce((s, r) => s + Number(r.amount || 0), 0) };
+  }, [invs.data, month]);
+
   const items = useMemo(() => {
-    const rows = (invs.data ?? []) as InvoiceRow[];
+    // Mês: pago conta no mês do pagamento; em aberto, no do vencimento.
+    let rows = ((invs.data ?? []) as InvoiceRow[]).filter((r) => inFinanceMonth(entryMonth(r), month));
+    if (status === "overdue") rows = rows.filter((r) => effectiveKey(r) === "overdue");
+    else if (status === "pending") rows = rows.filter((r) => ["pending", "due_soon"].includes(effectiveKey(r)));
+    else if (status !== "all") rows = rows.filter((r) => r.status === status);
     const t = q.trim().toLowerCase();
     if (!t) return rows;
     return rows.filter(
@@ -95,7 +111,7 @@ export function FinanceReceivables() {
         (r.description ?? "").toLowerCase().includes(t) ||
         String(r.amount).includes(t),
     );
-  }, [invs.data, q]);
+  }, [invs.data, q, status, month]);
 
   const paid = items.filter((i) => effectiveKey(i) === "paid");
   const pending = items.filter((i) => effectiveKey(i) === "pending");
@@ -138,6 +154,24 @@ export function FinanceReceivables() {
 
   return (
     <div className="space-y-4">
+      {olderOverdue.count > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          <span>
+            <strong>{olderOverdue.count}</strong> cobrança(s) vencida(s) de meses anteriores · {brl(olderOverdue.total)}
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 border-red-300 bg-white text-xs text-red-800 hover:bg-red-100"
+            onClick={() => {
+              setMonth("all");
+              setStatus("overdue");
+            }}
+          >
+            Ver todas
+          </Button>
+        </div>
+      )}
       <Card className="p-3 border border-[color:var(--dojo-border)]">
         <div className="flex flex-wrap gap-2 items-center">
           <div className="relative flex-1 min-w-[220px]">

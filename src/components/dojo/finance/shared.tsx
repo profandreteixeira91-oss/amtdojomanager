@@ -1,4 +1,5 @@
-import { calendarISO, todayISO, monthStartISO, addMonthsISO } from "@/lib/dates";
+import { addDaysISO, addMonthsISO, calendarISO, monthStartISO, todayISO } from "@/lib/dates";
+import { cashDayISO } from "@/lib/dojo/finance-dates";
 import { isBillableStudentStatus } from "@/lib/dojo/student-status";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -121,12 +122,21 @@ export function useInvoices(status = "all") {
   return useQuery({
     queryKey: ["dojo-invoices", status],
     queryFn: () => fn({ data: { status } }),
+    // Rede de segurança do tempo real (useFinanceRealtime): relê a cada 30 s
+    // com a aba aberta e ao voltar para ela.
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 }
 
 export function useExpenses() {
   const fn = useServerFn(listDojoExpenses);
-  return useQuery({ queryKey: ["dojo-expenses"], queryFn: () => fn() });
+  return useQuery({
+    queryKey: ["dojo-expenses"],
+    queryFn: () => fn(),
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  });
 }
 
 export function useOverview() {
@@ -173,49 +183,55 @@ export function useFinanceKpis() {
   const expenses = (exp.data ?? []) as ExpenseRow[];
 
   return useMemo(() => {
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    // Tudo em dias de calendário do Brasil ("YYYY-MM-DD"): `new Date("2026-11-01")`
+    // é meia-noite UTC = 31/10 às 21h aqui, o que jogava o dia 1º no mês anterior.
+    const today = todayISO();
+    const curMonth = today.slice(0, 7);
+    // Regime de caixa: o que foi pago conta no mês do pagamento (paid_at no fuso
+    // do Brasil). Antes, um pagamento contava no mês do pagamento E no do
+    // vencimento, aparecendo duas vezes no gráfico de 12 meses.
+    const cashDay = cashDayISO;
+    const isOpen = (s: string) => s !== "paid" && s !== "cancelled";
 
-    const inMonth = (d: string) => {
-      const t = new Date(d).getTime();
-      return t >= monthStart.getTime() && t <= monthEnd.getTime() + 86_400_000;
-    };
+    const paidInvoices = invoices.filter((i) => i.status === "paid");
+    const paidExpenses = expenses.filter((e) => e.status === "paid");
 
-    const paidThisMonth = invoices
-      .filter((i) => i.status === "paid" && (i.paid_at ? inMonth(i.paid_at) : inMonth(i.due_date)))
+    const paidThisMonth = paidInvoices
+      .filter((i) => cashDay(i).startsWith(curMonth))
       .reduce((s, i) => s + Number(i.amount || 0), 0);
 
-    const expensesThisMonth = expenses
-      .filter((e) => e.status === "paid" && (e.paid_at ? inMonth(e.paid_at) : inMonth(e.due_date)))
+    const expensesThisMonth = paidExpenses
+      .filter((e) => cashDay(e).startsWith(curMonth))
       .reduce((s, e) => s + Number(e.amount || 0), 0);
 
     const netProfit = paidThisMonth - expensesThisMonth;
 
     const pendingReceivables = invoices
-      .filter((i) => i.status !== "paid" && i.status !== "cancelled")
+      .filter((i) => isOpen(i.status))
       .reduce((s, i) => s + Number(i.amount || 0), 0);
 
-    const overdue = invoices.filter(
-      (i) => i.status !== "paid" && i.status !== "cancelled" && new Date(i.due_date) < now,
-    );
+    const overdue = invoices.filter((i) => isOpen(i.status) && i.due_date < today);
     const overdueAmount = overdue.reduce((s, i) => s + Number(i.amount || 0), 0);
 
     const totalMonthDue = invoices
-      .filter((i) => inMonth(i.due_date) && i.status !== "cancelled")
+      .filter((i) => i.due_date.startsWith(curMonth) && i.status !== "cancelled")
       .reduce((s, i) => s + Number(i.amount || 0), 0);
-    const overdueRate = totalMonthDue > 0 ? (overdueAmount / totalMonthDue) * 100 : 0;
+    const overdueMonth = invoices
+      .filter((i) => isOpen(i.status) && i.due_date.startsWith(curMonth) && i.due_date < today)
+      .reduce((s, i) => s + Number(i.amount || 0), 0);
+    // Inadimplência do mês: vencido e não pago ÷ tudo que vence no mês.
+    const overdueRate = totalMonthDue > 0 ? (overdueMonth / totalMonthDue) * 100 : 0;
 
     const uniqueStudentsPaid = new Set(
-      invoices.filter((i) => i.status === "paid" && i.paid_at && inMonth(i.paid_at)).map((i) => i.student_id),
+      paidInvoices.filter((i) => cashDay(i).startsWith(curMonth)).map((i) => i.student_id),
     ).size;
     const avgTicket = uniqueStudentsPaid > 0 ? paidThisMonth / uniqueStudentsPaid : 0;
 
     // MRR (30d) = recebido nos últimos 30 dias, só de alunos que seguem
     // pagando: trancado/inativo não é receita recorrente.
-    const thirtyDaysAgo = Date.now() - 30 * 86_400_000;
-    const mrr = invoices
-      .filter((i) => i.status === "paid" && i.paid_at && new Date(i.paid_at).getTime() >= thirtyDaysAgo)
+    const since = addDaysISO(today, -30);
+    const mrr = paidInvoices
+      .filter((i) => cashDay(i) >= since)
       .filter((i) => isBillableStudentStatus((i as any).student?.status))
       .reduce((s, i) => s + Number(i.amount || 0), 0);
 
@@ -223,32 +239,26 @@ export function useFinanceKpis() {
       .filter((e) => e.status !== "paid")
       .reduce((s, e) => s + Number(e.amount || 0), 0);
 
-    // 12 months evolution
+    // 12 meses (regime de caixa)
     const months: { key: string; label: string; receitas: number; despesas: number; saldo: number }[] = [];
     for (let i = 11; i >= 0; i--) {
-      const start = monthStartISO(addMonthsISO(todayISO(), -i));
-      const key = start.slice(0, 7);
-      const year = parseInt(key.slice(0, 4));
-      const mo = parseInt(key.slice(5, 7));
-      const label = new Date(Date.UTC(year, mo - 1, 12)).toLocaleDateString("pt-BR", { month: "short", timeZone: "UTC" });
-      const inThisMonth = (dt?: string | null) => (dt ?? "").startsWith(key);
-      const receitas = invoices
-        .filter((iv) => iv.status === "paid" && (inThisMonth(iv.paid_at) || inThisMonth(iv.due_date)))
+      const key = monthStartISO(addMonthsISO(today, -i)).slice(0, 7);
+      const label = monthLabel(key);
+      const receitas = paidInvoices
+        .filter((iv) => cashDay(iv).startsWith(key))
         .reduce((s, iv) => s + Number(iv.amount || 0), 0);
-      const despesas = expenses
-        .filter((ex) => ex.status === "paid" && (inThisMonth(ex.paid_at) || inThisMonth(ex.due_date)))
+      const despesas = paidExpenses
+        .filter((ex) => cashDay(ex).startsWith(key))
         .reduce((s, ex) => s + Number(ex.amount || 0), 0);
       months.push({ key, label, receitas, despesas, saldo: receitas - despesas });
     }
 
-    // Payment methods breakdown (paid invoices)
+    // Formas de pagamento (recebido)
     const methodMap = new Map<string, number>();
-    invoices
-      .filter((i) => i.status === "paid")
-      .forEach((i) => {
-        const k = i.method || "outros";
-        methodMap.set(k, (methodMap.get(k) || 0) + Number(i.amount || 0));
-      });
+    paidInvoices.forEach((i) => {
+      const k = i.method || "outros";
+      methodMap.set(k, (methodMap.get(k) || 0) + Number(i.amount || 0));
+    });
     const paymentMethods = Array.from(methodMap.entries()).map(([name, value]) => ({ name, value }));
 
     return {

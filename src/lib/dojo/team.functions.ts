@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { calendarISO, dayISO, todayISO, utcCalendarISO } from "@/lib/dates";
+import { calendarISO, dayISO, monthEndISO, todayISO, utcCalendarISO } from "@/lib/dates";
 import { resolveDojoIdentity } from "@/lib/dojo/owner-scope";
 
 const uuid = z.string().uuid();
@@ -536,13 +536,22 @@ const paymentSchema = z.object({
   notes: z.string().nullable().optional(),
 });
 
+/**
+ * Cada lançamento da folha aparece em Contas a pagar: pendente enquanto não
+ * for pago (com o vencimento da folha) e pago no dia do pagamento.
+ * Desconto não é saída de caixa (só reduz o líquido) e cancelado sai da lista.
+ */
 async function ensureExpenseForPayment(supabase: any, ownerId: string, paymentId: string) {
   const { data: pay } = await supabase
     .from("dojo_team_payments")
     .select("id, owner_id, member_id, amount, description, kind, reference_month, due_date, paid_at, status, dojo_team_members(full_name, role, unit_id)")
     .eq("id", paymentId)
     .maybeSingle();
-  if (!pay || pay.status !== "paid") return;
+  if (!pay) return;
+  if (pay.status === "canceled" || pay.kind === "discount" || !(Number(pay.amount) > 0)) {
+    await supabase.from("dojo_expenses").delete().eq("team_payment_id", paymentId);
+    return;
+  }
 
   const { data: existing } = await supabase
     .from("dojo_expenses")
@@ -557,8 +566,14 @@ async function ensureExpenseForPayment(supabase: any, ownerId: string, paymentId
     reimbursement: "Reembolso", other: "Pagamento",
   };
   const description = `${kindLabel[pay.kind] ?? "Pagamento"} — ${name}${pay.description ? ` · ${pay.description}` : ""}`;
-  const paidAtDate = pay.paid_at ? dayISO(pay.paid_at) : null;
-  const due_date = paidAtDate ?? pay.due_date ?? pay.reference_month ?? todayISO();
+  const isPaid = pay.status === "paid";
+  const paidAtDate = isPaid && pay.paid_at ? dayISO(pay.paid_at) : null;
+  // Pendente: vence na data da folha (ou no fim do mês de referência).
+  const due_date =
+    pay.due_date ??
+    (pay.reference_month ? monthEndISO(String(pay.reference_month).slice(0, 10)) : null) ??
+    paidAtDate ??
+    todayISO();
 
   const payload: any = {
     owner_id: ownerId,
@@ -567,8 +582,8 @@ async function ensureExpenseForPayment(supabase: any, ownerId: string, paymentId
     description,
     amount: pay.amount,
     due_date,
-    paid_at: pay.paid_at,
-    status: "paid",
+    paid_at: isPaid ? (pay.paid_at ?? new Date().toISOString()) : null,
+    status: isPaid ? "paid" : "pending",
     team_payment_id: pay.id,
   };
 
@@ -599,11 +614,7 @@ export const upsertPayment = createServerFn({ method: "POST" })
         after_data: rest as never, actor_user_id: context.userId,
       });
     }
-    if (rest.status === "paid" && paymentId) {
-      await ensureExpenseForPayment(context.supabase, context.userId, paymentId);
-    } else if (rest.status && rest.status !== "paid" && id) {
-      await context.supabase.from("dojo_expenses").delete().eq("team_payment_id", id);
-    }
+    if (paymentId) await ensureExpenseForPayment(context.supabase, context.userId, paymentId);
     return { id: paymentId };
   });
 
@@ -850,8 +861,12 @@ export const closePayrollMonth = createServerFn({ method: "POST" })
 
     if (rows.length === 0) return { created: 0, skipped: data.entries.length };
 
-    const { error } = await context.supabase.from("dojo_team_payments").insert(rows);
+    const { data: inserted, error } = await context.supabase.from("dojo_team_payments").insert(rows).select("id");
     if (error) throw new Error(error.message);
+    // Folha fechada já entra em Contas a pagar (pendente).
+    for (const r of (inserted ?? []) as Array<{ id: string }>) {
+      await ensureExpenseForPayment(context.supabase, context.userId, r.id);
+    }
     return { created: rows.length, skipped: data.entries.length - rows.length };
   });
 

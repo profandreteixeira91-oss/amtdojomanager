@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { calendarISO, todayISO, utcCalendarISO } from "@/lib/dates";
+import { addMonthsISO, calendarISO, monthEndISO, monthStartISO, todayISO, utcCalendarISO } from "@/lib/dates";
 import { normalizeCurrentBelts } from "@/lib/dojo/current-belts";
 import { resolveDojoOwnerId } from "@/lib/dojo/owner-scope";
 import { normalizeModality } from "@/lib/dojo/modalities";
@@ -929,7 +929,7 @@ export const listDojoInvoices = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     let q = context.supabase.from("dojo_invoices")
       .select("*, student:dojo_students(full_name, phone, email, guardian_phone, status)")
-      .order("due_date", { ascending: false }).limit(500);
+      .order("due_date", { ascending: false }).limit(3000);
     if (data.status && data.status !== "all") q = q.eq("status", data.status);
     if (data.from) q = q.gte("due_date", data.from);
     if (data.to) q = q.lte("due_date", data.to);
@@ -1563,8 +1563,22 @@ export const saveDojoExpense = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { id, recurrence, installments, ...rest } = data;
     if (id) {
-      const { error } = await context.supabase.from("dojo_expenses").update(rest).eq("id", id);
+      const { data: row, error } = await context.supabase
+        .from("dojo_expenses")
+        .update(rest)
+        .eq("id", id)
+        .select("team_payment_id, status, paid_at")
+        .maybeSingle();
       if (error) throw new Error(error.message);
+      // Pagou pelo financeiro um lançamento da folha: a folha também fica paga.
+      const teamPaymentId = (row as any)?.team_payment_id as string | null | undefined;
+      if (teamPaymentId && (row as any)?.status === "paid") {
+        await context.supabase
+          .from("dojo_team_payments")
+          .update({ status: "paid", paid_at: (row as any).paid_at ?? new Date().toISOString() } as never)
+          .eq("id", teamPaymentId)
+          .neq("status", "paid");
+      }
       return { id };
     }
     const rec = recurrence ?? "none";
@@ -1575,13 +1589,12 @@ export const saveDojoExpense = createServerFn({ method: "POST" })
       return { id: row.id, created: 1 };
     }
     const monthsStep = rec === "monthly" ? 1 : rec === "quarterly" ? 3 : 12;
-    // Meio-dia UTC + métodos UTC evitam qualquer deslocamento de fuso ao repetir a data.
-    const base = new Date(rest.due_date + "T12:00:00Z");
-    const rows = Array.from({ length: count }, (_, idx) => {
-      const d = new Date(base);
-      d.setUTCMonth(d.getUTCMonth() + monthsStep * idx);
-      return { ...rest, due_date: d.toISOString().slice(0, 10), owner_id: ownerId(context) };
-    });
+    // Mesmo dia todo mês; em mês curto vai para o último dia (31/01 → 28/02 → 31/03).
+    const rows = Array.from({ length: count }, (_, idx) => ({
+      ...rest,
+      due_date: addMonthsISO(rest.due_date.slice(0, 10), monthsStep * idx),
+      owner_id: ownerId(context),
+    }));
 
     const { error } = await context.supabase.from("dojo_expenses").insert(rows);
     if (error) throw new Error(error.message);
@@ -1592,6 +1605,14 @@ export const deleteDojoExpense = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((i: unknown) => z.object({ id: z.string().regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/, "UUID inválido") }).parse(i))
   .handler(async ({ data, context }) => {
+    const { data: exp } = await context.supabase
+      .from("dojo_expenses")
+      .select("team_payment_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    if ((exp as any)?.team_payment_id) {
+      throw new Error("Este lançamento vem da Folha de pagamento. Cancele-o em Equipe → Folha de pagamento.");
+    }
     const { error } = await context.supabase.from("dojo_expenses").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -1605,19 +1626,24 @@ export const dojoFinanceOverview = createServerFn({ method: "GET" })
     to: z.string().optional(),
   }).parse(i ?? {}))
   .handler(async ({ data, context }) => {
-    const now = new Date();
-    const from = data.from ?? calendarISO(new Date(now.getFullYear(), now.getMonth(), 1));
-    const to = data.to ?? calendarISO(new Date(now.getFullYear(), now.getMonth()+1, 0));
-    const [inv, exp] = await Promise.all([
+    // Mês do Brasil (o Worker roda em UTC). Recebido/pago contam no mês do
+    // pagamento (regime de caixa); a receber/a pagar, no mês do vencimento.
+    const today = todayISO();
+    const from = data.from ?? monthStartISO(today);
+    const to = data.to ?? monthEndISO(today);
+    const startTs = `${from}T00:00:00-03:00`;
+    const endTs = `${to}T23:59:59.999-03:00`;
+    const [invDue, invPaid, expDue, expPaid] = await Promise.all([
       context.supabase.from("dojo_invoices").select("amount,status").gte("due_date", from).lte("due_date", to),
+      context.supabase.from("dojo_invoices").select("amount").eq("status", "paid").gte("paid_at", startTs).lte("paid_at", endTs),
       context.supabase.from("dojo_expenses").select("amount,status").gte("due_date", from).lte("due_date", to),
+      context.supabase.from("dojo_expenses").select("amount").eq("status", "paid").gte("paid_at", startTs).lte("paid_at", endTs),
     ]);
-    const invoices = (inv.data ?? []) as any[];
-    const expenses = (exp.data ?? []) as any[];
-    const received = invoices.filter(i => i.status === "paid").reduce((s,i)=>s+Number(i.amount||0),0);
-    const receivable = invoices.filter(i => i.status !== "paid" && i.status !== "cancelled").reduce((s,i)=>s+Number(i.amount||0),0);
-    const paid = expenses.filter(e => e.status === "paid").reduce((s,e)=>s+Number(e.amount||0),0);
-    const payable = expenses.filter(e => e.status !== "paid").reduce((s,e)=>s+Number(e.amount||0),0);
+    const sum = (rows: any[] | null | undefined) => (rows ?? []).reduce((s, r) => s + Number(r.amount || 0), 0);
+    const received = sum(invPaid.data);
+    const receivable = sum(((invDue.data ?? []) as any[]).filter(i => i.status !== "paid" && i.status !== "cancelled"));
+    const paid = sum(expPaid.data);
+    const payable = sum(((expDue.data ?? []) as any[]).filter(e => e.status !== "paid"));
     return { from, to, received, receivable, paid, payable, balance: received - paid };
   });
 

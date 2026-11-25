@@ -160,7 +160,7 @@ export const createSale = createServerFn({ method: "POST" })
     let payment_link: string | null = null;
     let status: "paid" | "pending" = DIRECT_METHODS.has(data.payment_method) ? "paid" : "pending";
     const nowIso = new Date().toISOString();
-    const due = data.due_date ?? nowIso.slice(0, 10);
+    const due = data.due_date ?? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
     const description = `Venda — ${data.items.map((i) => `${i.quantity}x ${i.name}`).join(", ")}`.slice(0, 400);
 
     if (GATEWAY_METHODS.has(data.payment_method)) {

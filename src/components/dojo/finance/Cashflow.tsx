@@ -15,11 +15,14 @@ import {
   isoToDate,
   ymd,
 } from "@/lib/dates";
+import { paidDayISO } from "@/lib/dojo/finance-dates";
+import { useFinanceMonth } from "./month";
 
 type Range = "today" | "week" | "month" | "year" | "custom";
 
 export function FinanceCashflow() {
   const k = useFinanceKpis();
+  const { month } = useFinanceMonth();
   const [range, setRange] = useState<Range>("month");
   const [from, setFrom] = useState(monthStartISO());
   const [to, setTo] = useState(todayISO());
@@ -28,13 +31,17 @@ export function FinanceCashflow() {
     const today = todayISO();
     if (range === "today") return { from: today, to: today };
     if (range === "week") return { from: addDaysISO(today, -6), to: today };
-    if (range === "month") return { from: monthStartISO(today), to: monthEndISO(today) };
+    // "Mês" segue o mês escolhido no topo do financeiro.
+    if (range === "month") {
+      const ref = month === "all" ? today : `${month}-01`;
+      return { from: monthStartISO(ref), to: monthEndISO(ref) };
+    }
     if (range === "year") {
       const year = isoToDate(today).getUTCFullYear();
       return { from: ymd(year, 1, 1), to: ymd(year, 12, 31) };
     }
     return { from, to };
-  }, [range, from, to]);
+  }, [range, from, to, month]);
 
   const days = useMemo(() => {
     const arr: { day: string; label: string; entradas: number; saidas: number; saldo: number }[] = [];
@@ -42,10 +49,10 @@ export function FinanceCashflow() {
       const [, mm, dd] = day.split("-");
       const label = `${dd}/${mm}`;
       const entradas = k.invoices
-        .filter((i) => i.status === "paid" && (i.paid_at?.slice(0, 10) ?? i.due_date) === day)
+        .filter((i) => i.status === "paid" && (paidDayISO(i.paid_at) ?? i.due_date) === day)
         .reduce((s, i) => s + Number(i.amount || 0), 0);
       const saidas = k.expenses
-        .filter((e) => e.status === "paid" && (e.paid_at?.slice(0, 10) ?? e.due_date) === day)
+        .filter((e) => e.status === "paid" && (paidDayISO(e.paid_at) ?? e.due_date) === day)
         .reduce((s, e) => s + Number(e.amount || 0), 0);
       arr.push({ day, label, entradas, saidas, saldo: entradas - saidas });
     }
