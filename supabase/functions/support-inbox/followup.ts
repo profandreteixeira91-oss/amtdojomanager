@@ -255,6 +255,16 @@ export async function runFollowups(sb: SupabaseClient, deps: FollowupDeps, opts:
 
 /* --------------------------- Resposta do cliente --------------------------- */
 
+/** Resposta automática do WhatsApp Business: chega segundos depois ou tem cara de saudação/ausência. */
+const AUTO_REPLY_WINDOW_MS = 120_000;
+const AUTO_REPLY_TEXT =
+  /seja\s+(muito\s+)?bem[\s-]?vind|agradece(mos)?\s+(o\s+|seu\s+|pelo\s+)?(seu\s+)?contato|obrigad[oa]\s+(pelo|por)\s+(seu\s+|entrar\s+em\s+)?contato|em\s+breve\s+(retornaremos|responderemos|entraremos)|retornaremos\s+(o\s+mais\s+breve|em\s+breve)|hor[aá]rio\s+de\s+atendimento|no\s+momento\s+(n[aã]o\s+)?(estamos|podemos)|mensagem\s+autom[aá]tica|resposta\s+autom[aá]tica|fora\s+do\s+(nosso\s+)?hor[aá]rio/i;
+
+export function isAutoReply(text: string, followupSentAt: string, now = Date.now()): boolean {
+  if (now - new Date(followupSentAt).getTime() < AUTO_REPLY_WINDOW_MS) return true;
+  return AUTO_REPLY_TEXT.test(text);
+}
+
 const OPT_OUT = /^\s*(sair|parar|pare|stop|cancelar|descadastrar)\b/i;
 const WANTS_EXTENSION = /mais\s*(7|sete)\s*dias|\+\s*7|prorroga|estender|mais\s+(um\s+)?prazo|mais\s+tempo/i;
 
@@ -280,6 +290,9 @@ export async function followupOnInbound(sb: SupabaseClient, chatId: string, text
   } else if (WANTS_EXTENSION.test(body) && (state as State).cycle === 1) {
     reason = "extension_requested";
     reply = "Perfeito! Já pedimos a liberação de mais 7 dias de teste para você. Avisamos por aqui assim que estiver liberado. 🥋";
+  } else if (isAutoReply(body, String(last.sent_at))) {
+    // Mensagem automática do WhatsApp Business do cliente (boas-vindas, ausência): não é resposta.
+    return true;
   }
   await saveState(sb, { ...(state as State), stopped_at: now, stop_reason: reason });
   if (reply && to) {
