@@ -13,6 +13,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertStudentsCanBeBilled } from "@/lib/dojo/billable";
 
 const uuid = z.string().regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/, "UUID inválido");
 const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida");
@@ -65,10 +66,41 @@ export const planGraduations = createServerFn({ method: "POST" })
     const { data: belts } = await sb.from("dojo_belts").select("id, name").in("id", beltIds);
     const beltName = new Map(((belts ?? []) as any[]).map((b) => [b.id as string, b.name as string]));
 
+    // Um registro por aluno, mesmo que a lista venha repetida.
+    const items = Array.from(new Map(data.items.map((it) => [it.student_id, it])).values())
+      .map((it) => ({ ...it, fee: it.fee_amount != null ? Number(it.fee_amount) : Number(priceByBelt[it.belt_id] ?? 0) }));
+
+    // Confere tudo antes de gravar qualquer coisa.
+    await assertStudentsCanBeBilled(sb, items);
+
+    // Quem já está aguardando confirmação na mesma faixa/grau não ganha outro
+    // registro (nem outra cobrança): só atualiza data, avaliador e observações.
+    const { data: existingRows, error: exErr } = await plansTable(sb)
+      .select("id, student_id, belt_id, degree, invoice_id")
+      .eq("status", "planned")
+      .in("student_id", items.map((i) => i.student_id));
+    if (exErr) throw new Error(exErr.message);
+    const existingByKey = new Map<string, { id: string; invoice_id: string | null }>();
+    for (const r of (existingRows ?? []) as any[]) existingByKey.set(`${r.student_id}|${r.belt_id}|${r.degree}`, r);
+
     const created: Array<{ id: string; student_id: string; invoice_id: string | null }> = [];
     const pushes: Array<{ student_id: string; invoice_id: string; amount: number; belt: string }> = [];
-    for (const it of data.items) {
-      const fee = it.fee_amount != null ? Number(it.fee_amount) : Number(priceByBelt[it.belt_id] ?? 0);
+    const newInvoiceIds: string[] = [];
+    const newPlanIds: string[] = [];
+    let updated = 0;
+    try {
+    for (const it of items) {
+      const fee = it.fee;
+      const existing = existingByKey.get(`${it.student_id}|${it.belt_id}|${it.degree}`);
+      if (existing) {
+        const { error: upErr } = await plansTable(sb)
+          .update({ planned_date: data.planned_date, evaluator: data.evaluator ?? null, notes: data.notes ?? null })
+          .eq("id", existing.id);
+        if (upErr) throw new Error(upErr.message);
+        updated++;
+        created.push({ id: existing.id, student_id: it.student_id, invoice_id: existing.invoice_id });
+        continue;
+      }
       let invoiceId: string | null = null;
       if (fee > 0) {
         const paid = it.paid === true;
@@ -88,6 +120,7 @@ export const planGraduations = createServerFn({ method: "POST" })
           .single();
         if (invErr) throw new Error(invErr.message);
         invoiceId = (inv as any).id;
+        newInvoiceIds.push(invoiceId!);
         if (!paid) pushes.push({ student_id: it.student_id, invoice_id: invoiceId!, amount: fee, belt: beltName.get(it.belt_id) ?? "Faixa" });
       }
       const { data: row, error } = await plansTable(sb)
@@ -105,7 +138,15 @@ export const planGraduations = createServerFn({ method: "POST" })
         .select("id")
         .single();
       if (error) throw new Error(error.message);
+      newPlanIds.push((row as any).id);
       created.push({ id: (row as any).id, student_id: it.student_id, invoice_id: invoiceId });
+    }
+    } catch (err) {
+      // Falhou no meio: desfaz o que esta tentativa gravou, para não sobrar
+      // registro pela metade nem duplicar quando o usuário tentar de novo.
+      if (newPlanIds.length) await plansTable(sb).delete().in("id", newPlanIds);
+      if (newInvoiceIds.length) await sb.from("dojo_invoices").delete().in("id", newInvoiceIds);
+      throw new Error(`Nada foi registrado. ${(err as any)?.message ?? err}`);
     }
 
     // Só o aviso da cobrança (a graduação ainda não aconteceu: nada de "Parabéns").
@@ -121,7 +162,7 @@ export const planGraduations = createServerFn({ method: "POST" })
     } catch (err) {
       console.warn("[planGraduations] push falhou:", (err as any)?.message ?? err);
     }
-    return { count: created.length, plans: created, invoices: created.filter((c) => c.invoice_id).length };
+    return { count: created.length, updated, plans: created, invoices: newInvoiceIds.length };
   });
 
 /** Graduações previstas aguardando confirmação. */

@@ -479,7 +479,10 @@ function NewGraduationPage() {
     try {
       const res = await planFn({ data: { items, planned_date: date, evaluator: evaluator || null, notes: notes || null } });
       toast.success(`${res.count} graduação(ões) registrada(s) para confirmar depois`, {
-        description: res.invoices > 0 ? `${res.invoices} taxa(s) lançada(s) no financeiro.` : undefined,
+        description: [
+          res.invoices > 0 ? `${res.invoices} taxa(s) lançada(s) no financeiro.` : "",
+          res.updated > 0 ? `${res.updated} já estava(m) aguardando confirmação e só foi(ram) atualizado(s).` : "",
+        ].filter(Boolean).join(" ") || undefined,
       });
       qc.invalidateQueries({ queryKey: ["dojo-graduation-plans"] });
       qc.invalidateQueries({ queryKey: ["dojo-invoices"] });

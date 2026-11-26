@@ -6,6 +6,7 @@ import { normalizeCurrentBelts } from "@/lib/dojo/current-belts";
 import { resolveDojoOwnerId } from "@/lib/dojo/owner-scope";
 import { normalizeModality } from "@/lib/dojo/modalities";
 import { isBillableStudentStatus } from "@/lib/dojo/student-status";
+import { assertStudentsCanBeBilled } from "@/lib/dojo/billable";
 
 // Owner-scoped helper: every user manages their own dojo. RLS enforces
 // `owner_id = auth.uid()` for reads/writes, so we only need to inject
@@ -1909,6 +1910,12 @@ export const addBulkGraduation = createServerFn({ method: "POST" })
         applied_at: isScheduled ? null : new Date().toISOString(),
       };
     });
+    // Aluno inativo/trancado não pode receber a taxa: confere antes de gravar
+    // as graduações, para não sobrar graduação sem cobrança (e duplicar ao repetir).
+    await assertStudentsCanBeBilled(
+      context.supabase,
+      rows.map((r) => ({ student_id: r.student_id, fee: Number(r.fee_amount ?? 0), paid: items.find((i) => i.student_id === r.student_id)?.paid })),
+    );
     const { data: inserted, error } = await context.supabase
       .from("dojo_graduations").insert(rows).select("id, student_id, belt_id, degree, fee_amount");
     if (error) throw new Error(error.message);
