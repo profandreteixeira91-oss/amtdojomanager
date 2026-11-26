@@ -1,5 +1,5 @@
 import { addDaysISO, addMonthsISO, calendarISO, monthStartISO, todayISO } from "@/lib/dates";
-import { cashDayISO } from "@/lib/dojo/finance-dates";
+import { cashDayISO, entryMonth } from "@/lib/dojo/finance-dates";
 import { isBillableStudentStatus } from "@/lib/dojo/student-status";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -157,6 +157,9 @@ export type InvoiceRow = {
   method?: string | null;
   description?: string | null;
   student_id?: string | null;
+  source?: string | null;
+  enrollment_id?: string | null;
+  asaas_subscription_id?: string | null;
   payment_link?: string | null;
   asaas_invoice_url?: string | null;
   student?: {
@@ -194,14 +197,15 @@ export function useFinanceKpis() {
     const isOpen = (s: string) => s !== "paid" && s !== "cancelled";
 
     const paidInvoices = invoices.filter((i) => i.status === "paid");
-    const paidExpenses = expenses.filter((e) => e.status === "paid");
 
     const paidThisMonth = paidInvoices
       .filter((i) => cashDay(i).startsWith(curMonth))
       .reduce((s, i) => s + Number(i.amount || 0), 0);
 
-    const expensesThisMonth = paidExpenses
-      .filter((e) => cashDay(e).startsWith(curMonth))
+    // Despesas: mesma regra da aba Despesas e do Dashboard (paga no mês do
+    // pagamento; em aberto no mês do vencimento).
+    const expensesThisMonth = expenses
+      .filter((e) => entryMonth(e) === curMonth)
       .reduce((s, e) => s + Number(e.amount || 0), 0);
 
     const netProfit = paidThisMonth - expensesThisMonth;
@@ -247,8 +251,8 @@ export function useFinanceKpis() {
       const receitas = paidInvoices
         .filter((iv) => cashDay(iv).startsWith(key))
         .reduce((s, iv) => s + Number(iv.amount || 0), 0);
-      const despesas = paidExpenses
-        .filter((ex) => cashDay(ex).startsWith(key))
+      const despesas = expenses
+        .filter((ex) => entryMonth(ex) === key)
         .reduce((s, ex) => s + Number(ex.amount || 0), 0);
       months.push({ key, label, receitas, despesas, saldo: receitas - despesas });
     }

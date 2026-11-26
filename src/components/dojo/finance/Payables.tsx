@@ -15,6 +15,7 @@ import { Search, Plus, CheckCircle2, Trash2, Eye } from "lucide-react";
 import { brl, brDate, daysBetween, isoDate, useExpenses, useFinanceSettings, type ExpenseRow } from "./shared";
 import { todayISO } from "@/lib/dates";
 import { EntryDrawer } from "./EntryDrawer";
+import { FinanceCostPanel } from "./CostPanel";
 import { inFinanceMonth, useFinanceMonth } from "./month";
 import { entryMonth } from "@/lib/dojo/finance-dates";
 import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
@@ -84,7 +85,7 @@ export function FinancePayables() {
         },
       });
       const created = (res as any)?.created ?? 1;
-      toast.success(created > 1 ? `${created} lançamentos criados` : "Despesa cadastrada");
+      toast.success(created > 1 ? `${created} despesas criadas` : "Despesa cadastrada");
       setForm({ description: "", amount: "", due_date: isoDate(), category: "", recurrence: "none", installments: "12" });
       setOpen(false);
       refresh();
@@ -124,6 +125,7 @@ export function FinancePayables() {
 
   return (
     <div className="space-y-4">
+      <FinanceCostPanel expenses={(exps.data ?? []) as ExpenseRow[]} />
       {olderOverdue.count > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
           <span>

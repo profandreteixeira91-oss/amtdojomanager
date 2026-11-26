@@ -66,7 +66,7 @@ const sections: Section[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, group: "Visão geral" },
 
   { id: "receivables", label: "Contas a receber", icon: ArrowDownRight, group: "Movimentações" },
-  { id: "payables", label: "Contas a pagar", icon: ArrowUpRight, group: "Movimentações" },
+  { id: "payables", label: "Despesas", icon: ArrowUpRight, group: "Movimentações" },
   { id: "tuition", label: "Mensalidades", icon: Users, group: "Movimentações" },
   { id: "charges", label: "Cobranças", icon: Receipt, group: "Movimentações" },
 
@@ -88,8 +88,9 @@ function FinancePage() {
       case "dashboard":
         return <FinanceDashboard />;
       case "charges":
+        return <FinanceReceivables key="charges" scope="all" />;
       case "receivables":
-        return <FinanceReceivables />;
+        return <FinanceReceivables key="receivables" scope="other" />;
       case "payables":
         return <FinancePayables />;
       case "tuition":

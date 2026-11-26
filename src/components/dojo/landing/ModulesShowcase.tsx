@@ -8,7 +8,7 @@ const CATEGORIES = [
   { id: "aulas", icon: CalendarDays, title: "Aulas e frequência", items: ["Agenda e turmas", "Check-in por QR Code", "Controle de presença por aluno e turma", "Bloqueio de check-in por inadimplência", "Integrações com Gympass e TotalPass"] },
   { id: "ensino", icon: GraduationCap, title: "Graduações e ensino", items: ["Modalidades, faixas e graus", "Critérios de graduação", "Avaliações preenchidas pelo instrutor", "Editor e gerador de certificados", "Competições da equipe"] },
   { id: "comunicacao", icon: Megaphone, title: "Comunicação e app", items: ["Mural de avisos", "Aplicativo do aluno", "Notificações no celular", "Carteirinha com QR Code", "Contratos e mensalidades no app"] },
-  { id: "financeiro", icon: Wallet, title: "Gestão financeira", items: ["Mensalidades e cobranças", "Antecipação de mensalidades", "Contas a pagar e a receber", "Despesas e fluxo de caixa mensal", "Pagamentos por PIX e cartão"] },
+  { id: "financeiro", icon: Wallet, title: "Gestão financeira", items: ["Mensalidades e cobranças", "Antecipação de mensalidades", "Despesas e contas a receber", "Fluxo de caixa mensal", "Pagamentos por PIX e cartão"] },
   { id: "expansao", icon: Store, title: "Expansão", items: ["Loja integrada AMT Fight Wear", "Pedidos de kimonos e faixas", "Ranking de alunos", "Relatórios do dojo"] },
 ] as const;
 

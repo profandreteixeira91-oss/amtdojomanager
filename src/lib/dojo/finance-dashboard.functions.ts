@@ -17,7 +17,7 @@ import { addDaysISO, addMonthsISO, dayISO, monthStartISO, todayISO } from "@/lib
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { cashDayISO } from "@/lib/dojo/finance-dates";
+import { cashDayISO, entryMonth } from "@/lib/dojo/finance-dates";
 import { isBillableStudentStatus } from "@/lib/dojo/student-status";
 
 type MonthPoint = {
@@ -179,9 +179,15 @@ export const dojoFinanceDashboard = createServerFn({ method: "GET" })
     const totalFeesMonth = gatewayFeesMonth + platformFeesMonth;
     const feeRateMonth = grossMonth > 0 ? (totalFeesMonth / grossMonth) * 100 : 0;
 
-    const expensesMonth = expenses
-      .filter((e) => e.status === "paid" && cashDay(e).startsWith(curMonth))
+    // Despesas do mês = mesma regra da aba Despesas: paga conta no mês do
+    // pagamento; em aberto, no mês do vencimento. Antes só entravam as pagas,
+    // e as contas lançadas (ainda não pagas) não apareciam no dashboard.
+    const expensesOfMonth = expenses.filter((e) => entryMonth(e) === curMonth);
+    const expensesPaidMonth = expensesOfMonth
+      .filter((e) => e.status === "paid")
       .reduce((s, e) => s + num(e.amount), 0);
+    const expensesMonth = expensesOfMonth.reduce((s, e) => s + num(e.amount), 0);
+    const expensesOpenMonth = expensesMonth - expensesPaidMonth;
 
     const netProfitMonth = netMonth - expensesMonth;
 
@@ -193,6 +199,10 @@ export const dojoFinanceDashboard = createServerFn({ method: "GET" })
     const overdue = openInvoices.filter((i) => String(i.due_date).slice(0, 10) < today);
     const overdueAmount = overdue.reduce((s, i) => s + num(i.amount), 0);
     const pendingReceivables = openInvoices.reduce((s, i) => s + num(i.amount), 0);
+    // Receita prevista que ainda vai entrar neste mês (vence no mês, em aberto).
+    const receivableMonth = openInvoices
+      .filter((i) => String(i.due_date).startsWith(curMonth))
+      .reduce((s, i) => s + num(i.amount), 0);
     const totalDueMonth = invoices
       .filter((i) => String(i.due_date).startsWith(curMonth) && i.status !== "cancelled")
       .reduce((s, i) => s + num(i.amount), 0);
@@ -245,7 +255,7 @@ export const dojoFinanceDashboard = createServerFn({ method: "GET" })
         0,
       );
       const desp = expenses
-        .filter((ex) => ex.status === "paid" && cashDay(ex).startsWith(key))
+        .filter((ex) => entryMonth(ex) === key)
         .reduce((s, ex) => s + num(ex.amount), 0);
       months.push({ key, label, gross, net, fees, expenses: desp, balance: net - desp });
     }
@@ -330,6 +340,9 @@ export const dojoFinanceDashboard = createServerFn({ method: "GET" })
         totalFees: totalFeesMonth,
         feeRate: feeRateMonth,
         expenses: expensesMonth,
+        expensesPaid: expensesPaidMonth,
+        expensesOpen: expensesOpenMonth,
+        receivable: receivableMonth,
         profit: netProfitMonth,
         avgTicket,
         payersCount: uniqueStudentsPaid.size,

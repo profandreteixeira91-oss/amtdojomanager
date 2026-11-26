@@ -448,6 +448,8 @@ export const finishEvalSession = createServerFn({ method: "POST" })
         degree: sess.template.degree ?? 0,
         graduation_date: new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()),
         notes: "Aprovado na avaliação",
+        // Data de hoje: já vale (a faixa atual só considera graduações aplicadas).
+        applied_at: now,
       } as never);
       if (gradErr) console.warn("[evaluations] graduação automática falhou:", gradErr.message);
     }
