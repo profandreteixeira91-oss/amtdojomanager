@@ -29,6 +29,9 @@ import { planGraduations, listGraduationPlans } from "@/lib/dojo/graduation-plan
 import { GraduationHistory, PlannedGraduations, type GraduationForCertificate } from "@/components/dojo/graduations/GraduationLists";
 import { ClipboardList, History } from "lucide-react";
 
+/** Situações que não aparecem para escolher numa nova graduação. */
+const HIDDEN_FROM_GRADUATION = new Set(["inactive", "frozen", "cancelled"]);
+
 export const Route = createFileRoute("/dojo/app/graduations")({
   head: () => ({ meta: [{ title: "Graduações — AMT Dojo Manager" }] }),
   validateSearch: (s: Record<string, unknown>) => ({
@@ -189,9 +192,18 @@ function NewGraduationPage() {
     [students.data, selectedStudents]
   );
 
+  // Inativo, trancado ou cancelado não entra na lista de graduação: não pode
+  // receber a taxa (o banco recusa a cobrança) nem deveria ser graduado.
+  // O histórico e os certificados de graduações antigas continuam com todos.
+  const graduatableStudents = useMemo(
+    () => (students.data ?? []).filter((s: any) => !HIDDEN_FROM_GRADUATION.has(String(s.status ?? "active"))),
+    [students.data],
+  );
+  const hiddenStudentsCount = (students.data ?? []).length - graduatableStudents.length;
+
   const filteredStudents = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return (students.data ?? []).filter((s: any) => {
+    return graduatableStudents.filter((s: any) => {
       if (q && !s.full_name.toLowerCase().includes(q)) return false;
       // Contrato único: nunca acessar `belt.x` direto — entradas de modalidade
       // sem graduação chegam com `belt: null`.
@@ -208,7 +220,7 @@ function NewGraduationPage() {
       }
       return true;
     });
-  }, [students.data, search, filterModality, filterBeltId]);
+  }, [graduatableStudents, search, filterModality, filterBeltId]);
 
   // Faixas disponíveis para o filtro (respeita a modalidade escolhida no filtro)
   const filterBeltOptions = useMemo(() => {
@@ -1170,6 +1182,9 @@ function NewGraduationPage() {
             <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
               <p className="text-xs text-muted-foreground">
                 {filteredStudents.length} aluno{filteredStudents.length === 1 ? "" : "s"} listado{filteredStudents.length === 1 ? "" : "s"}
+                {hiddenStudentsCount > 0 && (
+                  <> · {hiddenStudentsCount} inativo{hiddenStudentsCount === 1 ? "" : "s"}, trancado{hiddenStudentsCount === 1 ? "" : "s"} ou cancelado{hiddenStudentsCount === 1 ? "" : "s"} não aparece{hiddenStudentsCount === 1 ? "" : "m"}</>
+                )}
               </p>
               <Button onClick={goToGrad} disabled={selectedStudents.size === 0} size="lg" className="shadow-md shadow-primary/20">
                 Continuar <ArrowRight className="ml-1.5 h-4 w-4" />
