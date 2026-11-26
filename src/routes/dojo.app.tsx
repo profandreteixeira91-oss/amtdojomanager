@@ -81,8 +81,24 @@ import { DojoSplash } from "@/components/dojo/DojoSplash";
 import { DojoCommandPalette } from "@/components/dojo/DojoCommandPalette";
 import { attachPushRotationListener, subscriptionToPayload, syncPushSubscription } from "@/lib/pwa/push-client";
 import { getOwnerPushPublicKey, subscribeOwnerPush } from "@/lib/dojo/owner-push.functions";
+import { resolveAccountSurface } from "@/lib/dojo/account-surface.functions";
 
 
+
+// O beforeLoad roda a cada navegação dentro do painel. A decisão de dono é
+// guardada por alguns minutos para não consultar o servidor a cada clique;
+// qualquer outro resultado é sempre reconsultado.
+const OWNER_SURFACE_TTL_MS = 5 * 60_000;
+let ownerSurfaceCache: { userId: string; at: number } | null = null;
+
+async function panelSurfaceFor(userId: string) {
+  if (ownerSurfaceCache?.userId === userId && Date.now() - ownerSurfaceCache.at < OWNER_SURFACE_TTL_MS) {
+    return "owner" as const;
+  }
+  const { surface } = await resolveAccountSurface();
+  ownerSurfaceCache = surface === "owner" || surface === "new" ? { userId, at: Date.now() } : null;
+  return surface;
+}
 
 export const Route = createFileRoute("/dojo/app")({
   head: () => ({ meta: [{ title: "Painel — AMT Dojo Manager" }] }),
@@ -95,26 +111,15 @@ export const Route = createFileRoute("/dojo/app")({
       await supabase.auth.signOut({ scope: "local" }).catch(() => {});
       throw redirect({ to: "/dojo/auth", search: { redirect: location.href } });
     }
-    // Bloqueia contas de aluno: e-mails vinculados a dojo_students só
-    // podem acessar o App do Aluno, nunca o painel do Dojo Manager.
-    const { data: studentRows } = await supabase
-      .from("dojo_students")
-      .select("id")
-      .eq("user_id", data.user.id)
-      .limit(1);
-    if (studentRows && studentRows.length > 0) {
-      throw redirect({ to: "/app" });
-    }
-    // Bloqueia contas de equipe (professores): o login da equipe tem base e
-    // portal próprios. Mesmo digitando a URL do painel do dono, a conta é
-    // devolvida ao Portal da Equipe.
-    const { data: staffRows } = await supabase
-      .from("dojo_staff_accounts")
-      .select("id")
-      .eq("auth_user_id", data.user.id)
-      .limit(1);
-    if (staffRows && staffRows.length > 0) {
+    // Superfície decidida no servidor, com a mesma regra do login: dono vai ao
+    // painel mesmo que também seja aluno ou equipe; equipe vai ao Portal da
+    // Equipe; aluno (só aluno) vai ao App do Aluno, mesmo digitando a URL.
+    const surface = await panelSurfaceFor(data.user.id);
+    if (surface === "staff") {
       throw redirect({ to: "/dojo/staff" });
+    }
+    if (surface === "student") {
+      throw redirect({ to: "/app" });
     }
     return { user: data.user };
   },
