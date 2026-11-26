@@ -25,12 +25,16 @@ import { currentBeltEntries, rankedBelts, beltLabel, beltEntryKey } from "@/lib/
 import { DojoPageHero } from "@/components/dojo/DojoPageHero";
 import { modalityLabel, normalizeModality } from "@/lib/dojo/modalities";
 import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
+import { planGraduations, listGraduationPlans } from "@/lib/dojo/graduation-plans.functions";
+import { GraduationHistory, PlannedGraduations, type GraduationForCertificate } from "@/components/dojo/graduations/GraduationLists";
+import { ClipboardList, History } from "lucide-react";
 
 export const Route = createFileRoute("/dojo/app/graduations")({
   head: () => ({ meta: [{ title: "Graduações — AMT Dojo Manager" }] }),
   validateSearch: (s: Record<string, unknown>) => ({
     student: typeof s.student === "string" ? s.student : undefined,
     session: typeof s.session === "string" ? s.session : undefined,
+    aba: s.aba === "previstas" || s.aba === "historico" ? (s.aba as "previstas" | "historico") : undefined,
   }),
   component: NewGraduationPage,
 });
@@ -77,6 +81,13 @@ function NewGraduationPage() {
   const priceByBelt: Record<string, number> = ((settings.data as any)?.price_by_belt ?? {}) as Record<string, number>;
 
   const [step, setStep] = useState<Step>("select");
+  // Abas: nova graduação (assistente), aguardando confirmação e histórico.
+  const [view, setView] = useState<"nova" | "previstas" | "historico">(routeSearch.aba ?? "nova");
+  const planFn = useServerFn(planGraduations);
+  const plansListFn = useServerFn(listGraduationPlans);
+  const plansQ = useQuery({ queryKey: ["dojo-graduation-plans"], queryFn: () => plansListFn() });
+  const pendingCount = (plansQ.data ?? []).length;
+  const [planning, setPlanning] = useState(false);
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [modality, setModality] = useState<string>("jiu-jitsu");
@@ -441,6 +452,64 @@ function NewGraduationPage() {
     return { paid, pending, total: paid + pending };
   }, [selectedStudents, perStudent, priceByBeltKey]);
 
+  /** Itens da etapa de pagamento (faixa, grau, taxa e se já pagou) — usados para registrar ou confirmar. */
+  const paymentItems = () => Array.from(selectedStudents).map(sid => {
+    const p = perStudent[sid] ?? { beltId, degree };
+    const rawFee = (p.fee ?? "").toString().replace(",", ".").trim();
+    const fallbackFee = p.beltId && priceByBelt[p.beltId] != null ? Number(priceByBelt[p.beltId]) : NaN;
+    const feeNum = rawFee === "" ? fallbackFee : Number(rawFee);
+    return {
+      student_id: sid,
+      belt_id: p.beltId,
+      degree: p.degree,
+      fee_amount: Number.isFinite(feeNum) ? feeNum : null,
+      paid: !!p.paid,
+    };
+  });
+
+  /** Registra quem vai graduar e as taxas, sem aplicar a faixa nem emitir certificado. */
+  const submitPlan = async () => {
+    const items = paymentItems();
+    if (items.some(i => !i.belt_id)) return toast.error("Selecione a faixa de todos os alunos");
+    for (const it of items) {
+      const b = beltById.get(it.belt_id);
+      if (it.degree < 0 || it.degree > (b?.max_degrees ?? 4)) return toast.error(`Grau inválido para ${b?.name ?? "faixa"}`);
+    }
+    setPlanning(true);
+    try {
+      const res = await planFn({ data: { items, planned_date: date, evaluator: evaluator || null, notes: notes || null } });
+      toast.success(`${res.count} graduação(ões) registrada(s) para confirmar depois`, {
+        description: res.invoices > 0 ? `${res.invoices} taxa(s) lançada(s) no financeiro.` : undefined,
+      });
+      qc.invalidateQueries({ queryKey: ["dojo-graduation-plans"] });
+      qc.invalidateQueries({ queryKey: ["dojo-invoices"] });
+      reset();
+      setView("previstas");
+    } catch (e: any) {
+      toast.error(e.message ?? "Erro ao registrar");
+    } finally {
+      setPlanning(false);
+    }
+  };
+
+  /** Leva graduações já confirmadas para a etapa de certificados do assistente. */
+  const loadForCertificates = (grads: GraduationForCertificate[]) => {
+    if (!grads.length) return;
+    const dates = Array.from(new Set(grads.map(g => g.graduation_date)));
+    if (dates.length > 1) toast.message("Certificados de datas diferentes: usando a data de cada cerimônia separadamente é o ideal.", { description: `Data usada: ${dates[0].split("-").reverse().join("/")}` });
+    setSelectedStudents(new Set(grads.map(g => g.student_id)));
+    setPerStudent(Object.fromEntries(grads.map(g => [g.student_id, { beltId: g.belt_id, degree: g.degree }])));
+    setDate(dates[0]);
+    setEvaluator(grads.find(g => g.evaluator)?.evaluator ?? "");
+    setNotes(grads.find(g => g.notes)?.notes ?? "");
+    setRegistered(grads.map(g => ({ id: g.id, student_id: g.student_id })));
+    setIssued(new Map());
+    setPreviewFor(null);
+    setView("nova");
+    setStep("cert");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const submitGrad = async () => {
     const items = Array.from(selectedStudents).map(sid => {
       const p = perStudent[sid] ?? { beltId, degree };
@@ -613,10 +682,10 @@ function NewGraduationPage() {
       <DojoPageHero
         icon={GraduationCap}
         eyebrow={<><Sparkles className="h-3 w-3" /> Cerimônia</>}
-        title="Nova graduação"
-        description="Selecione os alunos, registre a graduação e emita os certificados em um único fluxo guiado."
+        title="Graduações"
+        description="Registre quem vai graduar e as taxas, confirme depois das avaliações e emita os certificados. Todas as graduações ficam no histórico, com as datas."
         actions={
-          step !== "select" ? (
+          view === "nova" && step !== "select" ? (
             <Button variant="outline" size="sm" onClick={reset} className="shrink-0">
               <RotateCcw className="h-4 w-4 mr-1.5" /> Recomeçar
             </Button>
@@ -624,6 +693,37 @@ function NewGraduationPage() {
         }
       />
 
+      {/* ============ ABAS ============ */}
+      <div role="tablist" aria-label="Graduações" className="flex flex-wrap gap-2">
+        {([
+          { id: "nova", label: "Nova graduação", icon: GraduationCap },
+          { id: "previstas", label: `Aguardando confirmação${pendingCount ? ` (${pendingCount})` : ""}`, icon: ClipboardList },
+          { id: "historico", label: "Histórico", icon: History },
+        ] as const).map(t => {
+          const Icon = t.icon;
+          const on = view === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={on}
+              onClick={() => setView(t.id)}
+              className={`inline-flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-colors ${
+                on ? "border-red-600 bg-red-600 text-white shadow-sm" : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+              }`}
+            >
+              <Icon className="h-4 w-4" /> {t.label}
+              {t.id === "previstas" && pendingCount > 0 && !on ? <span className="h-2 w-2 rounded-full bg-amber-500" /> : null}
+            </button>
+          );
+        })}
+      </div>
+
+      {view === "previstas" && <PlannedGraduations onIssue={loadForCertificates} />}
+      {view === "historico" && <GraduationHistory onIssue={loadForCertificates} />}
+
+      {view === "nova" && (<>
       {/* ============ STEPPER ============ */}
       <nav aria-label="Etapas" className="rounded-2xl border border-neutral-200 bg-white p-3 md:p-4">
         <ol className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
@@ -1470,9 +1570,20 @@ function NewGraduationPage() {
               <Button variant="ghost" onClick={() => setStep("grad")}>
                 <ArrowLeft className="mr-1.5 h-4 w-4" /> Voltar
               </Button>
-              <Button onClick={submitGrad} size="lg" className="shadow-md shadow-primary/20">
-                Confirmar e emitir certificados <ArrowRight className="ml-1.5 h-4 w-4" />
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={submitPlan}
+                  disabled={planning}
+                  title="Lança quem vai graduar e as taxas no financeiro. A faixa e os certificados ficam para depois da avaliação."
+                >
+                  <ClipboardList className="mr-1.5 h-4 w-4" /> Registrar sem certificados
+                </Button>
+                <Button onClick={submitGrad} size="lg" className="shadow-md shadow-primary/20" disabled={planning}>
+                  Confirmar e emitir certificados <ArrowRight className="ml-1.5 h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -1575,6 +1686,8 @@ function NewGraduationPage() {
         values={previewFor ? (issued.get(previewFor)?.values ?? {}) : {}}
         title={previewFor ? `Certificado — ${issued.get(previewFor)?.studentName ?? ""}` : undefined}
       />
+
+      </>)}
 
       {/* Progresso da geração de certificados (emissão em lote e impressão/PDF) */}
       <Dialog open={!!issueProgress} onOpenChange={() => { /* bloqueado durante a geração */ }}>
