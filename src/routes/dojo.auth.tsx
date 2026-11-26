@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { motion } from "framer-motion";
 import {
@@ -38,7 +38,7 @@ import { DojoLogo } from "@/components/dojo/DojoLogo";
 import { PasswordStrength, isPasswordStrong, PASSWORD_MIN_LENGTH } from "@/components/auth/PasswordStrength";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { isEmailTeamMember, checkTeamMemberGate } from "@/lib/dojo/team.functions";
-import { getStaffSession } from "@/lib/dojo/staff-portal.functions";
+import { resolveAccountSurface, type AccountSurface } from "@/lib/dojo/account-surface.functions";
 import { registerDojoOwner } from "@/lib/dojo/owner-register.functions";
 import {
   releasePendingDojoOwner,
@@ -66,24 +66,22 @@ export const Route = createFileRoute("/dojo/auth")({
 });
 
 /**
- * Colaboradores (professores/equipe) não são donos de dojo. A verificação lê a
- * base própria da equipe (dojo_staff_accounts): quem tem conta ativa lá nunca
- * recebe contexto de dono e é enviado ao Portal da Equipe (/dojo/staff).
+ * Destino depois do login, a partir da superfície decidida no servidor
+ * (`resolveAccountSurface`). Equipe vai sempre ao Portal da Equipe; dono (ou
+ * conta nova) vai ao painel, respeitando um `redirect` interno do painel.
  */
-async function isStaffAccount(): Promise<boolean> {
-  try {
-    const session = await getStaffSession();
-    return !!session;
-  } catch {
-    return false;
+function panelTarget(surface: AccountSurface, requested?: string): string {
+  if (surface === "staff") return "/dojo/staff";
+  if (
+    requested &&
+    requested.startsWith("/dojo") &&
+    !requested.startsWith("/dojo/staff") &&
+    !requested.startsWith("/dojo/auth")
+  ) {
+    return requested;
   }
-}
-
-async function resolveDestination(_userId: string, requested?: string): Promise<string> {
-  const staff = await isStaffAccount();
-  if (requested && requested.startsWith("/dojo")) return requested;
   // Onboarding é opcional — acesso total ao painel desde o primeiro login.
-  return staff ? "/dojo/staff" : "/dojo/app";
+  return "/dojo/app";
 }
 
 
@@ -123,136 +121,113 @@ function DojoAuthPage() {
   const [conflictDojoName, setConflictDojoName] = useState("");
   const [checking, setChecking] = useState(true);
 
-  useEffect(() => {
-    let redirected = false;
-    const go = async (userId: string) => {
-      if (redirected) return;
-      redirected = true;
+  // Um único fluxo decide o destino de qualquer login (formulário, sessão já
+  // aberta, confirmação por link, outra aba). O ref evita que o evento
+  // SIGNED_IN e o submit do formulário corram em paralelo com regras diferentes.
+  const routingRef = useRef(false);
+  const nameRef = useRef(name);
+  nameRef.current = name;
+  const routeSignedInUser = useCallback(
+    async (userId: string) => {
+      if (routingRef.current) return;
+      routingRef.current = true;
+      const release = () => {
+        routingRef.current = false;
+        setChecking(false);
+        setLoading(false);
+      };
       // A sessão do evento vem do armazenamento local e pode estar inválida
       // (conta excluída, token revogado). Só segue para o painel se o servidor
       // confirmar o usuário — senão o painel devolve para cá, em loop.
       const { data: checked, error: checkErr } = await supabase.auth.getUser();
       if (checkErr || !checked.user || checked.user.id !== userId) {
         await supabase.auth.signOut({ scope: "local" }).catch(() => {});
-        redirected = false;
-        setChecking(false);
+        release();
         return;
       }
-      // Team-member gate: bloqueia acesso caso o e-mail exista em
-      // dojo_team_members sem vínculo ativo com este user_id.
+
+      let surface: AccountSurface;
       try {
-        const gate = await checkTeamMemberGate();
-        if (gate.blocked) {
-          await supabase.auth.signOut();
-          redirected = false;
-          setChecking(false);
-          toast.error("Acesso pendente", {
-            description:
-              gate.reason === "inactive"
-                ? "Seu acesso foi desativado. Fale com o dono do dojo."
-                : "Seu login precisa ser criado pelo dono do dojo no módulo Equipe.",
-          });
-          return;
-        }
-      } catch {
-        // Se a checagem falhar, seguimos sem bloquear para não travar o dono.
-      }
-      // Hardening: Contas de aluno não podem acessar o Dojo Manager sob nenhuma circunstância.
-      const { data: dojoUser, error: duErr } = await supabase
-        .from("dojo_users")
-        .select("id, role, owner_id")
-        .eq("auth_user_id", userId)
-        .eq("status", "active")
-        .maybeSingle();
-
-      if (duErr || !dojoUser) {
-        // Se não é admin, verifica se é aluno tentando entrar no painel administrativo
-        const { data: studentAccount } = await supabase
-          .from("student_accounts")
-          .select("id")
-          .eq("auth_user_id", userId)
-          .maybeSingle();
-
-        if (studentAccount) {
-          await supabase.auth.signOut();
-          redirected = false;
-          setChecking(false);
-          toast.error("Acesso negado", {
-            description: "Alunos devem utilizar o Aplicativo do Aluno.",
-          });
-          window.location.replace("/app");
-          return;
-        }
-
-        // Se for um novo cadastro ou login sem vínculo, permitimos o fluxo de dojo_manager
-        // APENAS se não houver conflito de aluno (já validado acima) e se a conta
-        // NÃO for de um colaborador (professor/equipe) criado pelo dono do dojo —
-        // esses logins nunca devem virar novos usuários/donos do Dojo Manager.
-        const isStaff = await isStaffAccount();
-        if (!isStaff) {
-          const { data: userData } = await supabase.auth.getUser();
-          try {
-            await registerDojoOwner({
-              data: {
-                name:
-                  (userData.user?.user_metadata?.full_name as string | undefined) ||
-                  name ||
-                  undefined,
-              },
-            });
-          } catch {
-            // Falha no registro não deve travar o login do dono.
-          }
-        }
-
-
-        await supabase.auth.updateUser({ data: { account_type: "dojo_manager" } });
-      } else {
-        // Pega os dados do usuário atual para verificar metadados
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
-        if (currentUser && currentUser.user_metadata?.account_type !== "dojo_manager") {
-          await supabase.auth.updateUser({ data: { account_type: "dojo_manager" } });
-        }
-      }
-      
-      const target = await resolveDestination(userId, search.redirect);
-      window.location.replace(target);
-    };
-    // Captura confirmação de email (hash tokens) e login em qualquer aba.
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user && (event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED")) {
-        void go(session.user.id);
-      }
-    });
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) void go(data.user.id);
-      else setChecking(false);
-    });
-    return () => sub.subscription.unsubscribe();
-  }, [search.redirect]);
-
-
-  const goAfterAuth = async () => {
-    const { data } = await supabase.auth.getUser();
-    if (!data.user) return;
-    // Aplica o gate de membro de equipe: bloqueia se o e-mail existe em
-    // dojo_team_members sem vínculo ativo com este user_id.
-    try {
-      const gate = await checkTeamMemberGate();
-      if (gate.blocked) {
-        await supabase.auth.signOut();
-        toast.error("Acesso pendente", {
-          description:
-            gate.reason === "inactive"
-              ? "Seu acesso foi desativado. Fale com o dono do dojo."
-              : "Seu login precisa ser criado pelo dono do dojo no módulo Equipe.",
+        ({ surface } = await resolveAccountSurface());
+      } catch (err) {
+        await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+        release();
+        toast.error("Não foi possível verificar sua conta", {
+          description: err instanceof Error ? err.message : "Tente novamente em instantes.",
         });
         return;
       }
-    } catch { /* segue em caso de falha na checagem */ }
-    const target = await resolveDestination(data.user.id, search.redirect);
-    window.location.assign(target);
-  };
+
+      // Aluno (sem ser dono nem equipe) nunca entra no painel.
+      if (surface === "student") {
+        await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+        release();
+        toast.error("Acesso negado", {
+          description: "Esta conta é de aluno. Use o App do Aluno.",
+        });
+        window.location.replace("/app");
+        return;
+      }
+
+      // Conta sem vínculo: antes de virar dono, confere se o e-mail é de um
+      // colaborador ainda não provisionado (o login dele é criado pelo dono).
+      // Donos já existentes nunca passam por esse bloqueio.
+      if (surface === "new") {
+        try {
+          const gate = await checkTeamMemberGate();
+          if (gate.blocked) {
+            await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+            release();
+            toast.error("Acesso pendente", {
+              description:
+                gate.reason === "inactive"
+                  ? "Seu acesso foi desativado. Fale com o dono do dojo."
+                  : "Seu login precisa ser criado pelo dono do dojo no módulo Equipe.",
+            });
+            return;
+          }
+        } catch {
+          // Se a checagem falhar, seguimos sem bloquear para não travar o dono.
+        }
+        try {
+          await registerDojoOwner({
+            data: {
+              name:
+                (checked.user.user_metadata?.full_name as string | undefined) ||
+                nameRef.current ||
+                undefined,
+            },
+          });
+        } catch {
+          // Falha no registro não deve travar o login do dono.
+        }
+      }
+
+      if (
+        (surface === "owner" || surface === "new") &&
+        checked.user.user_metadata?.account_type !== "dojo_manager"
+      ) {
+        await supabase.auth.updateUser({ data: { account_type: "dojo_manager" } }).catch(() => {});
+      }
+
+      window.location.replace(panelTarget(surface, search.redirect));
+    },
+    [search.redirect],
+  );
+
+  useEffect(() => {
+    // Captura confirmação de email (hash tokens) e login em qualquer aba.
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
+        void routeSignedInUser(session.user.id);
+      }
+    });
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) void routeSignedInUser(data.user.id);
+      else setChecking(false);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, [routeSignedInUser]);
 
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -281,37 +256,9 @@ function DojoAuthPage() {
       }
       return toast.error("Falha ao entrar", { description: translateAuthError(error.message) });
     }
-    // Hardening: Contas de aluno não podem acessar o Dojo Manager sob nenhuma circunstância.
-    if (signInData.user) {
-      const { data: studentRows } = await supabase
-        .from("dojo_students")
-        .select("id")
-        .eq("user_id", signInData.user.id)
-        .limit(1);
-
-      // Verificação dupla: por user_id e também por e-mail para cobrir importações manuais
-      const userEmail = signInData.user.email?.trim().toLowerCase();
-      const { data: studentByEmail } = userEmail 
-        ? await supabase
-            .from("dojo_students")
-            .select("id")
-            .eq("email", userEmail)
-            .limit(1)
-        : { data: null };
-
-      if ((studentRows && studentRows.length > 0) || (studentByEmail && studentByEmail.length > 0)) {
-        await supabase.auth.signOut();
-        setLoading(false);
-        toast.error("Acesso negado", {
-          description: "Este e-mail pertence a um aluno. Use o App do Aluno.",
-        });
-        window.location.assign("/app");
-        return;
-      }
-    }
-    setLoading(false);
-    toast.success("Bem-vindo de volta!");
-    await goAfterAuth();
+    // O destino (painel, Portal da Equipe ou App do Aluno) é decidido no
+    // servidor pelo vínculo da conta — nunca pelo e-mail digitado.
+    if (signInData.user) await routeSignedInUser(signInData.user.id);
   };
 
   const handleSignUp = async (e: React.FormEvent) => {

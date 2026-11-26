@@ -19,7 +19,7 @@ import {
   ShieldCheck,
   Wallet,
 } from "lucide-react";
-import { checkStudentAccess, activateStudentAccount } from "@/lib/student/activation.functions";
+import { checkStudentAccess, activateStudentAccount, linkMyStudentEnrollments } from "@/lib/student/activation.functions";
 import { redeemStudentPasswordReset, requestStudentPasswordReset } from "@/lib/student-auth/password-reset.functions";
 import { RESET_CODE_TTL_MINUTES } from "@/lib/student-auth/password-reset";
 import { DOJO_LOGO_HEIGHT, DOJO_LOGO_SRC, DOJO_LOGO_WIDTH } from "@/components/dojo/DojoLogo";
@@ -54,6 +54,7 @@ function LoginPage() {
   const navigate = useNavigate();
   const check = useServerFn(checkStudentAccess);
   const activate = useServerFn(activateStudentAccount);
+  const linkEnrollments = useServerFn(linkMyStudentEnrollments);
   const requestReset = useServerFn(requestStudentPasswordReset);
   const redeemReset = useServerFn(redeemStudentPasswordReset);
 
@@ -112,6 +113,13 @@ function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     setLoading(false);
     if (error) return toast.error("Não foi possível entrar", { description: error.message });
+    // Matrículas novas com este e-mail (ex.: outra academia) passam a apontar
+    // para a conta só agora, depois de a senha ser comprovada.
+    try {
+      await linkEnrollments();
+    } catch {
+      /* o app segue com as matrículas já vinculadas */
+    }
     navigate({ to: "/app/home", replace: true });
   }
 
@@ -121,7 +129,16 @@ function LoginPage() {
     if (password !== passwordConfirm) return toast.error("As senhas não conferem");
     setLoading(true);
     try {
-      await activate({ data: { email: email.trim(), password } });
+      const res = await activate({ data: { email: email.trim(), password } });
+      if (res.existingAccount) {
+        setPassword("");
+        setPasswordConfirm("");
+        setStep("password");
+        toast.info("Este e-mail já tem uma conta", {
+          description: "Entre com a senha dessa conta ou use “Esqueci minha senha”.",
+        });
+        return;
+      }
       const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (error) throw error;
       toast.success("Senha criada com sucesso!");
