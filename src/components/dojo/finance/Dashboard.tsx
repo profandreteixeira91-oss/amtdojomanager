@@ -176,10 +176,10 @@ export function FinanceDashboard() {
 
         <Kpi
           icon={TrendingUp}
-          label={`Receita bruta · ${monthTag}`}
+          label={`Receita recebida · ${monthTag}`}
           value={brl(month.gross)}
           tone="positive"
-          hint={`${month.payersCount} pagante(s)`}
+          hint={`${month.payersCount} pagante(s) · ${brl(month.receivable)} ainda a receber`}
         />
         <Kpi
           icon={CircleDollarSign}
@@ -200,13 +200,14 @@ export function FinanceDashboard() {
           label={`Despesas · ${monthTag}`}
           value={brl(month.expenses)}
           tone="negative"
+          hint={`Pago ${brl(month.expensesPaid)} · a pagar ${brl(month.expensesOpen)}`}
         />
         <Kpi
           icon={Calculator}
-          label={`Lucro líquido · ${monthTag}`}
+          label={`Resultado · ${monthTag}`}
           value={brl(month.profit)}
           tone={month.profit >= 0 ? "positive" : "negative"}
-          hint="Líquido − despesas"
+          hint="Receita líquida − despesas do mês"
         />
         <Kpi
           icon={LineIcon}

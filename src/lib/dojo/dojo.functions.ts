@@ -210,6 +210,10 @@ async function attachCurrentBeltsByModality(
       .from("dojo_graduations")
       .select("student_id, degree, graduation_date, belt:dojo_belts(id,name,color_hex,stripe_hex,max_degrees,modality,sort_order,visual,variants)")
       .in("student_id", ids)
+      // Graduação agendada (applied_at nulo) ainda não vale: a faixa só muda no
+      // dia da cerimônia, quando o cron a aplica. Mesma regra do banco
+      // (dojo_recompute_current_belt).
+      .not("applied_at", "is", null)
       .order("graduation_date", { ascending: false }),
     supabase
       .from("dojo_class_students")
@@ -319,6 +323,8 @@ export const getDojoStudent = createServerFn({ method: "GET" })
     const currentByModality = new Map<string, any>();
     for (const g of grads.data ?? []) {
       if (!g.belt) continue;
+      // Agendada (ainda não aplicada) aparece no histórico, mas não é a faixa atual.
+      if (!(g as any).applied_at) continue;
       const mod = normalizeModality((g.belt as any).modality) || "jiu-jitsu";
       if (!currentByModality.has(mod)) {
         currentByModality.set(mod, { 
@@ -359,7 +365,8 @@ export const listGraduationProgress = createServerFn({ method: "GET" })
     const [studentsRes, beltsRes, gradsRes, attRes] = await Promise.all([
       context.supabase.from("dojo_students").select("id, full_name, current_belt_id, current_degree, graduation_criteria_mode, graduation_min_classes, graduation_min_months, created_at"),
       context.supabase.from("dojo_belts").select("id, name, modality, min_months, min_classes, criteria_mode, sort_order, max_degrees, color_hex, stripe_hex"),
-      context.supabase.from("dojo_graduations").select("student_id, belt_id, graduation_date, degree"),
+      // Só graduações já aplicadas: a agendada não muda a faixa nem zera a contagem.
+      context.supabase.from("dojo_graduations").select("student_id, belt_id, graduation_date, degree").not("applied_at", "is", null),
       context.supabase.from("dojo_attendance").select("student_id, checked_in_at").not("student_id", "is", null),
     ]);
     if (studentsRes.error) throw new Error(studentsRes.error.message);

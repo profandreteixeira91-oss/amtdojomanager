@@ -537,7 +537,7 @@ const paymentSchema = z.object({
 });
 
 /**
- * Cada lançamento da folha aparece em Contas a pagar: pendente enquanto não
+ * Cada lançamento da folha aparece em Despesas: pendente enquanto não
  * for pago (com o vencimento da folha) e pago no dia do pagamento.
  * Desconto não é saída de caixa (só reduz o líquido) e cancelado sai da lista.
  */
@@ -863,7 +863,7 @@ export const closePayrollMonth = createServerFn({ method: "POST" })
 
     const { data: inserted, error } = await context.supabase.from("dojo_team_payments").insert(rows).select("id");
     if (error) throw new Error(error.message);
-    // Folha fechada já entra em Contas a pagar (pendente).
+    // Folha fechada já entra em Despesas (pendente).
     for (const r of (inserted ?? []) as Array<{ id: string }>) {
       await ensureExpenseForPayment(context.supabase, context.userId, r.id);
     }

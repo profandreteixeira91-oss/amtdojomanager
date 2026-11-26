@@ -243,8 +243,8 @@ export const EXTRA_TRACKS: TutorialTrack[] = [
       },
       {
         title: "Despesas",
-        text: "Para o resultado ficar real, lance as despesas em “Contas a pagar” › “Nova despesa”.",
-        target: "text:Contas a pagar",
+        text: "Para o resultado ficar real, lance as despesas em “Despesas” › “Nova despesa”.",
+        target: "text:Despesas",
         seconds: 20,
       },
       {

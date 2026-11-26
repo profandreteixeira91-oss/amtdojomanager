@@ -1221,8 +1221,15 @@ function StudentDetail() {
                                     </div>
                                     {/* Nome da graduação */}
                                     <div className="min-w-0 flex-1">
-                                      <div className="truncate font-medium">
-                                        {formatBeltFull(g.belt?.name ?? "", g.belt?.modality, g.degree)}
+                                      <div className="flex min-w-0 items-center gap-1.5 font-medium">
+                                        <span className="truncate">
+                                          {formatBeltFull(g.belt?.name ?? "", g.belt?.modality, g.degree)}
+                                        </span>
+                                        {!g.applied_at && (
+                                          <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                                            Agendada · troca em {fmtDate(g.graduation_date)}
+                                          </span>
+                                        )}
                                       </div>
                                       <div className="truncate text-xs text-muted-foreground">
                                         {fmtDate(g.graduation_date)} · {g.evaluator ?? "Avaliador não informado"}

@@ -27,6 +27,7 @@ import { EntryDrawer } from "./EntryDrawer";
 import { inFinanceMonth, useFinanceMonth } from "./month";
 import { entryMonth } from "@/lib/dojo/finance-dates";
 import { ShareInvoiceMenu } from "./ShareInvoice";
+import { isTuitionInvoice } from "@/lib/dojo/invoice-kind";
 
 const STATUS_LABEL: Record<string, string> = {
   paid: "Pago",
@@ -69,7 +70,11 @@ function statusClasses(key: string) {
   }
 }
 
-export function FinanceReceivables() {
+/**
+ * `other` (Contas a receber): tudo menos mensalidade, que tem aba própria.
+ * `all` (Cobranças): todas as cobranças, para enviar e acompanhar links.
+ */
+export function FinanceReceivables({ scope = "other" }: { scope?: "other" | "all" } = {}) {
   const [status, setStatus] = useState("all");
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<InvoiceRow | null>(null);
@@ -88,18 +93,22 @@ export function FinanceReceivables() {
   };
 
   const { month, setMonth } = useFinanceMonth();
+  const baseRows = useMemo(() => {
+    const all = (invs.data ?? []) as InvoiceRow[];
+    return scope === "other" ? all.filter((r) => !isTuitionInvoice(r)) : all;
+  }, [invs.data, scope]);
   // Vencidas de meses anteriores ao escolhido: não somem de vista.
   const olderOverdue = useMemo(() => {
     if (month === "all") return { count: 0, total: 0 };
-    const rows = ((invs.data ?? []) as InvoiceRow[]).filter(
+    const rows = baseRows.filter(
       (r) => effectiveKey(r) === "overdue" && r.due_date.slice(0, 7) < month,
     );
     return { count: rows.length, total: rows.reduce((s, r) => s + Number(r.amount || 0), 0) };
-  }, [invs.data, month]);
+  }, [baseRows, month]);
 
   const items = useMemo(() => {
     // Mês: pago conta no mês do pagamento; em aberto, no do vencimento.
-    let rows = ((invs.data ?? []) as InvoiceRow[]).filter((r) => inFinanceMonth(entryMonth(r), month));
+    let rows = baseRows.filter((r) => inFinanceMonth(entryMonth(r), month));
     if (status === "overdue") rows = rows.filter((r) => effectiveKey(r) === "overdue");
     else if (status === "pending") rows = rows.filter((r) => ["pending", "due_soon"].includes(effectiveKey(r)));
     else if (status !== "all") rows = rows.filter((r) => r.status === status);
@@ -111,7 +120,7 @@ export function FinanceReceivables() {
         (r.description ?? "").toLowerCase().includes(t) ||
         String(r.amount).includes(t),
     );
-  }, [invs.data, q, status, month]);
+  }, [baseRows, q, status, month]);
 
   const paid = items.filter((i) => effectiveKey(i) === "paid");
   const pending = items.filter((i) => effectiveKey(i) === "pending");
@@ -154,6 +163,15 @@ export function FinanceReceivables() {
 
   return (
     <div className="space-y-4">
+      {scope === "other" && (
+        <div className="flex items-center gap-2 rounded-xl border border-[color:var(--dojo-border)] px-3 py-2 text-xs text-muted-foreground">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0 text-primary" />
+          <span>
+            Taxas de matrícula e graduação, vendas e lançamentos avulsos. As mensalidades ficam na aba
+            <b className="text-foreground"> Mensalidades</b>.
+          </span>
+        </div>
+      )}
       {olderOverdue.count > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
           <span>

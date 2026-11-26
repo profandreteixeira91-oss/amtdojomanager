@@ -19,6 +19,7 @@ import { Search, Info, CalendarIcon, CheckCircle2, CalendarClock } from "lucide-
 import { useQuery } from "@tanstack/react-query";
 import { listDojoPlans } from "@/lib/dojo/dojo.functions";
 import { useInvoices, type InvoiceRow } from "./shared";
+import { isTuitionInvoice } from "@/lib/dojo/invoice-kind";
 import { TuitionByStudent, type TuitionInvoice } from "./TuitionList";
 import { PrepayDialog } from "./PrepayDialog";
 import { useFinanceMonth } from "./month";
@@ -51,8 +52,9 @@ export function FinanceTuition() {
   };
 
   const { month } = useFinanceMonth();
-  // Mensalidade é do mês em que vence (competência), paga ou não.
-  const rows = (((invs.data ?? []) as InvoiceRow[]) as unknown as TuitionInvoice[]).filter(
+  // Só mensalidades: taxas (matrícula, graduação), vendas e avulsos ficam em
+  // Contas a receber. Mensalidade é do mês em que vence (competência), paga ou não.
+  const rows = (((invs.data ?? []) as InvoiceRow[]).filter(isTuitionInvoice) as unknown as TuitionInvoice[]).filter(
     (r) => month === "all" || String(r.due_date).startsWith(month),
   );
   const term = q.trim().toLowerCase();
