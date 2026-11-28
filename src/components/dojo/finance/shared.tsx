@@ -156,6 +156,8 @@ export type InvoiceRow = {
   paid_at?: string | null;
   method?: string | null;
   description?: string | null;
+  /** Tipo da cobrança: ver `@/lib/dojo/invoice-kind`. */
+  source?: string | null;
   student_id?: string | null;
   payment_link?: string | null;
   asaas_invoice_url?: string | null;

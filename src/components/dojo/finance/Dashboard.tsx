@@ -179,7 +179,7 @@ export function FinanceDashboard() {
           label={`Receita bruta · ${monthTag}`}
           value={brl(month.gross)}
           tone="positive"
-          hint={`${month.payersCount} pagante(s)`}
+          hint={`${month.payersCount} pagante(s) · a receber ${brl(month.receivable)}`}
         />
         <Kpi
           icon={CircleDollarSign}
@@ -197,16 +197,17 @@ export function FinanceDashboard() {
         />
         <Kpi
           icon={TrendingDown}
-          label={`Despesas · ${monthTag}`}
-          value={brl(month.expenses)}
+          label={`Contas a pagar · ${monthTag}`}
+          value={brl(month.expensesDue)}
           tone="negative"
+          hint={`Pago ${brl(month.expenses)} · em aberto ${brl(month.expensesOpen)}`}
         />
         <Kpi
           icon={Calculator}
           label={`Lucro líquido · ${monthTag}`}
           value={brl(month.profit)}
           tone={month.profit >= 0 ? "positive" : "negative"}
-          hint="Líquido − despesas"
+          hint="Líquido − contas pagas"
         />
         <Kpi
           icon={LineIcon}
@@ -227,6 +228,17 @@ export function FinanceDashboard() {
           value={brl(pipeline.overdueAmount)}
           tone="warning"
           hint={`${pipeline.overdueCount} cobrança(s)`}
+        />
+        <Kpi
+          icon={ArrowUpRight}
+          label="A pagar"
+          value={brl(pipeline.pendingPayables)}
+          tone="negative"
+          hint={
+            pipeline.overduePayablesCount > 0
+              ? `${pipeline.payablesCount} conta(s) · ${brl(pipeline.overduePayables)} atrasado`
+              : `${pipeline.payablesCount} conta(s) em aberto`
+          }
         />
         <Kpi
           icon={Users}
@@ -282,7 +294,7 @@ export function FinanceDashboard() {
         </div>
       </Card>
 
-      {/* Bruto × Líquido × Taxas × Despesas */}
+      {/* Bruto × Líquido × Contas pagas */}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] min-w-0">
 
         <Card className="p-4 border border-[color:var(--dojo-border)] min-w-0 overflow-hidden">
@@ -290,7 +302,7 @@ export function FinanceDashboard() {
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="font-display font-bold text-sm">
-                Bruto × Líquido × Despesas
+                Bruto × Líquido × Contas pagas
               </h3>
               <p className="text-xs text-muted-foreground">Últimos 12 meses</p>
             </div>
@@ -306,7 +318,7 @@ export function FinanceDashboard() {
               <Tooltip formatter={(v: number) => brl(v)} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Bar dataKey="gross" name="Bruto" fill="#10b981" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="expenses" name="Despesas" fill="#dc2626" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="expenses" name="Contas pagas" fill="#dc2626" radius={[4, 4, 0, 0]} />
               <Line
                 type="monotone"
                 dataKey="net"
@@ -363,7 +375,7 @@ export function FinanceDashboard() {
                 Saldo líquido acumulado
               </h3>
               <p className="text-xs text-muted-foreground">
-                Líquido − despesas por mês
+                Líquido − contas pagas por mês
               </p>
             </div>
           </div>

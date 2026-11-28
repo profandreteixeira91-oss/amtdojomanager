@@ -88,8 +88,9 @@ function FinancePage() {
       case "dashboard":
         return <FinanceDashboard />;
       case "charges":
+        return <FinanceReceivables key="charges" scope="all" />;
       case "receivables":
-        return <FinanceReceivables />;
+        return <FinanceReceivables key="receivables" scope="other" />;
       case "payables":
         return <FinancePayables />;
       case "tuition":

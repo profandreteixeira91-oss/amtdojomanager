@@ -22,6 +22,7 @@ import { useInvoices, type InvoiceRow } from "./shared";
 import { TuitionByStudent, type TuitionInvoice } from "./TuitionList";
 import { PrepayDialog } from "./PrepayDialog";
 import { useFinanceMonth } from "./month";
+import { isTuitionInvoice } from "@/lib/dojo/invoice-kind";
 
 const brl = (n: number | null | undefined) =>
   Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -51,10 +52,11 @@ export function FinanceTuition() {
   };
 
   const { month } = useFinanceMonth();
+  // Só mensalidades (taxa de graduação, venda e filial ficam em Contas a receber).
   // Mensalidade é do mês em que vence (competência), paga ou não.
-  const rows = (((invs.data ?? []) as InvoiceRow[]) as unknown as TuitionInvoice[]).filter(
-    (r) => month === "all" || String(r.due_date).startsWith(month),
-  );
+  const rows = ((invs.data ?? []) as InvoiceRow[])
+    .filter((r) => isTuitionInvoice(r))
+    .filter((r) => month === "all" || String(r.due_date).startsWith(month)) as unknown as TuitionInvoice[];
   const term = q.trim().toLowerCase();
   const filtered = term
     ? rows.filter((r) => (r.student?.full_name ?? "").toLowerCase().includes(term))

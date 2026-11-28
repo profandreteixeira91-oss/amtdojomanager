@@ -18,7 +18,7 @@ import { diffDaysISO, todayISO } from "@/lib/dates";
 function printFinanceReport(k: ReturnType<typeof useFinanceKpis>, branding: any) {
   const kpiCards = [
     ["Receitas do mês", brl(k.paidThisMonth)],
-    ["Despesas do mês", brl(k.expensesThisMonth)],
+    ["Contas pagas no mês", brl(k.expensesThisMonth)],
     ["Lucro líquido", brl(k.netProfit)],
     ["MRR (30d)", brl(k.mrr)],
     ["A receber", brl(k.pendingReceivables)],
@@ -53,7 +53,7 @@ function printFinanceReport(k: ReturnType<typeof useFinanceKpis>, branding: any)
       { title: "Indicadores do mês", html: `<div class="kpi-grid" style="grid-template-columns:repeat(4,minmax(0,1fr))">${kpiCards}</div>` },
       {
         title: "Evolução últimos 12 meses",
-        html: `<table class="data"><thead><tr><th>Mês</th><th class="num">Receitas</th><th class="num">Despesas</th><th class="num">Saldo</th></tr></thead><tbody>${monthsRows}</tbody></table>`,
+        html: `<table class="data"><thead><tr><th>Mês</th><th class="num">Receitas</th><th class="num">Contas pagas</th><th class="num">Saldo</th></tr></thead><tbody>${monthsRows}</tbody></table>`,
       },
       {
         title: "Formas de pagamento recebidas",
@@ -188,7 +188,7 @@ function buildReport(id: string, k: ReturnType<typeof useFinanceKpis>): ReportDa
         pagamento: fmtDate(r.paid_at),
       }));
       return {
-        title: "Relatório de Despesas",
+        title: "Relatório de Contas a pagar",
         subtitle: "Saídas por categoria",
         columns: [
           { key: "descricao", label: "Descrição" },
@@ -218,7 +218,7 @@ function buildReport(id: string, k: ReturnType<typeof useFinanceKpis>): ReportDa
         columns: [
           { key: "mes", label: "Mês" },
           { key: "receitas", label: "Receitas", num: true, money: true },
-          { key: "despesas", label: "Despesas", num: true, money: true },
+          { key: "despesas", label: "Contas pagas", num: true, money: true },
           { key: "saldo", label: "Saldo", num: true, money: true },
         ],
         rows,
@@ -299,7 +299,7 @@ function buildReport(id: string, k: ReturnType<typeof useFinanceKpis>): ReportDa
         .sort((a, b) => b.total - a.total);
       return {
         title: "Rateio por Centro de Custo",
-        subtitle: "Distribuição de despesas",
+        subtitle: "Distribuição das contas a pagar",
         columns: [
           { key: "centro", label: "Centro de custo" },
           { key: "total", label: "Total", num: true, money: true },
@@ -388,7 +388,7 @@ export function FinanceReports() {
 
   const reports = [
     { id: "receitas", name: "Receitas", desc: "Cobranças recebidas por período" },
-    { id: "despesas", name: "Despesas", desc: "Saídas por categoria" },
+    { id: "despesas", name: "Contas a pagar", desc: "Saídas por categoria" },
     { id: "fluxo", name: "Fluxo de caixa", desc: "Entradas × saídas consolidado" },
     { id: "inadim", name: "Inadimplência", desc: "Alunos com atraso" },
     { id: "modalidade", name: "Modalidade", desc: "Receita por modalidade" },
@@ -431,7 +431,7 @@ export function FinanceReports() {
                 ],
                 rows: [
                   { indicador: "Receitas do mês", valor: brl(k.paidThisMonth) },
-                  { indicador: "Despesas do mês", valor: brl(k.expensesThisMonth) },
+                  { indicador: "Contas pagas no mês", valor: brl(k.expensesThisMonth) },
                   { indicador: "Lucro líquido", valor: brl(k.netProfit) },
                   { indicador: "MRR (30d)", valor: brl(k.mrr) },
                   { indicador: "A receber", valor: brl(k.pendingReceivables) },
@@ -486,7 +486,7 @@ export function FinanceReports() {
         <h3 className="font-display font-bold text-sm mb-3">Indicadores</h3>
         <div className="grid gap-3 md:grid-cols-4">
           <Kv label="Receitas mês" value={brl(k.paidThisMonth)} />
-          <Kv label="Despesas mês" value={brl(k.expensesThisMonth)} />
+          <Kv label="Contas pagas no mês" value={brl(k.expensesThisMonth)} />
           <Kv label="Lucro líquido" value={brl(k.netProfit)} />
           <Kv label="MRR (30d)" value={brl(k.mrr)} />
         </div>

@@ -34,7 +34,7 @@ export function EntryDrawer({
             {isInvoice ? inv.student?.full_name ?? "Lançamento" : exp.description}
           </SheetTitle>
           <SheetDescription>
-            {isInvoice ? inv.description ?? "Cobrança" : exp.category ?? "Despesa"}
+            {isInvoice ? inv.description ?? "Cobrança" : exp.category ?? "Conta a pagar"}
           </SheetDescription>
         </SheetHeader>
 
@@ -78,7 +78,7 @@ export function EntryDrawer({
 
           <Section title="Histórico" icon={History}>
             <TimelineItem label="Lançamento criado" date={entry.due_date} />
-            {entry.paid_at && <TimelineItem label={isInvoice ? "Pagamento registrado" : "Despesa paga"} date={entry.paid_at} tone="ok" />}
+            {entry.paid_at && <TimelineItem label={isInvoice ? "Pagamento registrado" : "Conta paga"} date={entry.paid_at} tone="ok" />}
             {overdueDays > 0 && <TimelineItem label={`${overdueDays} dias em atraso`} date={isoDate()} tone="warn" />}
           </Section>
 

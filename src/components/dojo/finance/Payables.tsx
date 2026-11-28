@@ -11,12 +11,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Search, Plus, CheckCircle2, Trash2, Eye } from "lucide-react";
+import { Search, Plus, CheckCircle2, Trash2, Eye, Building2 } from "lucide-react";
 import { brl, brDate, daysBetween, isoDate, useExpenses, useFinanceSettings, type ExpenseRow } from "./shared";
 import { todayISO } from "@/lib/dates";
 import { EntryDrawer } from "./EntryDrawer";
 import { inFinanceMonth, useFinanceMonth } from "./month";
-import { entryMonth } from "@/lib/dojo/finance-dates";
+import { entryMonth, monthLongLabel, shiftMonth } from "@/lib/dojo/finance-dates";
 import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
 
 export function FinancePayables() {
@@ -84,7 +84,7 @@ export function FinancePayables() {
         },
       });
       const created = (res as any)?.created ?? 1;
-      toast.success(created > 1 ? `${created} lançamentos criados` : "Despesa cadastrada");
+      toast.success(created > 1 ? `${created} contas criadas` : "Conta a pagar cadastrada");
       setForm({ description: "", amount: "", due_date: isoDate(), category: "", recurrence: "none", installments: "12" });
       setOpen(false);
       refresh();
@@ -105,17 +105,17 @@ export function FinancePayables() {
           paid_at: new Date().toISOString(),
         },
       });
-      toast.success("Despesa paga");
+      toast.success("Conta paga");
       refresh();
     } catch (e: any) {
       toast.error(e.message);
     }
   };
   const handleDelete = async (id: string) => {
-    if (!confirm("Excluir esta despesa?")) return;
+    if (!confirm("Excluir esta conta a pagar?")) return;
     try {
       await delFn({ data: { id } });
-      toast.success("Despesa excluída");
+      toast.success("Conta excluída");
       refresh();
     } catch (e: any) {
       toast.error(e.message);
@@ -124,10 +124,11 @@ export function FinancePayables() {
 
   return (
     <div className="space-y-4">
+      <PayablesCostPanel expenses={(exps.data ?? []) as ExpenseRow[]} loading={exps.isLoading} />
       {olderOverdue.count > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
           <span>
-            <strong>{olderOverdue.count}</strong> despesa(s) atrasada(s) de meses anteriores · {brl(olderOverdue.total)}
+            <strong>{olderOverdue.count}</strong> conta(s) atrasada(s) de meses anteriores · {brl(olderOverdue.total)}
           </span>
           <Button
             size="sm"
@@ -167,12 +168,12 @@ export function FinancePayables() {
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button className="h-9">
-                <Plus className="h-4 w-4 mr-1" /> Nova despesa
+                <Plus className="h-4 w-4 mr-1" /> Nova conta a pagar
               </Button>
             </DialogTrigger>
             <DialogContent className="w-[calc(100vw-1rem)] max-w-lg">
               <DialogHeader>
-                <DialogTitle>Nova despesa</DialogTitle>
+                <DialogTitle>Nova conta a pagar</DialogTitle>
               </DialogHeader>
               <div className="grid gap-3 py-2">
                 <div className="grid gap-1.5">
@@ -267,7 +268,7 @@ export function FinancePayables() {
         </Card>
       ) : rows.length === 0 ? (
         <Card className="border border-[color:var(--dojo-border)] p-8 text-center">
-          <p className="text-sm text-muted-foreground">Nenhuma despesa cadastrada.</p>
+          <p className="text-sm text-muted-foreground">Nenhuma conta a pagar nesta visão.</p>
         </Card>
       ) : (
         <Card className="border border-[color:var(--dojo-border)] overflow-hidden">
@@ -335,6 +336,132 @@ export function FinancePayables() {
       )}
 
       <EntryDrawer open={!!selected} onOpenChange={(v) => !v && setSelected(null)} entry={selected} kind="expense" />
+    </div>
+  );
+}
+
+/**
+ * Custo da academia em um relance (como o MRR do lado da receita): o total das
+ * contas que vencem no mês escolhido — pagas ou não —, a média dos 3 meses
+ * anteriores, o que está atrasado e para onde vai o dinheiro (categorias).
+ * Usa o vencimento (competência): o custo do mês não muda conforme se paga.
+ */
+function PayablesCostPanel({ expenses, loading }: { expenses: ExpenseRow[]; loading: boolean }) {
+  const { month, current } = useFinanceMonth();
+  const ref = month === "all" ? current : month;
+  const data = useMemo(() => {
+    const today = todayISO();
+    const dueIn = (key: string) => expenses.filter((e) => String(e.due_date).slice(0, 7) === key);
+    const sum = (list: ExpenseRow[]) => list.reduce((s, e) => s + Number(e.amount || 0), 0);
+    const inMonth = dueIn(ref);
+    const total = sum(inMonth);
+    const paid = sum(inMonth.filter((e) => e.status === "paid"));
+    const prev = [1, 2, 3].map((i) => sum(dueIn(shiftMonth(ref, -i))));
+    const monthsWithData = prev.filter((v) => v > 0).length;
+    const avg3 = monthsWithData > 0 ? prev.reduce((s, v) => s + v, 0) / monthsWithData : 0;
+    const overdueList = expenses.filter((e) => e.status !== "paid" && String(e.due_date).slice(0, 10) < today);
+    const byCat = new Map<string, number>();
+    for (const e of inMonth) {
+      const k = (e.category ?? "").trim() || "Sem categoria";
+      byCat.set(k, (byCat.get(k) ?? 0) + Number(e.amount || 0));
+    }
+    const categories = Array.from(byCat.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+    return {
+      total,
+      paid,
+      open: total - paid,
+      count: inMonth.length,
+      avg3,
+      overdue: sum(overdueList),
+      overdueCount: overdueList.length,
+      categories,
+    };
+  }, [expenses, ref]);
+
+  if (loading) return <Skeleton className="h-40 w-full rounded-xl" />;
+  const monthTag = monthLongLabel(ref);
+  const diff = data.avg3 > 0 ? ((data.total - data.avg3) / data.avg3) * 100 : null;
+  const topCats = data.categories.slice(0, 5);
+
+  return (
+    <div className="grid gap-3 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+      <div
+        className="flex min-w-0 flex-col gap-2 rounded-xl p-5 text-white shadow-sm"
+        style={{ background: "linear-gradient(135deg, #171717 0%, #404040 100%)" }}
+      >
+        <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-white/75">
+          <Building2 className="h-3 w-3" /> Custo da academia · {monthTag}
+        </div>
+        <div className="font-display text-3xl font-black leading-none tracking-tight tabular-nums md:text-4xl">
+          {brl(data.total)}
+        </div>
+        <div className="text-xs text-white/75">
+          {data.count} conta(s) com vencimento no mês
+          {diff !== null && (
+            <>
+              {" · "}
+              <span className={diff > 0 ? "text-red-300" : "text-emerald-300"}>
+                {diff > 0 ? "+" : ""}
+                {diff.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}% vs. média
+              </span>
+            </>
+          )}
+        </div>
+        <div className="mt-auto grid grid-cols-3 gap-3 border-t border-white/15 pt-3">
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-widest text-white/65">Pago</div>
+            <div className="truncate font-display text-base font-bold tabular-nums">{brl(data.paid)}</div>
+          </div>
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-widest text-white/65">A pagar</div>
+            <div className="truncate font-display text-base font-bold tabular-nums">{brl(data.open)}</div>
+          </div>
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-widest text-white/65">Média 3 meses</div>
+            <div className="truncate font-display text-base font-bold tabular-nums">{brl(data.avg3)}</div>
+          </div>
+        </div>
+      </div>
+
+      <Card className="min-w-0 border border-[color:var(--dojo-border)] p-4">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Para onde vai o custo</div>
+          {data.overdueCount > 0 && (
+            <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700">
+              {data.overdueCount} atrasada(s) · {brl(data.overdue)}
+            </Badge>
+          )}
+        </div>
+        {topCats.length === 0 ? (
+          <p className="py-6 text-center text-xs text-muted-foreground">Nenhuma conta com vencimento em {monthTag}.</p>
+        ) : (
+          <ul className="space-y-2.5">
+            {topCats.map((c) => {
+              const share = data.total > 0 ? (c.value / data.total) * 100 : 0;
+              return (
+                <li key={c.name} className="min-w-0">
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="truncate font-medium">{c.name}</span>
+                    <span className="shrink-0 tabular-nums text-muted-foreground">
+                      {brl(c.value)} · {share.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}%
+                    </span>
+                  </div>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-neutral-800" style={{ width: `${Math.max(2, share)}%` }} />
+                  </div>
+                </li>
+              );
+            })}
+            {data.categories.length > topCats.length && (
+              <li className="text-[11px] text-muted-foreground">
+                + {data.categories.length - topCats.length} categoria(s)
+              </li>
+            )}
+          </ul>
+        )}
+      </Card>
     </div>
   );
 }

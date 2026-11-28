@@ -27,6 +27,7 @@ import { EntryDrawer } from "./EntryDrawer";
 import { inFinanceMonth, useFinanceMonth } from "./month";
 import { entryMonth } from "@/lib/dojo/finance-dates";
 import { ShareInvoiceMenu } from "./ShareInvoice";
+import { invoiceKindLabel, isTuitionInvoice } from "@/lib/dojo/invoice-kind";
 
 const STATUS_LABEL: Record<string, string> = {
   paid: "Pago",
@@ -69,7 +70,11 @@ function statusClasses(key: string) {
   }
 }
 
-export function FinanceReceivables() {
+/**
+ * scope "other": Contas a receber — tudo menos mensalidades (essas têm a aba
+ * Mensalidades). scope "all": Cobranças — todas, de qualquer tipo.
+ */
+export function FinanceReceivables({ scope = "other" }: { scope?: "other" | "all" }) {
   const [status, setStatus] = useState("all");
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<InvoiceRow | null>(null);
@@ -88,18 +93,22 @@ export function FinanceReceivables() {
   };
 
   const { month, setMonth } = useFinanceMonth();
+  const scoped = useMemo(
+    () => ((invs.data ?? []) as InvoiceRow[]).filter((r) => scope === "all" || !isTuitionInvoice(r)),
+    [invs.data, scope],
+  );
   // Vencidas de meses anteriores ao escolhido: não somem de vista.
   const olderOverdue = useMemo(() => {
     if (month === "all") return { count: 0, total: 0 };
-    const rows = ((invs.data ?? []) as InvoiceRow[]).filter(
+    const rows = scoped.filter(
       (r) => effectiveKey(r) === "overdue" && r.due_date.slice(0, 7) < month,
     );
     return { count: rows.length, total: rows.reduce((s, r) => s + Number(r.amount || 0), 0) };
-  }, [invs.data, month]);
+  }, [scoped, month]);
 
   const items = useMemo(() => {
     // Mês: pago conta no mês do pagamento; em aberto, no do vencimento.
-    let rows = ((invs.data ?? []) as InvoiceRow[]).filter((r) => inFinanceMonth(entryMonth(r), month));
+    let rows = scoped.filter((r) => inFinanceMonth(entryMonth(r), month));
     if (status === "overdue") rows = rows.filter((r) => effectiveKey(r) === "overdue");
     else if (status === "pending") rows = rows.filter((r) => ["pending", "due_soon"].includes(effectiveKey(r)));
     else if (status !== "all") rows = rows.filter((r) => r.status === status);
@@ -111,7 +120,7 @@ export function FinanceReceivables() {
         (r.description ?? "").toLowerCase().includes(t) ||
         String(r.amount).includes(t),
     );
-  }, [invs.data, q, status, month]);
+  }, [scoped, q, status, month]);
 
   const paid = items.filter((i) => effectiveKey(i) === "paid");
   const pending = items.filter((i) => effectiveKey(i) === "pending");
@@ -171,6 +180,11 @@ export function FinanceReceivables() {
             Ver todas
           </Button>
         </div>
+      )}
+      {scope === "other" && (
+        <p className="text-xs text-muted-foreground">
+          Taxas de graduação, vendas e demais cobranças. As mensalidades ficam na aba <strong>Mensalidades</strong>.
+        </p>
       )}
       <Card className="p-3 border border-[color:var(--dojo-border)]">
         <div className="flex flex-wrap gap-2 items-center">
@@ -371,7 +385,12 @@ function InvoiceList({
                 >
                   <button className="text-left min-w-0" onClick={() => onOpen(r)}>
                     <div className="font-medium text-sm truncate">{r.student?.full_name ?? "—"}</div>
-                    <div className="text-xs text-muted-foreground truncate">{r.description ?? "Cobrança"}</div>
+                    <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                      <span className="shrink-0 rounded border border-[color:var(--dojo-border)] px-1 py-px text-[10px] font-medium uppercase tracking-wide">
+                        {invoiceKindLabel(r)}
+                      </span>
+                      <span className="truncate">{r.description ?? "Cobrança"}</span>
+                    </div>
                   </button>
                   <div className="text-sm font-semibold whitespace-nowrap">{brl(r.amount)}</div>
                   <div className="text-xs min-w-0">

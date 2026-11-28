@@ -5,10 +5,10 @@ import { addDaysISO, addMonthsISO, dayISO, monthStartISO, todayISO } from "@/lib
  * Consolida em uma única server fn os indicadores executivos do dono do dojo:
  *   • Saldo em carteira (ledger `dojo_wallet_transactions`)
  *   • Receita bruta, taxas gateway/AMT e receita líquida do mês
- *   • Despesas do mês
+ *   • Contas a pagar do mês (pagas e em aberto) e total em aberto
  *   • Faturas em atraso / a receber
  *   • MRR estimado por recorrências ativas
- *   • Evolução de 12 meses (bruto × líquido × despesas × saldo)
+ *   • Evolução de 12 meses (bruto × líquido × contas pagas × saldo)
  *   • Projeção de fluxo de caixa (D+7 / D+15 / D+30 / D+60)
  *   • Distribuição por método de pagamento
  *   • Top 5 alunos por receita no mês
@@ -88,12 +88,13 @@ export const dojoFinanceDashboard = createServerFn({ method: "GET" })
       .or(`due_date.gte.${rangeStartISO},paid_at.gte.${rangeStartISO}T00:00:00-03:00`);
 
     // -----------------------------------------------------------------
-    // 3) Despesas dos últimos monthsBack meses
+    // 3) Contas a pagar dos últimos monthsBack meses + todas em aberto
+    //    (as em aberto entram mesmo vencidas há mais tempo: são dívida atual).
     // -----------------------------------------------------------------
     const expensesP = supabase
       .from("dojo_expenses")
       .select("amount, status, due_date, paid_at, category")
-      .or(`due_date.gte.${rangeStartISO},paid_at.gte.${rangeStartISO}T00:00:00-03:00`);
+      .or(`due_date.gte.${rangeStartISO},paid_at.gte.${rangeStartISO}T00:00:00-03:00,status.neq.paid`);
 
     // -----------------------------------------------------------------
     // 4) Recorrências ativas para MRR e projeção
@@ -184,6 +185,23 @@ export const dojoFinanceDashboard = createServerFn({ method: "GET" })
       .reduce((s, e) => s + num(e.amount), 0);
 
     const netProfitMonth = netMonth - expensesMonth;
+
+    // Contas a pagar que VENCEM no mês (competência), pagas ou não: o que o
+    // dono lançou para o mês aparece mesmo antes de pagar. "Pagas no mês"
+    // (acima) segue no regime de caixa, para o lucro.
+    const expensesDueMonthRows = expenses.filter((e) => String(e.due_date).startsWith(curMonth));
+    const expensesDueMonth = expensesDueMonthRows.reduce((s, e) => s + num(e.amount), 0);
+    const expensesOpenMonth = expensesDueMonthRows
+      .filter((e) => e.status !== "paid")
+      .reduce((s, e) => s + num(e.amount), 0);
+    const openExpenses = expenses.filter((e) => e.status !== "paid");
+    const pendingPayables = openExpenses.reduce((s, e) => s + num(e.amount), 0);
+    const overduePayablesRows = openExpenses.filter((e) => String(e.due_date).slice(0, 10) < today);
+    const overduePayables = overduePayablesRows.reduce((s, e) => s + num(e.amount), 0);
+    // A receber no mês (vence no mês e segue em aberto), mostrado junto da receita.
+    const receivableMonth = invoices
+      .filter((i) => i.status !== "paid" && i.status !== "cancelled" && String(i.due_date).startsWith(curMonth))
+      .reduce((s, i) => s + num(i.amount), 0);
 
     // Em atraso e a receber
     const openInvoices = invoices.filter(
@@ -330,6 +348,9 @@ export const dojoFinanceDashboard = createServerFn({ method: "GET" })
         totalFees: totalFeesMonth,
         feeRate: feeRateMonth,
         expenses: expensesMonth,
+        expensesDue: expensesDueMonth,
+        expensesOpen: expensesOpenMonth,
+        receivable: receivableMonth,
         profit: netProfitMonth,
         avgTicket,
         payersCount: uniqueStudentsPaid.size,
@@ -340,6 +361,10 @@ export const dojoFinanceDashboard = createServerFn({ method: "GET" })
         overdueCount: overdue.length,
         overdueRate,
         openCount: openInvoices.length,
+        pendingPayables,
+        payablesCount: openExpenses.length,
+        overduePayables,
+        overduePayablesCount: overduePayablesRows.length,
       },
       mrr,
       months,

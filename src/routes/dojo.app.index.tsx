@@ -492,7 +492,7 @@ function DojoDashboard() {
                   <span className="h-2 w-2 rounded-full bg-neutral-400" /> Bruto
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-amber-500" /> Despesas
+                  <span className="h-2 w-2 rounded-full bg-amber-500" /> Contas pagas
                 </span>
               </div>
             }
@@ -543,7 +543,7 @@ function DojoDashboard() {
                 <Area
                   type="monotone"
                   dataKey="expenses"
-                  name="Despesas"
+                  name="Contas pagas"
                   stroke="#f59e0b"
                   strokeWidth={1.5}
                   fillOpacity={0}
