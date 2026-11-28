@@ -237,7 +237,7 @@ export const EXTRA_TRACKS: TutorialTrack[] = [
     steps: [
       {
         title: "Financeiro",
-        text: "O Dashboard mostra recebimentos, projeção e os últimos 12 meses.",
+        text: "O Painel mostra recebimentos, projeção e os últimos 12 meses.",
         hint: "Se o Financeiro pedir um PIN, digite-o para liberar a tela.",
         seconds: 10,
       },

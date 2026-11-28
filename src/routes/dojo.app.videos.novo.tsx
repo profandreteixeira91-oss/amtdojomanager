@@ -16,6 +16,7 @@ import {
   deleteVideo,
 } from "@/lib/dojo/videos.functions";
 import { uploadVideoFile, probeVideoDuration } from "@/components/dojo/videos/upload";
+import { enumLabel, ATTACHMENT_KIND_LABEL } from "@/lib/dojo/enum-labels";
 
 export const Route = createFileRoute("/dojo/app/videos/novo")({
   head: () => ({ meta: [{ title: "Novo vídeo — AMT Dojo Manager" }] }),
@@ -104,7 +105,7 @@ function VideoEditor() {
       const uid = await currentUserId();
       const url = await uploadVideoFile(f, uid, "thumb");
       setThumbnailUrl(url);
-      toast.success("Thumbnail enviada");
+      toast.success("Miniatura enviada");
     } catch (e) {
       toast.error("Falha no upload", { description: e instanceof Error ? e.message : "" });
     } finally {
@@ -253,7 +254,7 @@ function VideoEditor() {
                     videoSource === s ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-accent"
                   }`}
                 >
-                  {s === "upload" ? "Upload direto" : s === "youtube" ? "YouTube" : s === "vimeo" ? "Vimeo" : "URL externa"}
+                  {s === "upload" ? "Envio direto" : s === "youtube" ? "YouTube" : s === "vimeo" ? "Vimeo" : "URL externa"}
                 </button>
               ))}
             </div>
@@ -324,7 +325,7 @@ function VideoEditor() {
                 {attachments.map((a, idx) => (
                   <li key={idx} className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
                     <div className="min-w-0 truncate">
-                      <span className="mr-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase">{a.kind}</span>
+                      <span className="mr-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase">{enumLabel(ATTACHMENT_KIND_LABEL, a.kind)}</span>
                       <a className="hover:underline" href={a.url} target="_blank" rel="noreferrer">{a.name}</a>
                     </div>
                     <button
@@ -370,10 +371,10 @@ function VideoEditor() {
           </section>
 
           <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
-            <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-muted-foreground">Thumbnail</h3>
+            <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-muted-foreground">Miniatura</h3>
             {thumbnailUrl ? (
               <div className="mb-3 overflow-hidden rounded-lg border border-border">
-                <img src={thumbnailUrl} alt="Thumbnail" className="aspect-video w-full object-cover" />
+                <img src={thumbnailUrl} alt="Miniatura" className="aspect-video w-full object-cover" />
               </div>
             ) : (
               <div className="mb-3 grid aspect-video place-items-center rounded-lg border border-dashed border-border bg-muted/30 text-xs text-muted-foreground">

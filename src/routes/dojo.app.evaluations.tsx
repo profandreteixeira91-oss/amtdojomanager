@@ -18,7 +18,7 @@ export const Route = createFileRoute("/dojo/app/evaluations")({
 });
 
 const NAV = [
-  { to: "/dojo/app/evaluations", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { to: "/dojo/app/evaluations", label: "Painel", icon: LayoutDashboard, exact: true },
   { to: "/dojo/app/evaluations/library", label: "Biblioteca", icon: Library },
   { to: "/dojo/app/evaluations/templates", label: "Modelos", icon: FileText },
   { to: "/dojo/app/evaluations/sessions", label: "Avaliações", icon: ListChecks },

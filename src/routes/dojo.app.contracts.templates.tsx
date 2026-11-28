@@ -22,6 +22,7 @@ import {
   CONTRACT_CATEGORY_LABELS,
 } from "@/lib/dojo/contracts.functions";
 import { CONTRACT_PRESETS, type ContractPreset } from "@/lib/dojo/contracts-presets";
+import { enumLabel, CONTRACT_TEMPLATE_STATUS_LABEL } from "@/lib/dojo/enum-labels";
 
 export const Route = createFileRoute("/dojo/app/contracts/templates")({
   head: () => ({
@@ -234,7 +235,7 @@ function TemplatesLibraryPage() {
                         <div className="flex flex-col gap-1 items-end shrink-0">
                           {t.owner_id === null && <Badge className="text-[10px] bg-amber-500/15 text-amber-700 border-amber-300" variant="outline">Global</Badge>}
                           <Badge variant="outline" className="text-[10px]">v{t.current_version ?? 1}</Badge>
-                          {t.status !== "active" && <Badge variant="outline" className="text-[10px] capitalize">{t.status}</Badge>}
+                          {t.status !== "active" && <Badge variant="outline" className="text-[10px]">{enumLabel(CONTRACT_TEMPLATE_STATUS_LABEL, t.status)}</Badge>}
                         </div>
                       </div>
                       <div className="text-xs text-muted-foreground">

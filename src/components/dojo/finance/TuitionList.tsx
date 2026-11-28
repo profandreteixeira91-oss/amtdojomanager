@@ -40,6 +40,7 @@ export type TuitionInvoice = {
 };
 
 import { diffDaysISO, todayISO } from "@/lib/dates";
+import { invoiceMethodLabel } from "@/lib/dojo/enum-labels";
 
 const DUE_SOON_DAYS = 5;
 
@@ -112,7 +113,7 @@ export function TuitionRow({
 
         <div className="text-right">
           <div className="font-semibold tabular-nums">{brl(inv.amount)}</div>
-          {inv.method && <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{inv.method}</div>}
+          {inv.method && <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{invoiceMethodLabel(inv.method)}</div>}
         </div>
 
         <div className="flex items-center gap-1">

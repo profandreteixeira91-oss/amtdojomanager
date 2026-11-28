@@ -85,7 +85,7 @@ export const createTicket = createServerFn({ method: "POST" })
     try {
       const { sendPushToAmtAdmins } = await import("@/lib/push/admin-push.server");
       await sendPushToAmtAdmins({
-        title: "Novo Ticket de Suporte",
+        title: "Novo chamado de suporte",
         body: `${data.subject}: ${data.body.slice(0, 100)}...`,
         url: `/admin/atendimento/suporte?id=${ticket.id}`,
         tag: `ticket-${ticket.id}`,

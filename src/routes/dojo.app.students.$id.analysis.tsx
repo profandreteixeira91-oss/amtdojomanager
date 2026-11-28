@@ -127,7 +127,7 @@ function AnalysisPage() {
           )}
           <div className="min-w-0">
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-red-600">
-              <Sparkles className="h-3 w-3" /> Centro de Performance
+              <Sparkles className="h-3 w-3" /> Centro de Desempenho
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <h2 className="min-w-0 text-[22px] font-bold tracking-tight text-neutral-950 sm:text-2xl md:text-[28px]">
@@ -185,7 +185,7 @@ function AnalysisPage() {
 
       {/* Score radial + insights + breakdown */}
       <div className="grid gap-6 lg:grid-cols-3">
-        <SectionCard title="Dimensões de Performance" description="Avaliação gráfica por categoria">
+        <SectionCard title="Dimensões de Desempenho" description="Avaliação gráfica por categoria">
           {score.isLoading ? (
             <Skeleton className="h-56 w-full" />
           ) : score.data ? (
@@ -198,7 +198,7 @@ function AnalysisPage() {
           ) : null}
         </SectionCard>
 
-        <SectionCard title="Decomposição do Score" description="Contribuição por dimensão" className="lg:col-span-2">
+        <SectionCard title="Composição da pontuação" description="Contribuição por dimensão" className="lg:col-span-2">
           {score.isLoading ? (
             <div className="space-y-4">{[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} className="h-8" />)}</div>
           ) : score.data ? (
@@ -232,7 +232,7 @@ function AnalysisPage() {
         </SectionCard>
       </div>
 
-      <SectionCard title="Inteligência Analítica" description="Insights automáticos gerados a partir de todos os módulos">
+      <SectionCard title="Inteligência Analítica" description="Análises automáticas geradas a partir de todos os módulos">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {insights.isLoading && [1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-20" />)}
           {insights.data?.insights.map((it, i) => <InsightCard key={i} {...it} />)}
@@ -370,7 +370,7 @@ function AnalysisPage() {
 
         {/* Graduações */}
         <TabsContent value="graduacoes" className="mt-6">
-          <SectionCard title="Timeline de Graduações" description={grads.data?.nextForecast ? `Próxima prevista: ${fmtDate(grads.data.nextForecast)}` : undefined}>
+          <SectionCard title="Linha do Tempo de Graduações" description={grads.data?.nextForecast ? `Próxima prevista: ${fmtDate(grads.data.nextForecast)}` : undefined}>
             {(grads.data?.history?.length ?? 0) === 0 ? (
               <EmptyState title="Sem graduações registradas" description="Registre a primeira graduação no perfil do aluno." icon={GraduationCap} />
             ) : (
@@ -492,7 +492,7 @@ function AnalysisPage() {
                 <div className="mt-6 grid gap-3 text-left text-xs sm:grid-cols-3">
                   {[
                     ["Lesões", "Registro por região corporal, data, gravidade"],
-                    ["Recuperação", "Timeline de tratamento e retorno"],
+                    ["Recuperação", "Linha do tempo de tratamento e retorno"],
                     ["Anamnese", "Histórico de saúde e condicionamento"],
                   ].map(([t, d]) => (
                     <div key={t} className="rounded-xl border border-border/40 bg-muted/20 p-4">

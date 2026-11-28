@@ -17,6 +17,7 @@ import {
   Underline, AlignLeft, AlignCenter, AlignRight, ChevronDown, ChevronRight, Upload, Variable,
   Maximize2,
 } from "lucide-react";
+import { enumLabel, CERTIFICATE_ELEMENT_LABEL } from "@/lib/dojo/enum-labels";
 
 
 type Props = {
@@ -1059,7 +1060,7 @@ function PropsPanel({ el, onPatch, onMoveLayer, onRemove }: { el: AnyElement; on
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{el.kind}</div>
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{enumLabel(CERTIFICATE_ELEMENT_LABEL, el.kind)}</div>
         <div className="flex items-center gap-0.5">
           <IconBtn title="Recuar" onClick={() => onMoveLayer(el.id, "back")}><ChevronsDown className="h-3.5 w-3.5" /></IconBtn>
           <IconBtn title="Avançar" onClick={() => onMoveLayer(el.id, "front")}><ChevronsUp className="h-3.5 w-3.5" /></IconBtn>
@@ -1105,7 +1106,7 @@ function PropsPanel({ el, onPatch, onMoveLayer, onRemove }: { el: AnyElement; on
 
       {(el.kind === "image" || el.kind === "logo" || el.kind === "signature") && <>
         <Field label="URL"><Input value={el.imageUrl} onChange={(e) => onPatch({ imageUrl: e.target.value } as any)} className="h-8" placeholder="https://..." /></Field>
-        <Field label="Upload">
+        <Field label="Enviar imagem">
           <label className="inline-flex">
             <input type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
             <span className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-md border border-input bg-background px-2 hover:bg-muted">
@@ -1148,7 +1149,7 @@ function PropsPanel({ el, onPatch, onMoveLayer, onRemove }: { el: AnyElement; on
         <Field label="Cargo"><Input value={el.personRole ?? ""} onChange={(e) => onPatch({ personRole: e.target.value } as any)} className="h-8" /></Field>
         <Field label="Linha"><input type="checkbox" checked={el.showLine !== false} onChange={(e) => onPatch({ showLine: e.target.checked } as any)} /></Field>
         <Field label="Imagem"><Input value={el.imageUrl ?? ""} onChange={(e) => onPatch({ imageUrl: e.target.value } as any)} className="h-8" placeholder="URL da assinatura" /></Field>
-        <Field label="Upload">
+        <Field label="Enviar imagem">
           <label className="inline-flex">
             <input type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
             <span className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-md border border-input bg-background px-2 hover:bg-muted"><Upload className="h-3.5 w-3.5" /> {uploading ? "Enviando…" : "Enviar"}</span>

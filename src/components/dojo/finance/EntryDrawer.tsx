@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { brl, brDate, daysBetween, isoDate, type InvoiceRow, type ExpenseRow } from "./shared";
 import { Calendar, CreditCard, FileText, Clock, Tag, User, Paperclip, History } from "lucide-react";
+import { invoiceMethodLabel } from "@/lib/dojo/enum-labels";
 
 export type EntryKind = "invoice" | "expense";
 
@@ -69,7 +70,7 @@ export function EntryDrawer({
           <div className="space-y-2 text-sm">
             <Row icon={Calendar} label="Vencimento" value={brDate(entry.due_date)} />
             {entry.paid_at && <Row icon={Clock} label="Recebido/Pago em" value={new Date(entry.paid_at).toLocaleString("pt-BR")} />}
-            {isInvoice && inv.method && <Row icon={CreditCard} label="Forma" value={inv.method} />}
+            {isInvoice && inv.method && <Row icon={CreditCard} label="Forma" value={invoiceMethodLabel(inv.method)} />}
             {!isInvoice && exp.category && <Row icon={Tag} label="Categoria" value={exp.category} />}
             {isInvoice && inv.student?.full_name && <Row icon={User} label="Aluno" value={inv.student.full_name} />}
           </div>

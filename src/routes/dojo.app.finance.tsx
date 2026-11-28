@@ -63,7 +63,7 @@ type Section = {
 };
 
 const sections: Section[] = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, group: "Visão geral" },
+  { id: "dashboard", label: "Painel", icon: LayoutDashboard, group: "Visão geral" },
 
   { id: "receivables", label: "Contas a receber", icon: ArrowDownRight, group: "Movimentações" },
   { id: "payables", label: "Contas a pagar", icon: ArrowUpRight, group: "Movimentações" },

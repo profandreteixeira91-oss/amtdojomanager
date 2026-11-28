@@ -15,6 +15,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Clock } from "lucide-react";
+import { enumLabel, CHECKIN_METHOD_LABEL } from "@/lib/dojo/enum-labels";
 
 
 const searchSchema = z.object({
@@ -310,7 +311,7 @@ function CheckinPage() {
                   {new Date(a.checked_in_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", weekday: "short" })}
                 </div>
               </div>
-              <div className="text-[11px] uppercase tracking-wider text-neutral-400">{a.method}</div>
+              <div className="text-[11px] uppercase tracking-wider text-neutral-400">{enumLabel(CHECKIN_METHOD_LABEL, a.method)}</div>
             </li>
           ))}
         </ul>

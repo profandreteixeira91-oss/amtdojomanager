@@ -31,7 +31,7 @@ export function PerformanceRadar({ data }: { data: DimensionScore[] }) {
             axisLine={false}
           />
           <Radar
-            name="Performance"
+            name="Desempenho"
             dataKey="value"
             stroke="#ef4444"
             fill="#ef4444"

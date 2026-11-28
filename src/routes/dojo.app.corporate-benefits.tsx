@@ -27,6 +27,7 @@ import {
   providerLabel,
   type CorporateProvider,
 } from "@/lib/dojo/corporate-benefits.functions";
+import { enumLabel, CORPORATE_SYNC_KIND_LABEL } from "@/lib/dojo/enum-labels";
 
 export const Route = createFileRoute("/dojo/app/corporate-benefits")({
   head: () => ({ meta: [{ title: "Benefícios Corporativos — AMT Dojo Manager" }] }),
@@ -362,7 +363,7 @@ function CorporateBenefitsPage() {
                       <TableRow key={l.id}>
                         <TableCell className="text-xs">{new Date(l.started_at).toLocaleString("pt-BR")}</TableCell>
                         <TableCell>{providerLabel[l.provider as CorporateProvider] ?? l.provider}</TableCell>
-                        <TableCell className="text-xs">{l.kind}</TableCell>
+                        <TableCell className="text-xs">{enumLabel(CORPORATE_SYNC_KIND_LABEL, l.kind)}</TableCell>
                         <TableCell>
                           <Badge
                             variant="outline"

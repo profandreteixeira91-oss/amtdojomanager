@@ -38,7 +38,7 @@ function ContractsShell() {
             <nav className={SUBNAV_CLS} aria-label="Seções de contratos">
               <div className={SUBNAV_ROW_CLS}>
                 <Link to="/dojo/app/contracts" className={subnavItemClass(tab === "dashboard")}>
-                  <LayoutGrid /> Dashboard
+                  <LayoutGrid /> Painel
                 </Link>
                 <Link to="/dojo/app/contracts/templates" className={subnavItemClass(tab === "templates")}>
                   <FolderTree /> Modelos

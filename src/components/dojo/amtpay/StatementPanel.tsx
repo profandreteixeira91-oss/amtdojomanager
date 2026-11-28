@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Download, Filter, ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { listWalletTransactions } from "@/lib/dojo/amtpay.functions";
 import { todayISO } from "@/lib/dates";
+import { enumLabel, WALLET_TX_METHOD_LABEL, WALLET_TX_STATUS_LABEL } from "@/lib/dojo/enum-labels";
 
 const brl = (n: number) => Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -139,8 +140,8 @@ export function StatementPanel() {
                     <td className="py-2 pr-3 whitespace-nowrap">{new Date(t.occurred_at).toLocaleString("pt-BR")}</td>
                     <td className="pr-3">{KIND_LABEL[t.kind] ?? t.kind}</td>
                     <td className="pr-3">{t.description ?? "—"}</td>
-                    <td className="pr-3 text-xs uppercase">{t.method}</td>
-                    <td className="pr-3"><Badge variant="outline" className="text-[10px]">{t.status}</Badge></td>
+                    <td className="pr-3 text-xs">{enumLabel(WALLET_TX_METHOD_LABEL, t.method)}</td>
+                    <td className="pr-3"><Badge variant="outline" className="text-[10px]">{enumLabel(WALLET_TX_STATUS_LABEL, t.status)}</Badge></td>
                     <td className={`pr-3 text-right font-medium ${positive ? "text-emerald-600" : "text-red-600"}`}>
                       <span className="inline-flex items-center gap-1 justify-end">
                         {positive ? <ArrowDownRight className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3" />}

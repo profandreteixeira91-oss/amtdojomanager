@@ -162,7 +162,7 @@ function TechniquesPage() {
               <Input className="border-neutral-200 bg-white shadow-sm" type="number" min={0} placeholder="Pontos" value={form.default_score} onChange={(e) => setForm({ ...form, default_score: Number(e.target.value) })} />
             </div>
             <Input className="border-neutral-200 bg-white shadow-sm" placeholder="URL da imagem (opcional)" value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} />
-            <Input className="border-neutral-200 bg-white shadow-sm" placeholder="Tags separadas por vírgula" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
+            <Input className="border-neutral-200 bg-white shadow-sm" placeholder="Etiquetas separadas por vírgula" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={form.required} onChange={(e) => setForm({ ...form, required: e.target.checked })} />
               Obrigatória

@@ -20,7 +20,7 @@ import {
 export const Route = createFileRoute("/dojo/app/contracts/")({
   head: () => ({
     meta: [
-      { title: "Dashboard Jurídico — AMT Dojo Manager" },
+      { title: "Painel Jurídico — AMT Dojo Manager" },
       { name: "description", content: "Painel de KPIs, gráficos e alertas do módulo jurídico do dojo." },
     ],
   }),

@@ -19,6 +19,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { cashDayISO } from "@/lib/dojo/finance-dates";
 import { isBillableStudentStatus } from "@/lib/dojo/student-status";
+import { invoiceMethodLabel } from "@/lib/dojo/enum-labels";
 
 type MonthPoint = {
   key: string;
@@ -306,7 +307,7 @@ export const dojoFinanceDashboard = createServerFn({ method: "GET" })
     // -----------------------------------------------------------------
     const methodMap = new Map<string, number>();
     for (const i of paidInvoicesMonth) {
-      const k = (i.method ?? "outros").toString();
+      const k = invoiceMethodLabel(i.method);
       methodMap.set(k, (methodMap.get(k) ?? 0) + num(i.net_amount ?? i.amount));
     }
     const paymentMethods = Array.from(methodMap.entries())

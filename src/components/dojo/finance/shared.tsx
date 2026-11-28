@@ -9,6 +9,7 @@ import {
   listDojoExpenses,
   dojoFinanceOverview,
 } from "@/lib/dojo/dojo.functions";
+import { invoiceMethodLabel } from "@/lib/dojo/enum-labels";
 
 // ============ Money helpers ============
 export const brl = (n: number | null | undefined) =>
@@ -258,7 +259,7 @@ export function useFinanceKpis() {
     // Formas de pagamento (recebido)
     const methodMap = new Map<string, number>();
     paidInvoices.forEach((i) => {
-      const k = i.method || "outros";
+      const k = invoiceMethodLabel(i.method);
       methodMap.set(k, (methodMap.get(k) || 0) + Number(i.amount || 0));
     });
     const paymentMethods = Array.from(methodMap.entries()).map(([name, value]) => ({ name, value }));

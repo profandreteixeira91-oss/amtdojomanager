@@ -17,7 +17,7 @@ export type ShotKey = keyof typeof SHOT;
 
 /** Rotação de fundo do hero — telas reais do sistema. */
 export const HERO_ROTATION: { key: ShotKey; label: string }[] = [
-  { key: "dashboard", label: "Dashboard" },
+  { key: "dashboard", label: "Painel" },
   { key: "finance", label: "Financeiro" },
   { key: "schedule", label: "Agenda" },
   { key: "checkin", label: "Check-in" },

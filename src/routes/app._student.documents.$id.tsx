@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, Download, FileText, ExternalLink } from "lucide-react";
 import { getMyContract } from "@/lib/student/student.functions";
+import { CONTRACT_STATUS_LABELS } from "@/lib/dojo/contracts.functions";
 
 export const Route = createFileRoute("/app/_student/documents/$id")({
   head: () => ({ meta: [{ title: "Contrato — Portal do Aluno" }] }),
@@ -90,7 +91,7 @@ function ContractDetailPage() {
                 <h1 className="truncate text-base font-bold text-neutral-900">{data.title}</h1>
                 <p className="text-xs text-neutral-500">
                   {data.contract_number ? `Nº ${data.contract_number} • ` : ""}
-                  Status: <span className="font-medium capitalize">{data.status}</span>
+                  Status: <span className="font-medium">{CONTRACT_STATUS_LABELS[data.status] ?? data.status}</span>
                 </p>
               </div>
             </div>

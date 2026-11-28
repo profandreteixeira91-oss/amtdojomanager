@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { getMyAgenda } from "@/lib/student/student.functions";
 import { CalendarDays } from "lucide-react";
 import { studentSupabase as supabase } from "@/lib/student-auth/student-client";
+import { enumLabel, OCCURRENCE_STATUS_LABEL } from "@/lib/dojo/enum-labels";
 
 export const Route = createFileRoute("/app/_student/agenda")({
   head: () => ({ meta: [{ title: "Agenda — Portal do Aluno" }] }),
@@ -77,7 +78,7 @@ function AgendaPage() {
                     <div className="text-sm font-bold tabular-nums">
                       {occ.start_time?.slice(0, 5) ?? "—"}
                     </div>
-                    <div className="text-[10px] uppercase tracking-wider text-neutral-400">{occ.status}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-neutral-400">{enumLabel(OCCURRENCE_STATUS_LABEL, occ.status)}</div>
                   </div>
                 </li>
               );

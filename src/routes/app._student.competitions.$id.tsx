@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { getStudentCompetition, setMyInterest } from "@/lib/student/competitions.functions";
 import { scopeLabel } from "@/lib/dojo/competitions/classifier";
+import { enumLabel, COMPETITION_ATHLETE_STATUS_LABEL } from "@/lib/dojo/enum-labels";
 
 export const Route = createFileRoute("/app/_student/competitions/$id")({
   head: () => ({ meta: [{ title: "Competição" }] }),
@@ -70,7 +71,7 @@ function StudentCompetitionDetail() {
       <Card><CardContent className="space-y-3 p-4">
         <div className="font-semibold">Minha participação</div>
         {data.athlete && (
-          <div className="text-sm text-muted-foreground">Status atual: <Badge>{data.athlete.status}</Badge></div>
+          <div className="text-sm text-muted-foreground">Status atual: <Badge>{enumLabel(COMPETITION_ATHLETE_STATUS_LABEL, data.athlete.status)}</Badge></div>
         )}
         <div className="grid gap-2 sm:grid-cols-2">
           <Input placeholder="Categoria (ex: Adulto Faixa Roxa)" value={category || data.athlete?.category || ""} onChange={(e) => setCategory(e.target.value)} />

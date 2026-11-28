@@ -23,6 +23,7 @@ import {
 import { VideoPlayer } from "@/components/dojo/videos/VideoPlayer";
 import { VideoCard } from "@/components/dojo/videos/VideoCard";
 import { supabase } from "@/integrations/supabase/client";
+import { enumLabel, ATTACHMENT_KIND_LABEL } from "@/lib/dojo/enum-labels";
 
 export const Route = createFileRoute("/dojo/app/videos/$id")({
   head: () => ({ meta: [{ title: "Vídeo — AMT Dojo Manager" }] }),
@@ -204,7 +205,7 @@ function VideoPage() {
                   <li key={i}>
                     <a href={a.url} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-2 text-sm hover:bg-accent">
                       <span className="truncate">
-                        <span className="mr-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase">{a.kind}</span>
+                        <span className="mr-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase">{enumLabel(ATTACHMENT_KIND_LABEL, a.kind)}</span>
                         {a.name}
                       </span>
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />

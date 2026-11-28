@@ -133,7 +133,7 @@ function PerformanceButton() {
         <div className="inline-flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.2em] text-red-200">
           <Sparkles className="h-2.5 w-2.5" /> Novo
         </div>
-        <div className="mt-1 text-base font-black tracking-tight text-white">Performance</div>
+        <div className="mt-1 text-base font-black tracking-tight text-white">Desempenho</div>
         <div className="line-clamp-2 text-[11px] leading-snug text-white/70">Sua análise completa: frequência, técnico, graduações e insights</div>
       </div>
       <ChevronRight className="relative h-5 w-5 shrink-0 text-white/60 transition-transform group-hover:translate-x-1 group-hover:text-white" />

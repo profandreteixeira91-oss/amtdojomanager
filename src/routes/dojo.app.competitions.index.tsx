@@ -54,7 +54,7 @@ function CompetitionsPage() {
           footer={
             <div className={SUBNAV_CLS}>
               <TabsList className={SUBNAV_TABSLIST_CLS}>
-                <TabsTrigger value="dashboard" className={SUBNAV_TRIGGER_CLS}><BarChart3 /> Dashboard</TabsTrigger>
+                <TabsTrigger value="dashboard" className={SUBNAV_TRIGGER_CLS}><BarChart3 /> Painel</TabsTrigger>
                 <TabsTrigger value="library" className={SUBNAV_TRIGGER_CLS}><Search /> Biblioteca</TabsTrigger>
                 <TabsTrigger value="calendar" className={SUBNAV_TRIGGER_CLS}><CalendarDays /> Meu Calendário</TabsTrigger>
                 <TabsTrigger value="ranking" className={SUBNAV_TRIGGER_CLS}><Medal /> Ranking</TabsTrigger>

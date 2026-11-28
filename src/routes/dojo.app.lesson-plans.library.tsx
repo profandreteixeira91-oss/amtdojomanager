@@ -219,7 +219,7 @@ function ContentDialog({
           <Input value={form.pdf_url ?? ""} onChange={(e) => setForm({ ...form, pdf_url: e.target.value })} />
         </div>
         <div>
-          <Label>Tags (separadas por vírgula)</Label>
+          <Label>Etiquetas (separadas por vírgula)</Label>
           <Input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
         </div>
         <div>

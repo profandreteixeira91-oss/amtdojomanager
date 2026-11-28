@@ -30,9 +30,9 @@ import { brDate } from "@/lib/format";
 export const Route = createFileRoute("/app/_student/performance")({
   head: () => ({
     meta: [
-      { title: "Performance — Portal do Aluno" },
+      { title: "Desempenho — Portal do Aluno" },
       { name: "description", content: "Sua análise completa de performance: frequência, técnico, graduações, competições e insights." },
-      { property: "og:title", content: "Performance — Portal do Aluno" },
+      { property: "og:title", content: "Desempenho — Portal do Aluno" },
       { property: "og:description", content: "Painel completo de performance esportiva do atleta." },
     ],
   }),
@@ -170,10 +170,10 @@ function StudentPerformancePage() {
 
       {/* Gauge + breakdown */}
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
-        <SectionCard title="Índice Geral" description="Score composto de 6 dimensões">
+        <SectionCard title="Índice Geral" description="Pontuação composta de 6 dimensões">
           {score.isLoading ? <Skeleton className="h-56" /> : score.data ? <PerformanceRadar data={Object.entries((score.data as any).breakdownScores ?? score.data.breakdown).map(([k, v]) => ({ name: BREAKDOWN_LABELS[k]?.label ?? k, value: Number(v) }))} /> : null}
         </SectionCard>
-        <SectionCard title="Decomposição do Score" description="Contribuição por dimensão" className="lg:col-span-2">
+        <SectionCard title="Composição da pontuação" description="Contribuição por dimensão" className="lg:col-span-2">
           {score.isLoading ? (
             <div className="space-y-4">{[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} className="h-8" />)}</div>
           ) : score.data ? (
@@ -200,7 +200,7 @@ function StudentPerformancePage() {
         </SectionCard>
       </div>
 
-      <SectionCard title="Inteligência Analítica" description="Insights automáticos">
+      <SectionCard title="Inteligência Analítica" description="Análises automáticas">
         <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {insights.isLoading && [1, 2, 3].map((i) => <Skeleton key={i} className="h-20" />)}
           {insights.data?.insights.map((it, i) => <InsightCard key={i} {...it} />)}
@@ -325,7 +325,7 @@ function StudentPerformancePage() {
 
         {/* Graduações */}
         <TabsContent value="graduacoes" className="mt-5">
-          <SectionCard title="Timeline de Graduações" description={grads.data?.nextForecast ? `Próxima prevista: ${fmtDate(grads.data.nextForecast)}` : undefined}>
+          <SectionCard title="Linha do Tempo de Graduações" description={grads.data?.nextForecast ? `Próxima prevista: ${fmtDate(grads.data.nextForecast)}` : undefined}>
             {(grads.data?.history?.length ?? 0) === 0 ? (
               <EmptyState title="Sem graduações" description="Suas graduações aparecerão aqui." icon={GraduationCap} />
             ) : (

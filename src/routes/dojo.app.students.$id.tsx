@@ -50,6 +50,7 @@ import { addDaysISO, dayISO, todayISO } from "@/lib/dates";
 import { SectionErrorBoundary } from "@/components/dojo/SectionErrorBoundary";
 import { CurrencyInput, currencyText } from "@/components/ui/currency-input";
 import { ENROLLMENT_STATUS, enrollmentStatusLabel, studentStatusLabel, studentStatusTone, type StudentStatusTone } from "@/lib/dojo/student-status";
+import { enumLabel, CHECKIN_METHOD_LABEL } from "@/lib/dojo/enum-labels";
 
 const TAB_LABELS: Record<string, string> = {
   pessoal: "Dados", academia: "Academia", plano: "Plano", anamnese: "Anamnese", lgpd: "LGPD",
@@ -444,7 +445,7 @@ function StudentDetail() {
                 className="w-full border-neutral-200 bg-white text-neutral-800 shadow-xs hover:bg-neutral-50 hover:text-neutral-950"
                 onClick={() => navigate({ to: "/dojo/app/students/$id/analysis", params: { id } })}
               >
-                <Activity className="mr-1.5 h-4 w-4" /> Performance
+                <Activity className="mr-1.5 h-4 w-4" /> Desempenho
               </Button>
               <Button
                 size="sm"
@@ -1451,7 +1452,7 @@ function StudentDetail() {
                         <CalendarCheck className="h-3.5 w-3.5 text-primary" />
                         <span>{fmtDateTime(a.checked_in_at)}</span>
                       </div>
-                      <span className="text-muted-foreground">{a.dojo_units?.name ?? a.method ?? "—"}</span>
+                      <span className="text-muted-foreground">{a.dojo_units?.name ?? enumLabel(CHECKIN_METHOD_LABEL, a.method)}</span>
                     </div>
                   ))}
                 </div>

@@ -40,6 +40,7 @@ import { Camera } from "lucide-react";
 import { PhotoCheckinFlow } from "@/components/dojo/checkin/PhotoCheckinFlow";
 import { addDaysISO, dayISO, todayISO } from "@/lib/dates";
 import { DojoPageHero, SUBNAV_CLS, SUBNAV_TABSLIST_CLS, SUBNAV_TRIGGER_CLS } from "@/components/dojo/DojoPageHero";
+import { enumLabel, CHECKIN_METHOD_LABEL, PARTNER_CHECKIN_STATUS_LABEL } from "@/lib/dojo/enum-labels";
 
 export const Route = createFileRoute("/dojo/app/checkin")({
   head: () => ({ meta: [{ title: "Check-in — AMT Dojo Manager" }] }),
@@ -98,7 +99,7 @@ function DojoCheckinModule() {
         footer={
           <div className={SUBNAV_CLS}>
             <TabsList className={SUBNAV_TABSLIST_CLS}>
-                <TabsTrigger value="dashboard" className={SUBNAV_TRIGGER_CLS}><Activity />Dashboard</TabsTrigger>
+                <TabsTrigger value="dashboard" className={SUBNAV_TRIGGER_CLS}><Activity />Painel</TabsTrigger>
                 <TabsTrigger value="kiosk" className={SUBNAV_TRIGGER_CLS}><ScanLine />Check-in</TabsTrigger>
                 <TabsTrigger value="present" className={SUBNAV_TRIGGER_CLS}><Users />Presentes</TabsTrigger>
                 <TabsTrigger value="history" className={SUBNAV_TRIGGER_CLS}><History />Histórico</TabsTrigger>
@@ -1047,7 +1048,7 @@ function HistoryPanel() {
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <Badge variant="outline">{a.method}</Badge>
+                <Badge variant="outline">{enumLabel(CHECKIN_METHOD_LABEL, a.method)}</Badge>
                 <Button size="icon" variant="ghost" onClick={() => del(a.id)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -1138,7 +1139,7 @@ function PartnerPanel({ provider }: { provider: "gympass" | "totalpass" }) {
                   r.status === "approved" ? "default"
                     : r.status === "denied" ? "destructive"
                       : r.status === "pending" ? "secondary" : "outline"
-                }>{r.status}</Badge>
+                }>{enumLabel(PARTNER_CHECKIN_STATUS_LABEL, r.status)}</Badge>
               </div>
             ))}
             {runs.length === 0 && <div className="text-sm text-muted-foreground py-6 text-center">Sem histórico.</div>}
