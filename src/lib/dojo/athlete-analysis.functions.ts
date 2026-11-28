@@ -185,7 +185,7 @@ export const getAthletePerformanceScore = createServerFn({ method: "GET" })
     const [attRes, evalRes, gradRes, compRes, studentClasses] = await Promise.all([
       supabase.from("dojo_attendance").select("checked_in_at, status").eq("student_id", data.studentId).gte("checked_in_at", since90),
       supabase.from("dojo_eval_sessions").select("percentage, finished_at").eq("student_id", data.studentId).not("finished_at", "is", null).order("finished_at", { ascending: false }).limit(5),
-      supabase.from("dojo_graduations").select("graduation_date").eq("student_id", data.studentId).order("graduation_date", { ascending: false }),
+      supabase.from("dojo_graduations").select("graduation_date").eq("student_id", data.studentId).not("applied_at", "is", null).order("graduation_date", { ascending: false }),
       supabase.from("academy_competition_results").select("medal, wins, losses").eq("owner_id", (await supabase.from("dojo_students").select("owner_id").eq("id", data.studentId).maybeSingle()).data?.owner_id ?? "00000000-0000-0000-0000-000000000000"),
       supabase.from("dojo_class_students").select("class_id, dojo_classes(occurrences)").eq("student_id", data.studentId),
     ]);
@@ -394,7 +394,7 @@ export const getAthleteInsights = createServerFn({ method: "GET" })
       supabase.from("dojo_attendance").select("id", { count: "exact", head: true }).eq("student_id", data.studentId).in("status", PRESENT_STATUSES as unknown as string[]).gte("checked_in_at", win(30)),
       supabase.from("dojo_attendance").select("id", { count: "exact", head: true }).eq("student_id", data.studentId).in("status", PRESENT_STATUSES as unknown as string[]).gte("checked_in_at", win(60)),
       supabase.from("dojo_attendance").select("id", { count: "exact", head: true }).eq("student_id", data.studentId).in("status", PRESENT_STATUSES as unknown as string[]).gte("checked_in_at", win(90)),
-      supabase.from("dojo_graduations").select("graduation_date").eq("student_id", data.studentId).order("graduation_date", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("dojo_graduations").select("graduation_date").eq("student_id", data.studentId).not("applied_at", "is", null).order("graduation_date", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("academy_competition_athletes").select("id, created_at").eq("student_id", data.studentId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("dojo_eval_sessions").select("finished_at, percentage").eq("student_id", data.studentId).not("finished_at", "is", null).order("finished_at", { ascending: false }).limit(3),
     ]);

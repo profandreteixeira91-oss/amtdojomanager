@@ -310,6 +310,8 @@ export const getMyHome = createServerFn({ method: "GET" })
           .from("dojo_graduations")
           .select("graduation_date, degree, dojo_belts(name, color_hex)")
           .eq("student_id", student.id)
+          // Agendada só aparece para o aluno no dia (quando o cron aplica).
+          .not("applied_at", "is", null)
           .order("graduation_date", { ascending: false })
           .limit(1)
           .maybeSingle(),
@@ -585,6 +587,7 @@ export const getMyGraduations = createServerFn({ method: "GET" })
         .from("dojo_graduations")
         .select("id, graduation_date, degree, evaluator, notes, dojo_belts(name, color_hex, stripe_hex, modality, visual, variants, max_degrees)")
         .eq("student_id", me.id)
+        .not("applied_at", "is", null)
         .order("graduation_date", { ascending: false }),
     ]);
     return { current: current ? { ...current, degree: me.current_degree ?? 0 } : null, history: history ?? [] };

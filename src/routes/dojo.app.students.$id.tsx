@@ -1221,8 +1221,15 @@ function StudentDetail() {
                                     </div>
                                     {/* Nome da graduação */}
                                     <div className="min-w-0 flex-1">
-                                      <div className="truncate font-medium">
-                                        {formatBeltFull(g.belt?.name ?? "", g.belt?.modality, g.degree)}
+                                      <div className="flex min-w-0 items-center gap-2">
+                                        <span className="truncate font-medium">
+                                          {formatBeltFull(g.belt?.name ?? "", g.belt?.modality, g.degree)}
+                                        </span>
+                                        {!g.applied_at && (
+                                          <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                                            Agendada
+                                          </span>
+                                        )}
                                       </div>
                                       <div className="truncate text-xs text-muted-foreground">
                                         {fmtDate(g.graduation_date)} · {g.evaluator ?? "Avaliador não informado"}
@@ -2659,7 +2666,8 @@ function GraduationCriteriaCard({
   student: any; belts: any[]; graduations: any[]; attendanceRows: any[];
   onSaved: () => void; saveStudent: (args: any) => Promise<any>;
 }) {
-  const lastGrad = graduations[0];
+  // Última graduação já aplicada (a agendada para data futura ainda não vale).
+  const lastGrad = graduations.find((g: any) => g.applied_at);
   const currentBelt =
     (lastGrad?.belt as any) ??
     (student?.current_belt_id ? belts.find((b: any) => b.id === student.current_belt_id) : null);

@@ -198,6 +198,8 @@ export const checkIsAdmin = createServerFn({ method: "GET" })
 // ============ STUDENTS ============
 // Compute the most recent graduation per modality for each student.
 // A graduation only overrides another when they share the same modality.
+// Só graduações APLICADAS (applied_at preenchido) contam: a agendada para uma
+// data futura só vira faixa atual no dia, pelo cron apply-scheduled-graduations.
 async function attachCurrentBeltsByModality(
   supabase: any,
   students: any[],
@@ -210,6 +212,7 @@ async function attachCurrentBeltsByModality(
       .from("dojo_graduations")
       .select("student_id, degree, graduation_date, belt:dojo_belts(id,name,color_hex,stripe_hex,max_degrees,modality,sort_order,visual,variants)")
       .in("student_id", ids)
+      .not("applied_at", "is", null)
       .order("graduation_date", { ascending: false }),
     supabase
       .from("dojo_class_students")
@@ -316,9 +319,10 @@ export const getDojoStudent = createServerFn({ method: "GET" })
     }
 
     // Derive current belt per modality from ordered graduations (latest per modality wins).
+    // Agendada (applied_at vazio) ainda não é a faixa atual.
     const currentByModality = new Map<string, any>();
     for (const g of grads.data ?? []) {
-      if (!g.belt) continue;
+      if (!g.belt || !g.applied_at) continue;
       const mod = normalizeModality((g.belt as any).modality) || "jiu-jitsu";
       if (!currentByModality.has(mod)) {
         currentByModality.set(mod, { 
@@ -359,7 +363,7 @@ export const listGraduationProgress = createServerFn({ method: "GET" })
     const [studentsRes, beltsRes, gradsRes, attRes] = await Promise.all([
       context.supabase.from("dojo_students").select("id, full_name, current_belt_id, current_degree, graduation_criteria_mode, graduation_min_classes, graduation_min_months, created_at"),
       context.supabase.from("dojo_belts").select("id, name, modality, min_months, min_classes, criteria_mode, sort_order, max_degrees, color_hex, stripe_hex"),
-      context.supabase.from("dojo_graduations").select("student_id, belt_id, graduation_date, degree"),
+      context.supabase.from("dojo_graduations").select("student_id, belt_id, graduation_date, degree").not("applied_at", "is", null),
       context.supabase.from("dojo_attendance").select("student_id, checked_in_at").not("student_id", "is", null),
     ]);
     if (studentsRes.error) throw new Error(studentsRes.error.message);
@@ -714,11 +718,20 @@ export const updateDojoGraduation = createServerFn({ method: "POST" })
   }).parse(i))
   .handler(async ({ data, context }) => {
     const { data: grad } = await context.supabase
-      .from("dojo_graduations").select("student_id").eq("id", data.id).maybeSingle();
+      .from("dojo_graduations").select("student_id, applied_at").eq("id", data.id).maybeSingle();
 
+    // Data futura volta a ser agendada (o cron aplica no dia); hoje ou passado
+    // aplica já. Sem isso, adiar uma graduação aplicada nunca mais a aplicava.
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+    const scheduled = String(data.graduation_date).slice(0, 10) > today;
+    const appliedAt = (grad as any)?.applied_at as string | null | undefined;
     const { error } = await context.supabase
       .from("dojo_graduations")
-      .update({ graduation_date: data.graduation_date, evaluator: data.evaluator ?? null })
+      .update({
+        graduation_date: data.graduation_date,
+        evaluator: data.evaluator ?? null,
+        applied_at: scheduled ? null : (appliedAt ?? new Date().toISOString()),
+      })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
 
@@ -1793,6 +1806,7 @@ export const getCertificateIssueContext = createServerFn({ method: "GET" })
       context.supabase.from("dojo_graduations")
         .select("*, belt:dojo_belts(name,modality,color_hex,stripe_hex,max_degrees,visual,variants)")
         .eq("student_id", data.student_id)
+        .not("applied_at", "is", null)
         .order("graduation_date", { ascending: false })
         .limit(1).maybeSingle(),
     ]);

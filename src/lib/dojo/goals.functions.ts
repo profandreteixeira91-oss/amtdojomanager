@@ -66,6 +66,7 @@ async function computeAutoProgress(supabase: any, goal: any): Promise<number> {
       .from("dojo_graduations")
       .select("id, degree, belt_id, graduation_date")
       .eq("student_id", goal.student_id)
+      .not("applied_at", "is", null)
       .gte("graduation_date", (goal.start_date ?? "1970-01-01"));
     const { data: grads } = await q;
     const match = (grads ?? []).some((g: any) =>
